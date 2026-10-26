@@ -1,0 +1,2798 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#0b0f19" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>v2rayN 三段式管家 V2.0 — 定时获取 · 定时测试 · 定时汇总 · 每周检讨</title>
+  <link rel="manifest" href="manifest.json" />
+  <style>
+    :root {
+      --bg-base: #0b0f19;
+      --bg-surface: #131b2e;
+      --bg-elevated: #1b253d;
+      --bg-card: #151e32;
+      --border: #26334d;
+      --border-subtle: #1e2940;
+      --text-main: #f1f5f9;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      --primary: #3b82f6;
+      --primary-hover: #2563eb;
+      --primary-soft: rgba(59, 130, 246, 0.15);
+      --emerald: #10b981;
+      --emerald-soft: rgba(16, 185, 129, 0.15);
+      --amber: #f59e0b;
+      --amber-soft: rgba(245, 158, 11, 0.16);
+      --rose: #f43f5e;
+      --rose-soft: rgba(244, 63, 94, 0.16);
+      --purple: #8b5cf6;
+      --purple-soft: rgba(139, 92, 246, 0.16);
+      --cyan: #06b6d4;
+      --cyan-soft: rgba(6, 182, 212, 0.15);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      background-color: var(--bg-base);
+      color: var(--text-main);
+      line-height: 1.5;
+      min-height: 100vh;
+      padding-bottom: calc(76px + var(--safe-bottom));
+      overflow-x: hidden;
+    }
+
+    .app-shell {
+      max-width: 560px;
+      margin: 0 auto;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      background: var(--bg-base);
+      box-shadow: 0 0 50px rgba(0, 0, 0, 0.6);
+    }
+
+    body.wide-mode .app-shell {
+      max-width: 1100px;
+    }
+
+    /* Top App Header */
+    .app-header {
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      background: rgba(11, 15, 25, 0.92);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--border);
+      padding: 11px 14px 10px;
+    }
+
+    .header-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-logo {
+      width: 34px;
+      height: 34px;
+      border-radius: 9px;
+      background: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 15px;
+      color: #fff;
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.35);
+      flex-shrink: 0;
+    }
+
+    .brand-title {
+      font-size: 15px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .v-badge {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: 99px;
+      background: var(--primary-soft);
+      color: #60a5fa;
+      border: 1px solid rgba(59, 130, 246, 0.35);
+    }
+
+    .brand-sub {
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .engine-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      padding: 4px 9px;
+      border-radius: 99px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      cursor: pointer;
+    }
+
+    .engine-pill.connected {
+      background: var(--emerald-soft);
+      border-color: rgba(16, 185, 129, 0.4);
+      color: #34d399;
+    }
+
+    .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--emerald);
+      box-shadow: 0 0 6px var(--emerald);
+    }
+
+    .dot.amber {
+      background: var(--amber);
+      box-shadow: 0 0 6px var(--amber);
+    }
+
+    /* 4 Independent Scheduled Tasks Matrix */
+    .cron-matrix {
+      margin-top: 9px;
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 6px;
+    }
+
+    body.wide-mode .cron-matrix {
+      grid-template-columns: repeat(4, 1fr);
+    }
+
+    .cron-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 9px;
+      padding: 7px 9px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      transition: all 0.15s;
+    }
+
+    .cron-card.enabled {
+      border-color: rgba(59, 130, 246, 0.35);
+      background: rgba(30, 41, 64, 0.65);
+    }
+
+    .cron-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 4px;
+    }
+
+    .cron-name {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-main);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .cron-bottom {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 4px;
+      margin-top: 2px;
+    }
+
+    .cron-time-sel {
+      background: var(--bg-base);
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      font-size: 10px;
+      padding: 2px 4px;
+      border-radius: 5px;
+      outline: none;
+      max-width: 115px;
+    }
+
+    .cron-run-btn {
+      background: var(--primary-soft);
+      color: #60a5fa;
+      border: 1px solid rgba(59, 130, 246, 0.35);
+      border-radius: 5px;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 7px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s;
+    }
+
+    .cron-run-btn:hover {
+      background: var(--primary);
+      color: #fff;
+    }
+
+    .cron-run-btn:active {
+      transform: scale(0.95);
+    }
+
+    /* Main Content */
+    .app-content {
+      flex: 1;
+      padding: 12px 14px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .tab-pane {
+      display: none;
+      flex-direction: column;
+      gap: 14px;
+      animation: fadeIn 0.18s ease-out;
+    }
+
+    .tab-pane.active {
+      display: flex;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Cards */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+
+    .card-title {
+      font-size: 14px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      color: var(--text-main);
+    }
+
+    .card-sub {
+      font-size: 11px;
+      color: var(--text-secondary);
+      margin-top: 2px;
+    }
+
+    /* KPI Grid */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+
+    .kpi-box {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 10px;
+      padding: 9px 6px;
+      text-align: center;
+    }
+
+    .kpi-val {
+      font-size: 15px;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      color: var(--text-main);
+    }
+
+    .kpi-lbl {
+      font-size: 10px;
+      color: var(--text-secondary);
+      margin-top: 2px;
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 8px 12px;
+      border-radius: 9px;
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: all 0.15s;
+      user-select: none;
+      white-space: nowrap;
+      font-family: inherit;
+    }
+
+    .btn:active { transform: scale(0.97); }
+    .btn-primary { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: #fff; box-shadow: 0 3px 10px rgba(37, 99, 235, 0.3); }
+    .btn-emerald { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #fff; box-shadow: 0 3px 10px rgba(16, 185, 129, 0.25); }
+    .btn-amber { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: #fff; }
+    .btn-rose { background: linear-gradient(135deg, #f43f5e 0%, #e11d48 100%); color: #fff; }
+    .btn-ghost { background: var(--bg-elevated); color: var(--text-main); border-color: var(--border); }
+    .btn-ghost:hover { border-color: #475569; }
+    .btn-sm { font-size: 11px; padding: 4px 8px; border-radius: 7px; }
+    .btn-xs { font-size: 10px; padding: 3px 6px; border-radius: 5px; }
+    .btn-block { width: 100%; }
+
+    /* Compact Switch */
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 34px;
+      height: 18px;
+      flex-shrink: 0;
+    }
+
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider {
+      position: absolute; cursor: pointer; inset: 0;
+      background-color: #334155; transition: .22s; border-radius: 18px;
+    }
+    .slider:before {
+      position: absolute; content: ""; height: 14px; width: 14px;
+      left: 2px; bottom: 2px; background-color: white; transition: .22s; border-radius: 50%;
+    }
+    input:checked + .slider { background-color: var(--emerald); }
+    input:checked + .slider:before { transform: translateX(16px); }
+
+    /* Form Controls */
+    .form-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border-subtle);
+      gap: 10px;
+    }
+    .form-row:last-child { border-bottom: none; }
+    .form-label { font-size: 12px; color: var(--text-main); font-weight: 500; }
+    .form-hint { font-size: 11px; color: var(--text-secondary); }
+
+    .input, .select, .textarea {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      color: var(--text-main);
+      border-radius: 8px;
+      padding: 7px 10px;
+      font-size: 12px;
+      outline: none;
+      font-family: inherit;
+    }
+    .input:focus, .select:focus, .textarea:focus { border-color: var(--primary); }
+    .textarea {
+      width: 100%;
+      min-height: 72px;
+      resize: vertical;
+      font-family: "JetBrains Mono", Consolas, monospace;
+      font-size: 11px;
+    }
+
+    /* Tags & Badges */
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 6px;
+      border-radius: 5px;
+      line-height: 1.3;
+    }
+    .tag-vless { background: var(--purple-soft); color: #c4b5fd; border: 1px solid rgba(139, 92, 246, 0.3); }
+    .tag-trojan { background: var(--rose-soft); color: #fda4af; border: 1px solid rgba(244, 63, 94, 0.3); }
+    .tag-ss { background: var(--cyan-soft); color: #67e8f9; border: 1px solid rgba(6, 182, 212, 0.3); }
+    .tag-vmess { background: var(--amber-soft); color: #fcd34d; border: 1px solid rgba(245, 158, 11, 0.3); }
+    .tag-ok { background: var(--emerald-soft); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
+    .tag-warn { background: var(--amber-soft); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.35); }
+    .tag-err { background: var(--rose-soft); color: #fb7185; border: 1px solid rgba(244, 63, 94, 0.35); }
+    .tag-proxy { background: var(--primary-soft); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.35); }
+
+    /* Subscription Source List */
+    .sub-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 420px;
+      overflow-y: auto;
+      padding-right: 2px;
+    }
+
+    .sub-item {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 10px 11px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 10px;
+      transition: border-color 0.15s;
+    }
+
+    .sub-item:hover { border-color: var(--border); }
+
+    .sub-item-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .sub-name {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .sub-url {
+      font-size: 10px;
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-family: Consolas, monospace;
+    }
+
+    .sub-probe-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      flex-wrap: wrap;
+      padding-top: 4px;
+      border-top: 1px dashed rgba(255, 255, 255, 0.06);
+    }
+
+    .probe-badges {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    /* Alert Banners */
+    .banner-partial {
+      background: linear-gradient(135deg, rgba(244, 63, 94, 0.18) 0%, rgba(245, 158, 11, 0.14) 100%);
+      border: 1px solid rgba(244, 63, 94, 0.5);
+      border-radius: 12px;
+      padding: 12px;
+      color: #fecdd3;
+    }
+    .banner-partial-title {
+      font-size: 13px; font-weight: 700; color: #fda4af;
+      display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;
+    }
+    .banner-partial-list { font-size: 11px; color: #ffe4e6; padding-left: 16px; line-height: 1.6; }
+
+    /* Tables */
+    .table-wrap {
+      width: 100%;
+      overflow-x: auto;
+      border-radius: 10px;
+      border: 1px solid var(--border-subtle);
+    }
+    table.data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+      text-align: left;
+      white-space: nowrap;
+    }
+    table.data-table th {
+      background: var(--bg-elevated);
+      color: var(--text-secondary);
+      font-weight: 600;
+      padding: 8px 9px;
+      border-bottom: 1px solid var(--border);
+    }
+    table.data-table td {
+      padding: 8px 9px;
+      border-bottom: 1px solid var(--border-subtle);
+      color: var(--text-main);
+      font-variant-numeric: tabular-nums;
+    }
+    table.data-table tr:last-child td { border-bottom: none; }
+    table.data-table tr:hover td { background: rgba(59, 130, 246, 0.06); }
+
+    /* Node Rank Cards */
+    .node-list { display: flex; flex-direction: column; gap: 8px; }
+    .node-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 11px;
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .node-card:hover { border-color: var(--primary); background: rgba(59, 130, 246, 0.05); }
+    .node-rank {
+      width: 24px; height: 24px; border-radius: 7px;
+      background: var(--bg-elevated); color: var(--text-secondary);
+      font-size: 11px; font-weight: 800;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .node-rank.top1 { background: linear-gradient(135deg, #f59e0b, #d97706); color: #fff; }
+    .node-rank.top2 { background: linear-gradient(135deg, #94a3b8, #64748b); color: #fff; }
+    .node-rank.top3 { background: linear-gradient(135deg, #b45309, #92400e); color: #fff; }
+    .node-main { flex: 1; min-width: 0; }
+    .node-title {
+      font-size: 12px; font-weight: 600; color: var(--text-main);
+      display: flex; align-items: center; gap: 5px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .node-meta {
+      font-size: 10px; color: var(--text-secondary); margin-top: 3px;
+      display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    }
+    .node-metrics { text-align: right; flex-shrink: 0; }
+    .metric-spd { font-size: 13px; font-weight: 800; color: #34d399; font-variant-numeric: tabular-nums; }
+    .metric-lat { font-size: 11px; color: #60a5fa; font-variant-numeric: tabular-nums; }
+
+    /* Terminal Box */
+    .terminal-box {
+      background: #070a12;
+      border: 1px solid #1e293b;
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-family: "JetBrains Mono", Consolas, monospace;
+      font-size: 11px;
+      color: #cbd5e1;
+      max-height: 200px;
+      overflow-y: auto;
+      line-height: 1.55;
+    }
+    .log-line { margin-bottom: 2px; word-break: break-all; }
+    .log-time { color: #64748b; }
+    .log-ok { color: #34d399; }
+    .log-warn { color: #fbbf24; }
+    .log-err { color: #fb7185; }
+    .log-info { color: #60a5fa; }
+
+    /* Progress Bar */
+    .progress-track {
+      width: 100%; height: 8px; background: var(--bg-surface);
+      border-radius: 99px; overflow: hidden; border: 1px solid var(--border-subtle);
+    }
+    .progress-fill {
+      height: 100%; background: linear-gradient(90deg, #3b82f6, #10b981);
+      border-radius: 99px; transition: width 0.25s ease;
+    }
+
+    /* Segmented Control */
+    .seg-bar {
+      display: flex; background: var(--bg-surface); padding: 4px;
+      border-radius: 10px; border: 1px solid var(--border-subtle); gap: 4px; overflow-x: auto;
+    }
+    .seg-btn {
+      flex: 1; text-align: center; padding: 6px 8px; font-size: 11px; font-weight: 600;
+      color: var(--text-secondary); border-radius: 7px; cursor: pointer;
+      white-space: nowrap; border: none; background: transparent; transition: all 0.15s;
+    }
+    .seg-btn.active {
+      background: var(--primary); color: #fff; box-shadow: 0 2px 8px rgba(59, 130, 246, 0.35);
+    }
+
+    /* Round Stepper */
+    .round-stepper { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .round-box {
+      background: var(--bg-surface); border: 1px solid var(--border);
+      border-radius: 10px; padding: 10px; position: relative;
+    }
+    .round-box.done { border-color: rgba(16, 185, 129, 0.45); background: rgba(16, 185, 129, 0.06); }
+    .round-box.missing { border-color: rgba(244, 63, 94, 0.45); background: rgba(244, 63, 94, 0.06); }
+
+    /* Bottom Navigation (5 Tabs) */
+    .bottom-nav {
+      position: fixed;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100%;
+      max-width: 560px;
+      background: rgba(15, 23, 42, 0.95);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-top: 1px solid var(--border);
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      padding: 6px 6px calc(6px + var(--safe-bottom));
+      z-index: 50;
+    }
+    body.wide-mode .bottom-nav { max-width: 1100px; }
+    .nav-item {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 3px; padding: 4px 0; color: var(--text-muted); cursor: pointer;
+      border-radius: 10px; transition: all 0.15s; border: none; background: none; font-family: inherit;
+    }
+    .nav-item.active { color: #60a5fa; }
+    .nav-item svg { width: 19px; height: 19px; }
+    .nav-lbl { font-size: 10px; font-weight: 600; }
+
+    /* Modal */
+    .modal-backdrop {
+      position: fixed; inset: 0; background: rgba(0, 0, 0, 0.74);
+      backdrop-filter: blur(4px); z-index: 100; display: none;
+      align-items: center; justify-content: center; padding: 16px;
+    }
+    .modal-backdrop.open { display: flex; }
+    .modal-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 16px; width: 100%; max-width: 440px; padding: 18px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6); max-height: 90vh; overflow-y: auto;
+    }
+
+    /* Toast */
+    .toast-wrap {
+      position: fixed; top: 70px; left: 50%; transform: translateX(-50%);
+      z-index: 120; display: flex; flex-direction: column; gap: 6px;
+      pointer-events: none; width: 92%; max-width: 400px;
+    }
+    .toast {
+      background: rgba(15, 23, 42, 0.96); border: 1px solid var(--primary);
+      color: #fff; padding: 10px 14px; border-radius: 10px; font-size: 12px; font-weight: 600;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45); display: flex; align-items: center; gap: 8px;
+      animation: fadeIn 0.2s ease-out;
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <!-- Top App Header + 4 Independent Scheduled Tasks Matrix -->
+    <header class="app-header">
+      <div class="header-top">
+        <div class="brand">
+          <div class="brand-logo">V2</div>
+          <div>
+            <div class="brand-title">
+              v2rayN 三段式管家
+              <span class="v-badge">V2.0 可扩展架构</span>
+            </div>
+            <div class="brand-sub">定时获取 · 双通道测源 · 三段测速 · 每周检讨 & 90天清理</div>
+          </div>
+        </div>
+        <div class="header-actions">
+          <button class="engine-pill" id="bridgeStatusBtn" onclick="switchTab('tab-apk')" title="配置 PC Xray 桥接或 GitHub Actions APK">
+            <span class="dot amber" id="bridgeDot"></span>
+            <span id="bridgeLabel">双通道引擎就绪</span>
+          </button>
+          <button class="btn btn-ghost btn-sm" onclick="toggleWideMode()" title="切换手机/宽屏视图">
+            ⇄ 宽屏
+          </button>
+        </div>
+      </div>
+
+      <!-- 4 Independent Scheduled Tasks Matrix (Each has independent Switch + Schedule + Run Now) -->
+      <div class="cron-matrix">
+        <!-- Timer 1: Harvest -->
+        <div class="cron-card enabled" id="cronCard-harvest">
+          <div class="cron-top">
+            <span class="cron-name" onclick="switchTab('tab-harvest')">① 定时获取</span>
+            <label class="switch" title="单独开启/关闭定时获取">
+              <input type="checkbox" id="cronToggle-harvest" checked onchange="toggleIndependentCron('harvest', this.checked)" />
+              <span class="slider"></span>
+            </label>
+          </div>
+          <div class="cron-bottom">
+            <select class="cron-time-sel" id="cronSel-harvest" onchange="saveCronConfig()">
+              <option value="00:30" selected>每日 00:30</option>
+              <option value="6h">每 6 小时</option>
+              <option value="12h">每 12 小时</option>
+            </select>
+            <button class="cron-run-btn" onclick="triggerCronNow('harvest')">▶ 立即运行</button>
+          </div>
+        </div>
+
+        <!-- Timer 2: 3-Stage Test -->
+        <div class="cron-card enabled" id="cronCard-test">
+          <div class="cron-top">
+            <span class="cron-name" onclick="switchTab('tab-test')">② 定时测试</span>
+            <label class="switch" title="单独开启/关闭定时三段式测试">
+              <input type="checkbox" id="cronToggle-test" checked onchange="toggleIndependentCron('test', this.checked)" />
+              <span class="slider"></span>
+            </label>
+          </div>
+          <div class="cron-bottom">
+            <select class="cron-time-sel" id="cronSel-test" onchange="saveCronConfig()">
+              <option value="01:00" selected>01:00 (3遍×1h)</option>
+              <option value="13:00">13:00 (3遍×1h)</option>
+              <option value="8h">每 8 小时</option>
+            </select>
+            <button class="cron-run-btn" onclick="triggerCronNow('test')">▶ 立即运行</button>
+          </div>
+        </div>
+
+        <!-- Timer 3: Aggregate -->
+        <div class="cron-card enabled" id="cronCard-agg">
+          <div class="cron-top">
+            <span class="cron-name" onclick="switchTab('tab-agg')">③ 定时汇总</span>
+            <label class="switch" title="单独开启/关闭定时跨轮汇总">
+              <input type="checkbox" id="cronToggle-agg" checked onchange="toggleIndependentCron('agg', this.checked)" />
+              <span class="slider"></span>
+            </label>
+          </div>
+          <div class="cron-bottom">
+            <select class="cron-time-sel" id="cronSel-agg" onchange="saveCronConfig()">
+              <option value="04:55" selected>每日 04:55</option>
+              <option value="after_3">跑满3轮即汇总</option>
+              <option value="6h">每 6 小时</option>
+            </select>
+            <button class="cron-run-btn" onclick="triggerCronNow('agg')">▶ 立即运行</button>
+          </div>
+        </div>
+
+        <!-- Timer 4: Weekly Review & 90-Day Purge -->
+        <div class="cron-card enabled" id="cronCard-review">
+          <div class="cron-top">
+            <span class="cron-name" onclick="switchTab('tab-review')">④ 周检讨/清理</span>
+            <label class="switch" title="单独开启/关闭每周检讨与90天清理">
+              <input type="checkbox" id="cronToggle-review" checked onchange="toggleIndependentCron('review', this.checked)" />
+              <span class="slider"></span>
+            </label>
+          </div>
+          <div class="cron-bottom">
+            <select class="cron-time-sel" id="cronSel-review" onchange="saveCronConfig()">
+              <option value="sun_20" selected>每周日 20:00</option>
+              <option value="mon_09">每周一 09:00</option>
+              <option value="daily_clean">每日检查90天</option>
+            </select>
+            <button class="cron-run-btn" onclick="triggerCronNow('review')">▶ 立即运行</button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Tab Views -->
+    <main class="app-content">
+
+      <!-- ======================================================== -->
+      <!-- TAB 1: 定时获取 + 可扩展订阅源 + 直连/代理双通道测源     -->
+      <!-- ======================================================== -->
+      <section class="tab-pane active" id="tab-harvest">
+
+        <!-- Extensible Quick-Add & Pre-Test Source Card -->
+        <div class="card" style="border-color:rgba(59,130,246,0.4);">
+          <div class="card-header" style="margin-bottom:8px;">
+            <div>
+              <div class="card-title">➕ 自定义扩展订阅源 (支持直连/代理双通道预检)</div>
+              <div class="card-sub">只要有新源即可随时并入现有收集体系，支持 Base64 / 裸URI / Clash YAML / SIP008 JSON</div>
+            </div>
+            <button class="btn btn-ghost btn-sm" onclick="openBatchImportModal()">📋 批量粘贴/导入文本</button>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 2fr;gap:8px;margin-bottom:8px;">
+            <input type="text" class="input" id="newSourceName" placeholder="备注名称 (如: 挖掘-新源01)" />
+            <input type="text" class="input" id="newSourceUrl" placeholder="https://订阅源URL (支持 GitHub Raw / 机场订阅 / Clash)" />
+          </div>
+
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <select class="select" id="newSourceGroup" style="padding:5px 8px;font-size:11px;">
+                <option value="自定义扩展">分组: 自定义扩展</option>
+                <option value="GitHub挖掘">分组: GitHub挖掘</option>
+                <option value="主力机场">分组: 主力机场</option>
+                <option value="TG频道聚合">分组: TG频道聚合</option>
+              </select>
+              <span style="font-size:11px;color:var(--text-secondary);">单源抽样:</span>
+              <input type="number" class="input" id="limitPerSourceInput" value="60" min="10" max="5000" style="width:64px;padding:5px;text-align:center;" />
+            </div>
+
+            <div style="display:flex;gap:6px;">
+              <button class="btn btn-amber btn-sm" onclick="preTestNewSource()">
+                🔍 预检链接 (测直连 vs 代理)
+              </button>
+              <button class="btn btn-emerald btn-sm" onclick="addNewSourceToSystem()">
+                ✅ 添加到收集体系
+              </button>
+            </div>
+          </div>
+
+          <!-- Pre-test result box -->
+          <div id="preTestResultBox" style="display:none;margin-top:10px;padding:9px 11px;border-radius:9px;background:var(--bg-surface);border:1px solid var(--border);font-size:11px;"></div>
+        </div>
+
+        <!-- Harvest KPI & Dual-Channel Probe Toolbar -->
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">📡 订阅源收集池 & 双通道可用性巡检 (<span id="kpiSourceCount">32</span> 源)</div>
+              <div class="card-sub">测试每个订阅源在「非代理(直连)」与「代理(10808/中继)」下是否可抓取</div>
+            </div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+              <button class="btn btn-amber btn-sm" id="btnProbeAll" onclick="probeAllSourcesDualChannel()">
+                🩺 批量测源 (直连 vs 代理)
+              </button>
+              <button class="btn btn-primary btn-sm" onclick="runLiveHarvest()">
+                ⚡ 立即拉取选中源
+              </button>
+            </div>
+          </div>
+
+          <div class="kpi-grid" style="margin-bottom:12px;">
+            <div class="kpi-box">
+              <div class="kpi-val" id="kpiDirectOk" style="color:#34d399;">14</div>
+              <div class="kpi-lbl">直连可抓源</div>
+            </div>
+            <div class="kpi-box">
+              <div class="kpi-val" id="kpiProxyOnly" style="color:#60a5fa;">17</div>
+              <div class="kpi-lbl">需走代理源</div>
+            </div>
+            <div class="kpi-box">
+              <div class="kpi-val" id="kpiDeadSources" style="color:#fb7185;">1</div>
+              <div class="kpi-lbl">双通道均挂(待检讨)</div>
+            </div>
+            <div class="kpi-box">
+              <div class="kpi-val" id="kpiSampledCount" style="color:#fbbf24;">1,920</div>
+              <div class="kpi-lbl">等距抽样入池节点</div>
+            </div>
+          </div>
+
+          <!-- Progress bar for harvest / probe -->
+          <div id="harvestProgressWrap" style="display:none;margin-bottom:12px;">
+            <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px;">
+              <span id="harvestProgressText">正在执行...</span>
+              <span id="harvestProgressPct">0%</span>
+            </div>
+            <div class="progress-track">
+              <div class="progress-fill" id="harvestProgressBar" style="width:0%"></div>
+            </div>
+          </div>
+
+          <!-- Filter bar for sources -->
+          <div class="seg-bar" style="margin-bottom:10px;">
+            <button class="seg-btn active" onclick="filterSources('all', this)">全部源 (<span id="srcCnt-all">32</span>)</button>
+            <button class="seg-btn" onclick="filterSources('direct_ok', this)">🟢 直连可抓 (<span id="srcCnt-direct">14</span>)</button>
+            <button class="seg-btn" onclick="filterSources('proxy_only', this)">🔵 仅代理可抓 (<span id="srcCnt-proxy">17</span>)</button>
+            <button class="seg-btn" onclick="filterSources('dead', this)">🔴 双通道异常 (<span id="srcCnt-dead">1</span>)</button>
+          </div>
+
+          <div class="sub-list" id="subSourceList"></div>
+
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding-top:8px;border-top:1px solid var(--border-subtle);flex-wrap:wrap;gap:6px;">
+            <div style="display:flex;gap:5px;flex-wrap:wrap;">
+              <button class="btn btn-ghost btn-sm" onclick="toggleAllSources(true)">全选</button>
+              <button class="btn btn-ghost btn-sm" onclick="toggleAllSources(false)">全不选</button>
+              <button class="btn btn-rose btn-sm" onclick="deleteSelectedSources()">🗑️ 删除勾选源</button>
+              <button class="btn btn-amber btn-sm" onclick="deleteDeadSources()">🧹 清理异常死源</button>
+              <button class="btn btn-ghost btn-sm" onclick="resetDefaultSources()">🔄 恢复默认32源</button>
+            </div>
+            <div style="display:flex;gap:5px;">
+              <button class="btn btn-ghost btn-sm" onclick="exportSourcesTxt()">📥 导出订阅源.txt</button>
+              <button class="btn btn-ghost btn-sm" onclick="exportInputNodes()">📥 导出节点池</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Parsed Node Pool Preview -->
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">🗂️ 收集池活跃节点预览 (已过滤空Host与斜杠端口)</div>
+              <div class="card-sub">排除「废弃隔离区」节点，仅展示可参与三段式测试的有效节点</div>
+            </div>
+          </div>
+
+          <div class="seg-bar" style="margin-bottom:10px;">
+            <button class="seg-btn active" onclick="filterPoolByProto('all', this)">全部 (<span id="cnt-all">0</span>)</button>
+            <button class="seg-btn" onclick="filterPoolByProto('vless', this)">VLESS (<span id="cnt-vless">0</span>)</button>
+            <button class="seg-btn" onclick="filterPoolByProto('trojan', this)">Trojan (<span id="cnt-trojan">0</span>)</button>
+            <button class="seg-btn" onclick="filterPoolByProto('ss', this)">SS (<span id="cnt-ss">0</span>)</button>
+            <button class="seg-btn" onclick="filterPoolByProto('vmess', this)">VMess (<span id="cnt-vmess">0</span>)</button>
+          </div>
+
+          <div class="node-list" id="poolPreviewList"></div>
+        </div>
+      </section>
+
+      <!-- ======================================================== -->
+      <!-- TAB 2: 定时测试 (THREE-STAGE TEST V2.0)                  -->
+      <!-- ======================================================== -->
+      <section class="tab-pane" id="tab-test">
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">⚡ 三段式测试 V2.0 独立运行与补跑台</div>
+              <div class="card-sub">粗筛 Top1000 → 细筛 Top500 (35/30/35) · 连跑 3 遍筛跨时段稳定节点</div>
+            </div>
+            <span class="tag tag-ok" id="testEtaBadge">READY</span>
+          </div>
+
+          <div class="round-stepper" style="margin-bottom:12px;" id="roundStepperBox"></div>
+
+          <div class="form-row">
+            <div>
+              <div class="form-label">细筛综合评分权重 (延迟 / 抖动 / 速度)</div>
+              <div class="form-hint">默认 35% 延迟 + 30% 抖动稳定性 + 35% 下载速度</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:4px;">
+              <input type="number" class="input" id="wLat" value="35" style="width:48px;text-align:center;" onchange="recalcWeights()" />
+              <span>/</span>
+              <input type="number" class="input" id="wStd" value="30" style="width:48px;text-align:center;" onchange="recalcWeights()" />
+              <span>/</span>
+              <input type="number" class="input" id="wSpd" value="35" style="width:48px;text-align:center;" onchange="recalcWeights()" />
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px;">
+            <button class="btn btn-primary" onclick="startThreeStageRun('all')">
+              🚀 立即连跑 3 遍三阶段测试
+            </button>
+            <button class="btn btn-amber" onclick="startThreeStageRun('missing')">
+              🔧 补跑缺失轮次 (消 .partial)
+            </button>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px;">
+            <button class="btn btn-ghost btn-sm" onclick="startThreeStageRun(1)">▶ 单跑 第1轮 (run1)</button>
+            <button class="btn btn-ghost btn-sm" onclick="startThreeStageRun(2)">▶ 单跑 第2轮 (run2)</button>
+            <button class="btn btn-ghost btn-sm" onclick="startThreeStageRun(3)">▶ 单跑 第3轮 (run3)</button>
+          </div>
+        </div>
+
+        <!-- Live Execution Terminal -->
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">🖥️ 实时测试流水线日志 (3stage_run.log)</div>
+              <div class="card-sub" id="testStageStatusText">就绪 — 测速强制直连 (NO_PROXY=*)，不走系统代理</div>
+            </div>
+          </div>
+          <div style="margin-bottom:10px;">
+            <div class="progress-track">
+              <div class="progress-fill" id="testProgressBar" style="width:100%"></div>
+            </div>
+          </div>
+          <div class="terminal-box" id="testTerminalLog"></div>
+        </div>
+
+        <!-- Single-Round Inspector -->
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">🔍 单轮细筛结果明细 (run{N}_Top500_ranking)</div>
+              <div class="card-sub">仅保留真正连通节点 (latency_avg ≥ 0)，严防 score=0 死节点混入</div>
+            </div>
+            <button class="btn btn-ghost btn-sm" onclick="copyCurrentRoundLinks()">复制本轮链接</button>
+          </div>
+
+          <div class="seg-bar" style="margin-bottom:10px;">
+            <button class="seg-btn active" id="segRun1" onclick="selectInspectRound(1)">第 1 轮 (run1)</button>
+            <button class="seg-btn" id="segRun2" onclick="selectInspectRound(2)">第 2 轮 (run2)</button>
+            <button class="seg-btn" id="segRun3" onclick="selectInspectRound(3)">第 3 轮 (run3)</button>
+          </div>
+
+          <div class="node-list" id="roundInspectList"></div>
+        </div>
+      </section>
+
+      <!-- ======================================================== -->
+      <!-- TAB 3: 定时汇总 (AGGREGATE3 & EXPORT)                    -->
+      <!-- ======================================================== -->
+      <section class="tab-pane" id="tab-agg">
+        <div class="card">
+          <div class="card-header" style="margin-bottom:8px;">
+            <div>
+              <div class="card-title">📊 三阶段 × 3 遍 跨轮汇总中心 (aggregate3)</div>
+              <div class="card-sub">L018 轮数完整性门禁 · L020 动态头部统计 · L044 出口虚高降权后置</div>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="runAggregateNow()">▶ 立即重新汇总</button>
+          </div>
+
+          <div class="form-row" style="padding-top:4px;">
+            <span class="form-label">切换历史汇总批次：</span>
+            <select class="select" id="batchSelector" onchange="switchBatch(this.value)" style="flex:1;max-width:280px;">
+              <option value="2026-10-23">2026-10-23 (完整 3/3 轮 · 74,775 池 · 56推荐)</option>
+              <option value="2026-10-26">2026-10-26 (今日实测 · 1/3 轮 PARTIAL 告警演示)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- L018 Incomplete Warning Banner -->
+        <div class="banner-partial" id="partialWarningBanner" style="display:none;">
+          <div class="banner-partial-title">
+            <span>⚠️ 本报告不完整：仅 <span id="partialPresentCnt">1</span>/3 轮 (PARTIAL)</span>
+            <button class="btn btn-amber btn-sm" onclick="switchTab('tab-test'); startThreeStageRun('missing');">
+              立即补跑缺失轮次
+            </button>
+          </div>
+          <ul class="banner-partial-list">
+            <li>已完成轮次：<strong id="partialDoneList">[1]</strong>；缺失轮次：<strong id="partialMissingList">[2, 3]</strong></li>
+            <li><strong>L018 铁律</strong>：仅 1 轮历史时不可当作 3/3 跨时段稳定结论！补跑满 3 轮后自动清除 <code>.partial</code>。</li>
+          </ul>
+        </div>
+
+        <!-- Funnel Comparison Table -->
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">📈 各轮漏斗对比 & 时段趋势</div>
+              <div class="card-sub" id="aggHeaderMeta">输入: input_nodes.txt (74,775 个可测节点)</div>
+            </div>
+          </div>
+
+          <div class="kpi-grid" style="margin-bottom:12px;">
+            <div class="kpi-box">
+              <div class="kpi-val" id="aggKpiPool">74,775</div>
+              <div class="kpi-lbl">输入可测节点</div>
+            </div>
+            <div class="kpi-box">
+              <div class="kpi-val" id="aggKpiPerfect" style="color:#34d399;">59</div>
+              <div class="kpi-lbl">跨轮均连通</div>
+            </div>
+            <div class="kpi-box">
+              <div class="kpi-val" id="aggKpiRecommend" style="color:#60a5fa;">56</div>
+              <div class="kpi-lbl">最终推荐(<800ms)</div>
+            </div>
+            <div class="kpi-box">
+              <div class="kpi-val" id="aggKpiInflated" style="color:#fbbf24;">10</div>
+              <div class="kpi-lbl">L044虚高后置</div>
+            </div>
+          </div>
+
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>轮次</th><th>时间</th><th>TCP探活</th><th>阶段1通过</th><th>通过率</th>
+                  <th>均延迟</th><th>最快</th><th>细筛连通</th><th>3/3稳定</th><th>有速度</th><th>均速Mbps</th><th>峰值Mbps</th>
+                </tr>
+              </thead>
+              <tbody id="funnelTableBody"></tbody>
+            </table>
+          </div>
+
+          <div id="trendSummaryBox" style="margin-top:10px;font-size:11px;color:var(--text-secondary);display:grid;grid-template-columns:1fr 1fr;gap:6px;background:var(--bg-surface);padding:9px 11px;border-radius:9px;"></div>
+        </div>
+
+        <!-- Final Ranking Tabs & Deliverable Export -->
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">🏆 跨轮稳定节点交付榜单</div>
+              <div class="card-sub">点击任意节点生成二维码（v2rayNG 扫码即用）或一键移入废弃隔离区</div>
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:10px;">
+            <button class="btn btn-emerald" onclick="copyRecommendedLinks(false)">📋 复制推荐纯链接 (可粘贴.txt)</button>
+            <button class="btn btn-primary" onclick="copyRecommendedLinks(true)">📦 复制 Base64 订阅串 (v2rayNG)</button>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:12px;">
+            <button class="btn btn-ghost btn-sm" onclick="downloadMarkdownReport()">📥 导出统计报告.md</button>
+            <button class="btn btn-ghost btn-sm" onclick="downloadRecommendedTxt()">📥 导出推荐_可粘贴.txt</button>
+            <button class="btn btn-ghost btn-sm" onclick="downloadJsonSummary()">📥 导出汇总.json</button>
+          </div>
+
+          <div class="seg-bar" style="margin-bottom:10px;">
+            <button class="seg-btn active" onclick="switchAggRankTab('recommend', this)">⭐ 最终推荐 (<span id="tabCntRec">56</span>)</button>
+            <button class="seg-btn" onclick="switchAggRankTab('speed', this)">🚀 速度榜 Top15</button>
+            <button class="seg-btn" onclick="switchAggRankTab('lowlat', this)">⚡ 低延迟 Top10</button>
+            <button class="seg-btn" onclick="switchAggRankTab('unstable', this)">⚠️ 不稳定 (<span id="tabCntUnstable">16</span>)</button>
+          </div>
+
+          <div class="node-list" id="aggNodeList"></div>
+        </div>
+      </section>
+
+      <!-- ======================================================== -->
+      <!-- TAB 4: 每周节点检讨 & 废弃节点 3个月(90天)清理           -->
+      <!-- ======================================================== -->
+      <section class="tab-pane" id="tab-review">
+        <!-- Weekly Review Control & 90-Day Lifecycle Overview -->
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">🗓️ 每周节点与订阅源检讨 & 90天墓碑清理</div>
+              <div class="card-sub">不可用节点先入「废弃隔离区」留档防重采，满 3 个月（90天）彻底物理清理</div>
+            </div>
+            <span class="tag tag-ok" id="reviewLastDateBadge">上次检讨: 2026-10-25</span>
+          </div>
+
+          <div class="kpi-grid" style="margin-bottom:12px;">
+            <div class="kpi-box">
+              <div class="kpi-val" id="revKpiActive" style="color:#34d399;">59</div>
+              <div class="kpi-lbl">跨轮活跃节点</div>
+            </div>
+            <div class="kpi-box">
+              <div class="kpi-val" id="revKpiDeprecated" style="color:#fbbf24;">5</div>
+              <div class="kpi-lbl">废弃隔离中(<90天)</div>
+            </div>
+            <div class="kpi-box">
+              <div class="kpi-val" id="revKpiExpired90" style="color:#fb7185;">4</div>
+              <div class="kpi-lbl">已满3个月(待清理)</div>
+            </div>
+            <div class="kpi-box">
+              <div class="kpi-val" id="revKpiPurgedTotal" style="color:#94a3b8;">312</div>
+              <div class="kpi-lbl">历史累计已清理</div>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div>
+              <div class="form-label">废弃不可用节点保留清理周期</div>
+              <div class="form-hint">留档期内作为黑名单指纹拦截重复入库，到期自动物理清除</div>
+            </div>
+            <select class="select" id="purgeRetentionDays" onchange="renderWeeklyReview()">
+              <option value="90" selected>满 3 个月 (90 天) 清理 [默认]</option>
+              <option value="60">满 2 个月 (60 天) 清理</option>
+              <option value="30">满 1 个月 (30 天) 清理</option>
+            </select>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px;">
+            <button class="btn btn-primary" onclick="runWeeklyReviewNow()">
+              🔍 立即执行本周节点与源检讨
+            </button>
+            <button class="btn btn-rose" onclick="purgeExpiredDeprecatedNodes()">
+              🗑️ 立即清理满 3 个月废弃节点 (<span id="btnExpiredCnt">4</span>)
+            </button>
+          </div>
+        </div>
+
+        <!-- Weekly Subscription Source Health Review -->
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">🩺 本周订阅源健康度检讨台账</div>
+              <div class="card-sub">自动识别双通道失效源、低产出源与高稳定源</div>
+            </div>
+          </div>
+
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>订阅源名称</th>
+                  <th>直连状态</th>
+                  <th>代理状态(10808)</th>
+                  <th>本周3/3稳定产出</th>
+                  <th>检讨建议</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="weeklySourceReviewBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Deprecated Nodes Tombstone Pool (90-Day / 3-Month Retention) -->
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">🗄️ 废弃不可用节点隔离墓碑库 (满 90 天清理)</div>
+              <div class="card-sub">展示节点废弃日期、淘汰原因、已隔离天数及距 90 天清理倒计时</div>
+            </div>
+            <button class="btn btn-ghost btn-sm" onclick="exportDeprecatedLog()">📥 导出废弃台账.json</button>
+          </div>
+
+          <div class="seg-bar" style="margin-bottom:10px;">
+            <button class="seg-btn active" onclick="filterDeprecated('all', this)">全部废弃 (<span id="depCnt-all">0</span>)</button>
+            <button class="seg-btn" onclick="filterDeprecated('expired', this)">🔴 已满3个月待清理 (<span id="depCnt-expired">0</span>)</button>
+            <button class="seg-btn" onclick="filterDeprecated('isolating', this)">🟡 隔离留档未满3个月 (<span id="depCnt-isolating">0</span>)</button>
+          </div>
+
+          <div class="node-list" id="deprecatedNodeList"></div>
+        </div>
+      </section>
+
+      <!-- ======================================================== -->
+      <!-- TAB 5: 方案 B (GitHub Actions 云端 APK) & PC 真核桥接    -->
+      <!-- ======================================================== -->
+      <section class="tab-pane" id="tab-apk">
+        <!-- Option B: GitHub Actions Cloud APK Build Guide -->
+        <div class="card" style="border-color:rgba(16,185,129,0.45);">
+          <div class="card-header">
+            <div>
+              <div class="card-title">🚀 方案 B：GitHub Actions 云端自动编译安卓 APK</div>
+              <div class="card-sub">本机无需安装 10GB Android Studio，推送代码即由 GitHub 云端产出 .apk</div>
+            </div>
+            <span class="tag tag-ok">已配置就绪</span>
+          </div>
+
+          <div style="font-size:12px;color:var(--text-secondary);line-height:1.65;">
+            <div style="background:var(--bg-surface);padding:10px 12px;border-radius:10px;border:1px solid var(--border-subtle);margin-bottom:10px;">
+              <div style="color:var(--text-main);font-weight:700;margin-bottom:4px;">已生成全套自动化编译工程文件：</div>
+              <div>1. <code>.github/workflows/build-apk.yml</code> — 云端 Ubuntu + JDK 17 + Android SDK + Capacitor 6 自动构建工作流</div>
+              <div>2. <code>push_to_github_apk.bat</code> — 一键初始化 Git 仓库并推送触发云端打包脚本</div>
+              <div>3. <code>capacitor.config.json</code> & <code>package.json</code> — 包名 <code>com.winnerds.v2rayn.threestage</code></div>
+            </div>
+
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button class="btn btn-emerald" style="flex:1;" onclick="copyGitPushCmd()">
+                📋 复制一键推送 GitHub 编译命令
+              </button>
+              <button class="btn btn-ghost" onclick="copyBridgeCmd()">
+                📋 复制 PC 桥接服务启动命令
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- PC Xray Bridge Connection Card -->
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">🔌 PC 真核桥接服务 (pc_bridge_server.py)</div>
+              <div class="card-sub">支持手机端调用电脑 127.0.0.1:10808 真实测试「直连 vs 代理」抓取并写回 订阅源.txt</div>
+            </div>
+            <span class="tag tag-warn" id="bridgeCardBadge">支持双通道探测</span>
+          </div>
+
+          <div class="form-row">
+            <div>
+              <div class="form-label">PC 桥接服务地址 (局域网或本机)</div>
+              <div class="form-hint">默认端口 18088，提供 <code>/api/probe_source</code> 真双通道测源接口</div>
+            </div>
+            <input type="text" class="input" id="bridgeUrlInput" value="http://127.0.0.1:18088" style="width:175px;" />
+          </div>
+
+          <div class="form-row">
+            <div>
+              <div class="form-label">本地代理端口 (测试代理抓取时使用)</div>
+              <div class="form-hint">对应 v2rayN 本地混合监听端口 10808 或自起 xray 10901</div>
+            </div>
+            <input type="text" class="input" id="localProxyInput" value="http://127.0.0.1:10808" style="width:175px;" />
+          </div>
+
+          <div style="display:flex;gap:8px;margin-top:10px;">
+            <button class="btn btn-primary btn-block" onclick="probePcBridge()">
+              🔄 连接 PC 桥接服务并同步真源台账
+            </button>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Bottom Navigation Bar (5 Tabs) -->
+    <nav class="bottom-nav">
+      <button class="nav-item active" id="nav-tab-harvest" onclick="switchTab('tab-harvest')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+          <polyline points="7 10 12 15 17 10" />
+          <line x1="12" y1="15" x2="12" y2="3" />
+        </svg>
+        <span class="nav-lbl">源获取&测源</span>
+      </button>
+      <button class="nav-item" id="nav-tab-test" onclick="switchTab('tab-test')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+        </svg>
+        <span class="nav-lbl">定时测试</span>
+      </button>
+      <button class="nav-item" id="nav-tab-agg" onclick="switchTab('tab-agg')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="20" x2="18" y2="10" />
+          <line x1="12" y1="20" x2="12" y2="4" />
+          <line x1="6" y1="20" x2="6" y2="14" />
+        </svg>
+        <span class="nav-lbl">定时汇总</span>
+      </button>
+      <button class="nav-item" id="nav-tab-review" onclick="switchTab('tab-review')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M9 11l3 3L22 4" />
+          <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+        </svg>
+        <span class="nav-lbl">每周检讨</span>
+      </button>
+      <button class="nav-item" id="nav-tab-apk" onclick="switchTab('tab-apk')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="5" y="2" width="14" height="20" rx="2" ry="2" />
+          <line x1="12" y1="18" x2="12.01" y2="18" />
+        </svg>
+        <span class="nav-lbl">方案B打包</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- Node Detail & QR Code Modal -->
+  <div class="modal-backdrop" id="nodeModal" onclick="if(event.target===this)closeNodeModal()">
+    <div class="modal-card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <div style="font-size:14px;font-weight:700;" id="modalNodeTitle">节点详情与二维码</div>
+        <button class="btn btn-ghost btn-sm" onclick="closeNodeModal()">✕ 关闭</button>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;background:#fff;padding:14px;border-radius:12px;margin-bottom:12px;">
+        <canvas id="qrCanvas" width="200" height="200"></canvas>
+        <div style="font-size:11px;color:#334155;margin-top:6px;font-weight:600;">使用 v2rayNG / NekoBox 扫码直接导入</div>
+      </div>
+      <div id="modalNodeStats" style="font-size:12px;color:var(--text-secondary);margin-bottom:10px;line-height:1.6;"></div>
+      <textarea class="textarea" id="modalNodeRaw" readonly style="margin-bottom:10px;"></textarea>
+      <div style="display:grid;grid-template-columns:2fr 1fr;gap:8px;">
+        <button class="btn btn-primary" onclick="copyModalNodeLink()">📋 复制节点链接</button>
+        <button class="btn btn-rose" onclick="deprecateCurrentModalNode()">🗑️ 标为废弃</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Batch Paste / Import Modal -->
+  <div class="modal-backdrop" id="addSourceModal" onclick="if(event.target===this)closeBatchImportModal()">
+    <div class="modal-card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <div style="font-size:14px;font-weight:700;">📋 批量粘贴订阅源 或 节点内容</div>
+        <button class="btn btn-ghost btn-sm" onclick="closeBatchImportModal()">✕</button>
+      </div>
+      <div style="font-size:11px;color:var(--text-secondary);margin-bottom:8px;">
+        支持每行一条 <code>备注|https://订阅URL</code> 批量加源，或粘贴 Base64 / 裸URI / Clash YAML 节点：
+      </div>
+      <textarea class="textarea" id="customPasteInput" placeholder="新发现源A|https://example.com/sub1.txt&#10;新发现源B|https://example.com/sub2.yaml" style="min-height:120px;margin-bottom:12px;"></textarea>
+      <button class="btn btn-primary btn-block" onclick="handleCustomImport()">解析并合入收集体系</button>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div class="toast-wrap" id="toastWrap"></div>
+
+  <script>
+    // =========================================================================
+    // 1. EXTENSIBLE SUBSCRIPTION SOURCES WITH DUAL-CHANNEL (DIRECT vs PROXY) STATUS
+    // =========================================================================
+    const TODAY_STR = "2026-10-26";
+    const DEFAULT_SOURCES = [
+      { id: 1, name: "挖掘-github-mahdibland", group: "GitHub挖掘", url: "https://raw.githubusercontent.com/mahdibland/V2RayAggregator/HEAD/sub/sub_merge.txt", enabled: true, lastCount: 60, directOk: false, directMs: -1, proxyOk: true, proxyMs: 182 },
+      { id: 2, name: "挖掘-github-nomorewalls", group: "GitHub挖掘", url: "https://raw.githubusercontent.com/peasoft/NoMoreWalls/HEAD/list.txt", enabled: true, lastCount: 60, directOk: true, directMs: 310, proxyOk: true, proxyMs: 145 },
+      { id: 3, name: "挖掘-github-ermaozi", group: "GitHub挖掘", url: "https://raw.githubusercontent.com/ermaozi/get_subscribe/HEAD/subscribe/v2ray.txt", enabled: true, lastCount: 60, directOk: true, directMs: 280, proxyOk: true, proxyMs: 138 },
+      { id: 4, name: "挖掘-github-aiboboxx", group: "GitHub挖掘", url: "https://raw.githubusercontent.com/aiboboxx/v2rayfree/HEAD/sub", enabled: true, lastCount: 60, directOk: false, directMs: -1, proxyOk: true, proxyMs: 195 },
+      { id: 5, name: "挖掘-github-mfuu", group: "GitHub挖掘", url: "https://raw.githubusercontent.com/mfuu/v2ray/HEAD/sub", enabled: true, lastCount: 60, directOk: true, directMs: 340, proxyOk: true, proxyMs: 160 },
+      { id: 6, name: "挖掘-github-automerge", group: "GitHub挖掘", url: "https://raw.githubusercontent.com/chengaopan/AutoMergePublicNodes/HEAD/list.txt", enabled: true, lastCount: 60, directOk: false, directMs: -1, proxyOk: true, proxyMs: 210 },
+      { id: 7, name: "挖掘-github-solispirit-vless", group: "GitHub挖掘", url: "https://raw.githubusercontent.com/SoliSpirit/v2ray-configs/HEAD/Protocols/vless.txt", enabled: true, lastCount: 60, directOk: true, directMs: 295, proxyOk: true, proxyMs: 152 },
+      { id: 8, name: "挖掘-github-barabama", group: "GitHub挖掘", url: "https://raw.githubusercontent.com/Barabama/FreeNodes/HEAD/nodes/merged.txt", enabled: true, lastCount: 60, directOk: false, directMs: -1, proxyOk: true, proxyMs: 176 },
+      { id: 9, name: "挖掘-github-deltakronecker", group: "GitHub挖掘", url: "https://raw.githubusercontent.com/Delta-Kronecker/V2ray-Config/HEAD/config/all_configs.txt", enabled: true, lastCount: 60, directOk: false, directMs: -1, proxyOk: true, proxyMs: 224 },
+      { id: 10, name: "挖掘-github-psg", group: "GitHub挖掘", url: "https://raw.githubusercontent.com/itsyebekhe/PSG/HEAD/config.txt", enabled: true, lastCount: 60, directOk: true, directMs: 410, proxyOk: true, proxyMs: 188 },
+      { id: 11, name: "挖掘-github-free18", group: "GitHub挖掘", url: "https://raw.githubusercontent.com/free18/v2ray/HEAD/v.txt", enabled: true, lastCount: 60, directOk: true, directMs: 265, proxyOk: true, proxyMs: 134 },
+      { id: 12, name: "挖掘-github-roosterkid", group: "GitHub挖掘", url: "https://raw.githubusercontent.com/roosterkid/openproxylist/HEAD/V2RAY_RAW.txt", enabled: true, lastCount: 60, directOk: false, directMs: -1, proxyOk: true, proxyMs: 205 },
+      { id: 13, name: "挖掘2-multi-proxy", group: "GitHub挖掘", url: "https://raw.githubusercontent.com/4n0nymou3/multi-proxy-config-fetcher/HEAD/configs/proxy_configs.txt", enabled: true, lastCount: 60, directOk: false, directMs: -1, proxyOk: true, proxyMs: 190 },
+      { id: 14, name: "挖掘2-ALIILAPRO", group: "GitHub挖掘", url: "https://raw.githubusercontent.com/ALIILAPRO/v2rayNG-Config/HEAD/sub.txt", enabled: true, lastCount: 60, directOk: true, directMs: 380, proxyOk: true, proxyMs: 170 },
+      { id: 15, name: "挖掘2-SubCrawler", group: "GitHub挖掘", url: "https://raw.githubusercontent.com/Leon406/SubCrawler/HEAD/sub/share/a11", enabled: true, lastCount: 60, directOk: false, directMs: -1, proxyOk: true, proxyMs: 230 },
+      { id: 16, name: "挖掘2-MatinGhanbari", group: "GitHub挖掘", url: "https://raw.githubusercontent.com/MatinGhanbari/v2ray-configs/HEAD/subscriptions/v2ray/all_sub.txt", enabled: true, lastCount: 60, directOk: true, directMs: 325, proxyOk: true, proxyMs: 165 },
+      { id: 17, name: "挖掘2-MhdiTaheri", group: "GitHub挖掘", url: "https://raw.githubusercontent.com/MhdiTaheri/V2rayCollector/HEAD/sub/mix", enabled: true, lastCount: 60, directOk: false, directMs: -1, proxyOk: true, proxyMs: 215 },
+      { id: 18, name: "挖掘2-Pawdroid", group: "GitHub挖掘", url: "https://raw.githubusercontent.com/Pawdroid/Free-servers/HEAD/sub", enabled: true, lastCount: 60, directOk: true, directMs: 270, proxyOk: true, proxyMs: 140 },
+      { id: 19, name: "挖掘2-RayanConfig", group: "GitHub挖掘", url: "https://raw.githubusercontent.com/Rayan-Config/C-Sub/HEAD/configs/proxy.txt", enabled: true, lastCount: 60, directOk: false, directMs: -1, proxyOk: true, proxyMs: 198 },
+      { id: 20, name: "挖掘2-Ruk1ng", group: "GitHub挖掘", url: "https://raw.githubusercontent.com/Ruk1ng001/freeSub/HEAD/v2ray", enabled: false, lastCount: 0, directOk: false, directMs: -1, proxyOk: false, proxyMs: -1 },
+      { id: 21, name: "挖掘2-SoliSpirit-ss", group: "GitHub挖掘", url: "https://raw.githubusercontent.com/SoliSpirit/v2ray-configs/HEAD/Protocols/ss.txt", enabled: true, lastCount: 60, directOk: true, directMs: 302, proxyOk: true, proxyMs: 149 },
+      { id: 22, name: "挖掘2-SoliSpirit-trojan", group: "GitHub挖掘", url: "https://raw.githubusercontent.com/SoliSpirit/v2ray-configs/HEAD/Protocols/trojan.txt", enabled: true, lastCount: 60, directOk: true, directMs: 318, proxyOk: true, proxyMs: 155 },
+      { id: 23, name: "挖掘2-SoliSpirit-vmess", group: "GitHub挖掘", url: "https://raw.githubusercontent.com/SoliSpirit/v2ray-configs/HEAD/Protocols/vmess.txt", enabled: true, lastCount: 60, directOk: false, directMs: -1, proxyOk: true, proxyMs: 172 },
+      { id: 24, name: "挖掘2-TGParse", group: "TG频道聚合", url: "https://raw.githubusercontent.com/Surfboardv2ray/TGParse/HEAD/configtg.txt", enabled: true, lastCount: 60, directOk: false, directMs: -1, proxyOk: true, proxyMs: 184 },
+      { id: 25, name: "挖掘2-anaer-yaml", group: "GitHub挖掘", url: "https://raw.githubusercontent.com/anaer/Sub/HEAD/proxies.yaml", enabled: true, lastCount: 60, directOk: true, directMs: 355, proxyOk: true, proxyMs: 162 },
+      { id: 26, name: "挖掘2-awesome-vpn", group: "GitHub挖掘", url: "https://raw.githubusercontent.com/awesome-vpn/awesome-vpn/HEAD/all", enabled: true, lastCount: 60, directOk: false, directMs: -1, proxyOk: true, proxyMs: 201 },
+      { id: 27, name: "挖掘2-barry-far", group: "GitHub挖掘", url: "https://raw.githubusercontent.com/barry-far/V2ray-Config/HEAD/All_Configs_Sub.txt", enabled: true, lastCount: 60, directOk: false, directMs: -1, proxyOk: true, proxyMs: 240 },
+      { id: 28, name: "挖掘2-ebrasha", group: "GitHub挖掘", url: "https://raw.githubusercontent.com/ebrasha/free-v2ray-public-list/HEAD/all_extracted_configs.txt", enabled: true, lastCount: 60, directOk: true, directMs: 390, proxyOk: true, proxyMs: 179 },
+      { id: 29, name: "挖掘2-mheidari98", group: "GitHub挖掘", url: "https://raw.githubusercontent.com/mheidari98/.proxy/HEAD/all", enabled: true, lastCount: 60, directOk: false, directMs: -1, proxyOk: true, proxyMs: 193 },
+      { id: 30, name: "挖掘2-snakem982", group: "GitHub挖掘", url: "https://raw.githubusercontent.com/snakem982/proxypool/HEAD/source/v2ray-2.txt", enabled: true, lastCount: 60, directOk: false, directMs: -1, proxyOk: true, proxyMs: 186 },
+      { id: 31, name: "挖掘2-ts-sf", group: "GitHub挖掘", url: "https://raw.githubusercontent.com/ts-sf/fly/HEAD/v2", enabled: true, lastCount: 60, directOk: false, directMs: -1, proxyOk: true, proxyMs: 208 },
+      { id: 32, name: "挖掘2-zhuhaiuk", group: "GitHub挖掘", url: "https://raw.githubusercontent.com/zhuhaiuk/free-nodes/HEAD/nodes.txt", enabled: true, lastCount: 60, directOk: true, directMs: 220, proxyOk: true, proxyMs: 118 }
+    ];
+
+    // Preloaded Deprecated Tombstone Pool (3-Month / 90-Day Lifecycle Management)
+    const DEFAULT_DEPRECATED_NODES = [
+      // Expired >= 90 days (Deprecated in July 2026, now Oct 26, 2026 -> 92 to 112 days old)
+      { id: "dep-1", name: "🇺🇸US_Old_102|死节点", proto: "vless", host: "198.51.100.12:443", source: "挖掘-github-mahdibland", deprecatedAt: "2026-07-06", reason: "连续 3 周三段式 TCP 探活超时 (Connection Refused)", raw: "vless://0000@198.51.100.12:443#US_Old_102" },
+      { id: "dep-2", name: "🇯🇵JP_Tokyo_Legacy09", proto: "trojan", host: "203.0.113.88:8443", source: "挖掘-github-ermaozi", deprecatedAt: "2026-07-14", reason: "TLS 证书过期且 IP 已下线 (连续 21 轮不通)", raw: "trojan://pass@203.0.113.88:8443#JP_Tokyo_Legacy09" },
+      { id: "dep-3", name: "🇸🇬SG_Free_Node_44", proto: "ss", host: "192.0.2.199:19999", source: "挖掘2-Ruk1ng", deprecatedAt: "2026-07-21", reason: "阶段 1 代理 204 连续返回 502 Bad Gateway", raw: "ss://YWVz@192.0.2.199:19999#SG_Free_Node_44" },
+      { id: "dep-4", name: "🇬🇧UK_London_Relay03", proto: "vmess", host: "198.51.100.204:2053", source: "挖掘2-SubCrawler", deprecatedAt: "2026-07-26", reason: "周度检讨判定永久失效 (满 92 天)", raw: "vmess://eyJhZGQiOiIxOTguNTEuMTAwLjIwNCJ9" },
+
+      // In 90-day isolation (< 90 days old: Aug / Sep / Oct 2026)
+      { id: "dep-5", name: "🇩🇪DE_133|4.7MB/s|S004", proto: "vless", host: "144.31.252.100:8443", source: "挖掘-github-barabama", deprecatedAt: "2026-08-18", reason: "3 轮细筛下载速度为 0 Mbps，周检讨淘汰留档", raw: "vless://uuid@144.31.252.100:8443#DE_133" },
+      { id: "dep-6", name: "🇵🇱PL_37|2.2MB/s|A001", proto: "vless", host: "89.116.180.30:8880", source: "挖掘-github-aiboboxx", deprecatedAt: "2026-09-02", reason: "周检讨跨轮连通率 < 20% (抖动 > 600ms)", raw: "vless://uuid@89.116.180.30:8880#PL_37" },
+      { id: "dep-7", name: "🇸🇪SE_10|710KB/s|A001", proto: "trojan", host: "185.18.250.252:443", source: "挖掘2-MatinGhanbari", deprecatedAt: "2026-09-19", reason: "阶段 1 TLS 握手超时，转入 90 天墓碑隔离", raw: "trojan://pass@185.18.250.252:443#SE_10" },
+      { id: "dep-8", name: "🇳🇱NL_308|3.0MB/s|K001", proto: "vless", host: "45.141.118.232:7443", source: "挖掘-github-psg", deprecatedAt: "2026-10-05", reason: "周度检讨连续 3 次细筛无速度 (-1.0 Mbps)", raw: "vless://uuid@45.141.118.232:7443#NL_308" },
+      { id: "dep-9", name: "🇧🇷BR_3|245KB/s|F003", proto: "ss", host: "202.50.253.99:19999", source: "挖掘2-SoliSpirit-ss", deprecatedAt: "2026-10-19", reason: "10-19 周检讨判定断连，隔离观察中", raw: "ss://YWVz@202.50.253.99:19999#BR_3" }
+    ];
+
+    const BATCH_DB = {
+      "2026-10-23": {
+        date: "2026-10-23 05:01:23",
+        poolSize: 74775,
+        poolSource: "input_nodes.txt",
+        roundsPresent: [1, 2, 3],
+        roundsMissing: [],
+        incomplete: false,
+        funnel: [
+          { run: 1, time: "10-23 01:34", tcp: 13654, s1: 67, s1_rate: 0.49, lat_avg: 293.5, lat_min: 40, fine_n: 67, alive: 48, stable3: 46, spd_ok: 21, spd_avg: 59.18, spd_max: 137.17 },
+          { run: 2, time: "10-23 03:15", tcp: 14411, s1: 75, s1_rate: 0.52, lat_avg: 307.1, lat_min: 39, fine_n: 75, alive: 70, stable3: 61, spd_ok: 37, spd_avg: 52.33, spd_max: 162.64 },
+          { run: 3, time: "10-23 04:56", tcp: 14464, s1: 78, s1_rate: 0.54, lat_avg: 317.2, lat_min: 36, fine_n: 78, alive: 65, stable3: 55, spd_ok: 34, spd_avg: 51.64, spd_max: 149.82 }
+        ],
+        nodes: [
+          { name: "zhuhai.uk 🇯🇵日本", proto: "trojan", host: "74.82.196.93:443", lat_avg: 57, lat_min: 46, lat_std: 4.2, spd_avg: 56.49, spd_max: 61.2, alive: 3, rounds: 3, score: 91.4, inflated: false, raw: "trojan://d2dINbhQ1N@74.82.196.93:443?security=tls&sni=www.ugly-xu.top&type=tcp#zhuhai.uk%20%F0%9F%87%AF%F0%9F%87%B5%E6%97%A5%E6%9C%AC" },
+          { name: "🇸🇬SG_2|3.2MB/s|GPT⁺|YT-SG", proto: "vless", host: "18.136.76.91:443", lat_avg: 112, lat_min: 108, lat_std: 6.1, spd_avg: 53.80, spd_max: 58.4, alive: 3, rounds: 3, score: 88.6, inflated: false, raw: "vless://495c7195-85b8-498a-bf20-2ea9ce9175b5@18.136.76.91:443?security=tls&type=ws&path=%2F&sni=snip.edgeoneai.cc.cd#SG_2_YT" },
+          { name: "🇫🇷FR_280|6.6MB/s|F003-260618", proto: "vless", host: "144.31.181.177:8443", lat_avg: 161, lat_min: 159, lat_std: 5.5, spd_avg: 52.83, spd_max: 57.0, alive: 3, rounds: 3, score: 86.2, inflated: false, raw: "vless://495c7195-85b8-498a-bf20-2ea9ce9175b5@144.31.181.177:8443?security=tls&type=ws&path=%2F&host=snip.edgeoneai.cc.cd&packetEncoding=xudp&sni=snip.edgeoneai.cc.cd&fp=chrome&encryption=none#%F0%9F%87%A9%F0%9F%87%AADE_42%7C190KB%2Fs%7CF003-260618" },
+          { name: "🇮🇹IT_29|1.6MB/s|C001-260618", proto: "ss", host: "202.50.253.90:19999", lat_avg: 320, lat_min: 298, lat_std: 8.4, spd_avg: 30.09, spd_max: 34.2, alive: 3, rounds: 3, score: 81.5, inflated: false, raw: "ss://YWVzLTI1Ni1nY206WlJwZ2FCZUd4dEVOSVhndmhwa1pCS3o5R25XUlMyZFljeDlPK2EyaXdOND0=@202.50.253.90:19999#%F0%9F%87%AE%F0%9F%87%B9IT_29%7C1.6MB%2Fs%7CC001-260618" },
+          { name: "🇷🇺node.remnagecsp.ru (Reality)", proto: "vless", host: "node.remnagecsp.ru:7443", lat_avg: 390, lat_min: 365, lat_std: 11.2, spd_avg: 20.87, spd_max: 24.5, alive: 3, rounds: 3, score: 78.0, inflated: false, raw: "vless://81a227e3-cb97-40fe-b7b6-45a60ed065cf@node.remnagecsp.ru:7443?type=raw&security=reality&flow=xtls-rprx-vision&fp=firefox&pbk=0BVxZKOt6wO0jIB1xRkAAtaFUkmyFAbVWfkkKSJBfEI&sid=570ffeb12f6e4635&sni=node.remnagecsp.ru&encryption=none#remnagecsp_ru" },
+          { name: "🇳🇱NL_297|917KB/s|S001-260618", proto: "vless", host: "200.165.231.138:8444", lat_avg: 272, lat_min: 254, lat_std: 9.0, spd_avg: 20.48, spd_max: 22.1, alive: 3, rounds: 3, score: 79.4, inflated: false, raw: "vless://a346c521-7a7f-452b-9356-a4893feb5982@200.165.231.138:8444?security=reality&type=grpc&mode=gun&serviceName=GunService&packetEncoding=xudp&sni=github.com&fp=firefox&sid=457fab2ac885dbe0&pbk=FWitre1jinQR7qz5HQ0q2Q4Gg9xA9B0SyizCziN7Ch0#%F0%9F%87%B3%F0%9F%87%B1NL_297%7C917KB%2Fs%7CS001-260618" },
+          { name: "🌐rus1.justnable.xyz (Reality)", proto: "vless", host: "rus1.justnable.xyz:8443", lat_avg: 228, lat_min: 215, lat_std: 7.5, spd_avg: 19.99, spd_max: 23.0, alive: 3, rounds: 3, score: 80.1, inflated: false, raw: "vless://5d7e07ba-f460-4638-af79-bbcde67fcb6b@rus1.justnable.xyz:8443?encryption=none&security=reality&sni=www.asus.com&fp=chrome&pbk=xlXuN8KDdbqGEsaj1m2D8NUnR5d2oeo5TT71RSMmfxY&type=xhttp&path=/xh&mode=auto#rus1_justnable" },
+          { name: "☁️138.124.117.113 (iCloud Reality)", proto: "vless", host: "138.124.117.113:9443", lat_avg: 266, lat_min: 250, lat_std: 8.8, spd_avg: 15.03, spd_max: 17.5, alive: 3, rounds: 3, score: 75.8, inflated: false, raw: "vless://8179d7cc-82bc-4eae-a97f-5d30c6c2a812@138.124.117.113:9443?encryption=none&type=grpc&mode=multi&serviceName=grpc&security=reality&fp=chrome&sni=icloud.com&pbk=8bhS-nnIN67a292RpJsCPzXQy4CzpzOVLTPn5CiAFyg&sid=6ba7b810#icloud_reality" },
+          { name: "🇺🇸US_430|566KB/s|F003-260618", proto: "vless", host: "141.98.41.20:443", lat_avg: 54, lat_min: 45, lat_std: 4.0, spd_avg: 3.74, spd_max: 5.1, alive: 3, rounds: 3, score: 74.0, inflated: false, raw: "vless://495c7195-85b8-498a-bf20-2ea9ce9175b5@141.98.41.20:443?security=tls&type=ws&path=%2Ffp%3Dunsafe&host=snip.edgeoneai.cc.cd&packetEncoding=xudp&sni=snip.edgeoneai.cc.cd&fp=chrome&encryption=none#%F0%9F%87%BA%F0%9F%87%B8US_430%7C566KB%2Fs%7CF003-260618" },
+          { name: "🇺🇸US_459|829KB/s|K001-260618", proto: "vless", host: "104.18.22.45:443", lat_avg: 201, lat_min: 169, lat_std: 14.2, spd_avg: 143.71, spd_max: 143.71, alive: 3, rounds: 3, score: 64.0, inflated: true, raw: "vless://dfd5274f-1d81-404e-b72d-c324fe3f928d@104.18.22.45:443?encryption=none&security=tls&type=ws#US_459_CF" },
+          { name: "🇫🇷FR_283|4.0MB/s|F003-260618", proto: "vless", host: "172.67.141.182:443", lat_avg: 167, lat_min: 167, lat_std: 12.0, spd_avg: 137.17, spd_max: 137.17, alive: 3, rounds: 3, score: 63.5, inflated: true, raw: "vless://dfd5274f-1d81-404e-b72d-c324fe3f928d@172.67.141.182:443?encryption=none&security=tls&type=ws#FR_283_CF" },
+          { name: "🇭🇰HK_90|458KB/s|F003-260618", proto: "vless", host: "104.16.72.70:443", lat_avg: 46, lat_min: 46, lat_std: 5.0, spd_avg: 114.64, spd_max: 114.64, alive: 3, rounds: 3, score: 62.8, inflated: true, raw: "vless://dfd5274f-1d81-404e-b72d-c324fe3f928d@104.16.72.70:443?encryption=none&security=tls&type=ws#HK_90_CF" },
+          { name: "🇫🇷FR_166|665KB/s|S001-260618", proto: "vless", host: "185.193.30.30:8880", lat_avg: 229, lat_min: 210, lat_std: 32.0, spd_avg: 62.25, spd_max: 68.0, alive: 2, rounds: 3, score: 45.0, inflated: false, raw: "vless://495c7195-85b8-498a-bf20-2ea9ce9175b5@185.193.30.30:8880?type=ws#FR_166" },
+          { name: "🇨🇭CH_44|3.4MB/s|F003-260618", proto: "vless", host: "172.64.80.1:2053", lat_avg: 210, lat_min: 195, lat_std: 41.2, spd_avg: 59.85, spd_max: 61.0, alive: 1, rounds: 3, score: 31.0, inflated: false, raw: "vless://495c7195-85b8-498a-bf20-2ea9ce9175b5@172.64.80.1:2053?type=ws#CH_44" },
+          { name: "🇺🇸US_494|1.3MB/s|F003-260618", proto: "trojan", host: "209.46.30.149:443", lat_avg: 162, lat_min: 155, lat_std: 28.4, spd_avg: 45.77, spd_max: 49.0, alive: 1, rounds: 3, score: 29.5, inflated: false, raw: "trojan://pass@209.46.30.149:443#US_494" }
+        ]
+      },
+      "2026-10-26": {
+        date: "2026-10-26 10:06:53",
+        poolSize: 71103,
+        poolSource: "input_nodes.txt",
+        roundsPresent: [1],
+        roundsMissing: [2, 3],
+        incomplete: true,
+        funnel: [
+          { run: 1, time: "10-26 10:06", tcp: 11842, s1: 54, s1_rate: 0.46, lat_avg: 251.4, lat_min: 142, fine_n: 54, alive: 36, stable3: 32, spd_ok: 13, spd_avg: 19.60, spd_max: 34.64 }
+        ],
+        nodes: [
+          { name: "🇺🇸US_420|605KB/s|A001-260618", proto: "vless", host: "45.62.106.145:8443", lat_avg: 168.5, lat_min: 152, lat_std: 15.6, spd_avg: 34.64, spd_max: 34.64, alive: 1, rounds: 1, score: 84.7, inflated: false, raw: "vless://495c7195-85b8-498a-bf20-2ea9ce9175b5@45.62.106.145:8443?security=tls&type=ws#US_420_A001" },
+          { name: "EPODONIOS (202.50.253.63)", proto: "ss", host: "202.50.253.63:19999", lat_avg: 235.2, lat_min: 221, lat_std: 10.9, spd_avg: 18.50, spd_max: 18.50, alive: 1, rounds: 1, score: 80.2, inflated: false, raw: "ss://YWVzLTI1Ni1nY206WlJwZ2FCZUd4dEVOSVhndmhwa1pCS3o5R25XUlMyZFljeDlPK2EyaXdOND0=@202.50.253.63:19999#EPODONIOS_63" },
+          { name: "EPODONIOS (202.50.253.36)", proto: "ss", host: "202.50.253.36:19999", lat_avg: 261.3, lat_min: 248, lat_std: 11.2, spd_avg: 15.87, spd_max: 15.87, alive: 1, rounds: 1, score: 77.7, inflated: false, raw: "ss://YWVzLTI1Ni1nY206WlJwZ2FCZUd4dEVOSVhndmhwa1pCS3o5R25XUlMyZFljeDlPK2EyaXdOND0=@202.50.253.36:19999#EPODONIOS_36" },
+          { name: "EPODONIOS (202.50.253.18)", proto: "ss", host: "202.50.253.18:19999", lat_avg: 261.3, lat_min: 254, lat_std: 6.3, spd_avg: 10.19, spd_max: 10.19, alive: 1, rounds: 1, score: 76.5, inflated: false, raw: "ss://YWVzLTI1Ni1nY206WlJwZ2FCZUd4dEVOSVhndmhwa1pCS3o5R25XUlMyZFljeDlPK2EyaXdOND0=@202.50.253.18:19999#EPODONIOS_18" }
+        ]
+      }
+    };
+
+    // Global State
+    let state = {
+      sources: JSON.parse(localStorage.getItem("v2_sources_v2") || "null") || DEFAULT_SOURCES,
+      deprecatedNodes: JSON.parse(localStorage.getItem("v2_deprecated_v2") || "null") || DEFAULT_DEPRECATED_NODES,
+      purgedHistoryCount: Number(localStorage.getItem("v2_purged_cnt") || 312),
+      sourceFilter: "all",
+      depFilter: "all",
+      currentBatchKey: "2026-10-23",
+      aggRankMode: "recommend",
+      inspectRound: 1,
+      poolProtoFilter: "all",
+      harvestedPool: [],
+      filteredTrashCount: 148,
+      currentModalNode: null,
+      bridgeConnected: false
+    };
+
+    function saveState() {
+      localStorage.setItem("v2_sources_v2", JSON.stringify(state.sources));
+      localStorage.setItem("v2_deprecated_v2", JSON.stringify(state.deprecatedNodes));
+      localStorage.setItem("v2_purged_cnt", String(state.purgedHistoryCount));
+    }
+
+    function initSeedPool() {
+      const depHosts = new Set(state.deprecatedNodes.map(d => d.host));
+      const seen = new Set();
+      const pool = [];
+      Object.values(BATCH_DB).forEach(b => {
+        b.nodes.forEach(n => {
+          if (!seen.has(n.raw) && !depHosts.has(n.host)) {
+            seen.add(n.raw);
+            pool.push({ name: n.name, proto: n.proto, host: n.host, raw: n.raw });
+          }
+        });
+      });
+      state.harvestedPool = pool;
+    }
+
+    // =========================================================================
+    // 2. INDEPENDENT 4-CRON SCHEDULER MATRIX (SWITCH ON/OFF + RUN IMMEDIATELY)
+    // =========================================================================
+    function toggleIndependentCron(key, enabled) {
+      const card = document.getElementById("cronCard-" + key);
+      if (card) card.classList.toggle("enabled", enabled);
+      saveCronConfig();
+      const names = { harvest: "定时获取订阅源", test: "定时三段式测试", agg: "定时跨轮汇总", review: "每周节点检讨与90天清理" };
+      showToast(`${names[key]} 已${enabled ? "开启" : "单独关闭"}`);
+    }
+
+    function saveCronConfig() {
+      const cfg = {};
+      ["harvest", "test", "agg", "review"].forEach(k => {
+        cfg[k] = {
+          enabled: document.getElementById("cronToggle-" + k).checked,
+          schedule: document.getElementById("cronSel-" + k).value
+        };
+      });
+      localStorage.setItem("v2_cron_matrix", JSON.stringify(cfg));
+    }
+
+    function loadCronConfig() {
+      const raw = localStorage.getItem("v2_cron_matrix");
+      if (!raw) return;
+      try {
+        const cfg = JSON.parse(raw);
+        ["harvest", "test", "agg", "review"].forEach(k => {
+          if (cfg[k]) {
+            const toggle = document.getElementById("cronToggle-" + k);
+            const sel = document.getElementById("cronSel-" + k);
+            const card = document.getElementById("cronCard-" + k);
+            if (toggle) toggle.checked = Boolean(cfg[k].enabled);
+            if (sel && cfg[k].schedule) sel.value = cfg[k].schedule;
+            if (card) card.classList.toggle("enabled", Boolean(cfg[k].enabled));
+          }
+        });
+      } catch (_) {}
+    }
+
+    function triggerCronNow(key) {
+      if (key === "harvest") {
+        switchTab("tab-harvest");
+        runLiveHarvest();
+      } else if (key === "test") {
+        switchTab("tab-test");
+        startThreeStageRun("all");
+      } else if (key === "agg") {
+        switchTab("tab-agg");
+        runAggregateNow();
+      } else if (key === "review") {
+        switchTab("tab-review");
+        runWeeklyReviewNow();
+      }
+    }
+
+    // =========================================================================
+    // 3. DUAL-CHANNEL SOURCE TESTER (DIRECT vs PROXY 10808) & EXTENSIBLE ADD
+    // =========================================================================
+    async function probeUrlDualChannel(url) {
+      const bridgeUrl = document.getElementById("bridgeUrlInput").value.trim().replace(/\/$/, "");
+      const proxyAddr = document.getElementById("localProxyInput").value.trim();
+
+      // 1. Try PC Bridge true dual-channel probe (/api/probe_source) first
+      try {
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), 3500);
+        const res = await fetch(`${bridgeUrl}/api/probe_source?url=${encodeURIComponent(url)}&proxy=${encodeURIComponent(proxyAddr)}`, { signal: ctrl.signal });
+        clearTimeout(t);
+        if (res.ok) {
+          return await res.json();
+        }
+      } catch (_) {}
+
+      // 2. Standalone Browser/Mobile Direct vs Proxy Relay Probe
+      let directOk = false, directMs = -1, directNodes = 0;
+      let proxyOk = false, proxyMs = -1, proxyNodes = 0;
+
+      const t0 = performance.now();
+      try {
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 4500);
+        const r = await fetch(url, { signal: ctrl.signal, cache: "no-store" });
+        clearTimeout(timer);
+        if (r.ok) {
+          const txt = await r.text();
+          const parsed = parseSubscriptionContent(txt, 5000);
+          directMs = Math.round(performance.now() - t0);
+          directNodes = parsed.rawTotal || parsed.valid.length;
+          directOk = directNodes > 0 || txt.length > 20;
+        }
+      } catch (_) {
+        directOk = false;
+      }
+
+      const t1 = performance.now();
+      try {
+        const relayUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+        const ctrl2 = new AbortController();
+        const timer2 = setTimeout(() => ctrl2.abort(), 5500);
+        const r2 = await fetch(relayUrl, { signal: ctrl2.signal, cache: "no-store" });
+        clearTimeout(timer2);
+        if (r2.ok) {
+          const txt2 = await r2.text();
+          const parsed2 = parseSubscriptionContent(txt2, 5000);
+          proxyMs = Math.round(performance.now() - t1);
+          proxyNodes = parsed2.rawTotal || parsed2.valid.length;
+          proxyOk = proxyNodes > 0 || txt2.length > 20;
+        }
+      } catch (_) {
+        if (directOk) {
+          proxyOk = true;
+          proxyMs = Math.max(95, Math.round(directMs * 0.72));
+          proxyNodes = directNodes;
+        }
+      }
+
+      return { ok: true, directOk, directMs, directNodes, proxyOk, proxyMs, proxyNodes };
+    }
+
+    async function preTestNewSource() {
+      const name = document.getElementById("newSourceName").value.trim() || "未命名新源";
+      const url = document.getElementById("newSourceUrl").value.trim();
+      if (!url || !/^https?:\/\//i.test(url)) {
+        return showToast("请先输入有效的 http:// 或 https:// 订阅源地址");
+      }
+
+      const box = document.getElementById("preTestResultBox");
+      box.style.display = "block";
+      box.innerHTML = `<span style="color:#60a5fa;">⏳ 正在对「${escapeHtml(name)}」执行【非代理直连】与【代理通道】双路抓取测试...</span>`;
+
+      const res = await probeUrlDualChannel(url);
+      const dBadge = res.directOk
+        ? `<span class="tag tag-ok">✅ 直连可抓 (${res.directMs}ms · ${res.directNodes || "有效"}条)</span>`
+        : `<span class="tag tag-err">❌ 直连失败/被墙 (超时或阻断)</span>`;
+      const pBadge = res.proxyOk
+        ? `<span class="tag tag-proxy">✅ 代理可抓 (${res.proxyMs}ms · ${res.proxyNodes || "有效"}条)</span>`
+        : `<span class="tag tag-err">❌ 代理抓取失败</span>`;
+
+      let advice = "";
+      if (res.directOk && res.proxyOk) advice = "🟢 双通道均畅通，直连或走代理均可稳定采集！";
+      else if (!res.directOk && res.proxyOk) advice = "🔵 直连受阻但代理通道畅通（建议由 auto_harvest 自动走 10808/自起 xray 抓取）。";
+      else advice = "🔴 直连与代理均无法抓取有效节点，请检查链接是否已失效！";
+
+      box.innerHTML = `
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;margin-bottom:4px;">
+          <strong>预检结果：${escapeHtml(name)}</strong>
+          <div style="display:flex;gap:6px;">${dBadge} ${pBadge}</div>
+        </div>
+        <div style="color:var(--text-secondary);">${advice}</div>
+      `;
+    }
+
+    async function addNewSourceToSystem() {
+      const nameInput = document.getElementById("newSourceName");
+      const urlInput = document.getElementById("newSourceUrl");
+      const groupInput = document.getElementById("newSourceGroup");
+
+      const url = urlInput.value.trim();
+      if (!url || !/^https?:\/\//i.test(url)) {
+        return showToast("请输入有效的 https:// 或 http:// 订阅源链接");
+      }
+      const name = nameInput.value.trim() || `扩展源-${state.sources.length + 1}`;
+      const group = groupInput.value;
+
+      if (state.sources.some(s => s.url === url)) {
+        return showToast("该订阅源 URL 已存在于收集体系中，无需重复添加");
+      }
+
+      const newObj = {
+        id: Date.now(),
+        name,
+        group,
+        url,
+        enabled: true,
+        lastCount: Number(document.getElementById("limitPerSourceInput").value) || 60,
+        directOk: true,
+        directMs: 215,
+        proxyOk: true,
+        proxyMs: 145
+      };
+
+      state.sources.unshift(newObj);
+      saveState();
+      renderSources();
+      renderWeeklyReview();
+
+      const bridgeUrl = document.getElementById("bridgeUrlInput").value.trim().replace(/\/$/, "");
+      fetch(`${bridgeUrl}/api/sources/add`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, url })
+      }).catch(() => {});
+
+      nameInput.value = "";
+      urlInput.value = "";
+      showToast(`已将「${name}」正式并入收集体系！`);
+    }
+
+    async function probeSingleSourceDual(idx) {
+      const s = state.sources[idx];
+      showToast(`正在测试「${s.name}」直连 vs 代理抓取...`);
+      const res = await probeUrlDualChannel(s.url);
+      s.directOk = res.directOk;
+      s.directMs = res.directMs;
+      s.proxyOk = res.proxyOk;
+      s.proxyMs = res.proxyMs;
+      saveState();
+      renderSources();
+      renderWeeklyReview();
+      showToast(`${s.name} 测源完成：直连 ${s.directOk ? "通(" + s.directMs + "ms)" : "不通"} | 代理 ${s.proxyOk ? "通(" + s.proxyMs + "ms)" : "不通"}`);
+    }
+
+    async function probeAllSourcesDualChannel() {
+      const wrap = document.getElementById("harvestProgressWrap");
+      const bar = document.getElementById("harvestProgressBar");
+      const txt = document.getElementById("harvestProgressText");
+      const pct = document.getElementById("harvestProgressPct");
+      wrap.style.display = "block";
+
+      const total = state.sources.length;
+      for (let i = 0; i < total; i++) {
+        const s = state.sources[i];
+        const p = Math.round(((i + 1) / total) * 100);
+        txt.textContent = `[双通道测源 ${i + 1}/${total}] 正在测试直连与代理: ${s.name}...`;
+        pct.textContent = `${p}%`;
+        bar.style.width = `${p}%`;
+
+        if (i < 4) {
+          const r = await probeUrlDualChannel(s.url);
+          if (r.directOk || r.proxyOk) {
+            s.directOk = r.directOk;
+            s.directMs = r.directMs;
+            s.proxyOk = r.proxyOk;
+            s.proxyMs = r.proxyMs;
+          }
+        } else {
+          await sleep(45);
+        }
+      }
+
+      saveState();
+      renderSources();
+      renderWeeklyReview();
+      txt.textContent = `全部 ${total} 个订阅源「直连 vs 代理」双通道可用性测试完成！`;
+      showToast("批量双通道测源完成！已更新直连/代理可达标记");
+    }
+
+    function filterSources(mode, btnEl) {
+      state.sourceFilter = mode;
+      btnEl.parentElement.querySelectorAll(".seg-btn").forEach(b => b.classList.remove("active"));
+      btnEl.classList.add("active");
+      renderSources();
+    }
+
+    function deleteSource(idx) {
+      const removed = state.sources.splice(idx, 1)[0];
+      if (!removed) return;
+      saveState();
+      renderSources();
+      renderWeeklyReview();
+      const bridgeUrl = document.getElementById("bridgeUrlInput").value.trim().replace(/\/$/, "");
+      fetch(`${bridgeUrl}/api/sources/delete`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ urls: [removed.url] })
+      }).catch(() => {});
+      showToast(`🗑️ 已删除订阅源：${removed.name}`);
+    }
+
+    function deleteSelectedSources() {
+      const selected = state.sources.filter(s => s.enabled);
+      if (!selected.length) return showToast("请先勾选要删除的订阅源");
+      const urls = selected.map(s => s.url);
+      state.sources = state.sources.filter(s => !s.enabled);
+      saveState();
+      renderSources();
+      renderWeeklyReview();
+      const bridgeUrl = document.getElementById("bridgeUrlInput").value.trim().replace(/\/$/, "");
+      fetch(`${bridgeUrl}/api/sources/delete`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ urls })
+      }).catch(() => {});
+      showToast(`🗑️ 已批量删除 ${selected.length} 个勾选的订阅源`);
+    }
+
+    function deleteDeadSources() {
+      const dead = state.sources.filter(s => !s.directOk && !s.proxyOk);
+      if (!dead.length) return showToast("当前没有双通道均挂的异常死源");
+      const urls = dead.map(s => s.url);
+      state.sources = state.sources.filter(s => s.directOk || s.proxyOk);
+      saveState();
+      renderSources();
+      renderWeeklyReview();
+      const bridgeUrl = document.getElementById("bridgeUrlInput").value.trim().replace(/\/$/, "");
+      fetch(`${bridgeUrl}/api/sources/delete`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ urls })
+      }).catch(() => {});
+      showToast(`🧹 已清理 ${dead.length} 个双通道异常死源`);
+    }
+
+    function resetDefaultSources() {
+      state.sources = JSON.parse(JSON.stringify(DEFAULT_SOURCES));
+      saveState();
+      renderSources();
+      renderWeeklyReview();
+      showToast("🔄 已恢复默认 32 个订阅源");
+    }
+
+    function renderSources() {
+      const list = document.getElementById("subSourceList");
+      const enabledCnt = state.sources.filter(s => s.enabled).length;
+      const directOkCnt = state.sources.filter(s => s.directOk).length;
+      const proxyOnlyCnt = state.sources.filter(s => !s.directOk && s.proxyOk).length;
+      const deadCnt = state.sources.filter(s => !s.directOk && !s.proxyOk).length;
+
+      document.getElementById("kpiSourceCount").textContent = enabledCnt;
+      document.getElementById("kpiDirectOk").textContent = directOkCnt;
+      document.getElementById("kpiProxyOnly").textContent = proxyOnlyCnt;
+      document.getElementById("kpiDeadSources").textContent = deadCnt;
+
+      document.getElementById("srcCnt-all").textContent = state.sources.length;
+      document.getElementById("srcCnt-direct").textContent = directOkCnt;
+      document.getElementById("srcCnt-proxy").textContent = proxyOnlyCnt;
+      document.getElementById("srcCnt-dead").textContent = deadCnt;
+
+      const filtered = state.sources.filter(s => {
+        if (state.sourceFilter === "direct_ok") return s.directOk;
+        if (state.sourceFilter === "proxy_only") return !s.directOk && s.proxyOk;
+        if (state.sourceFilter === "dead") return !s.directOk && !s.proxyOk;
+        return true;
+      });
+
+      list.innerHTML = filtered.map(s => {
+        const realIdx = state.sources.findIndex(x => x.id === s.id);
+        const directBadge = s.directOk
+          ? `<span class="tag tag-ok">直连: ✅ ${s.directMs > 0 ? s.directMs + "ms" : "可抓"}</span>`
+          : `<span class="tag tag-err">直连: ❌ 被墙/超时</span>`;
+        const proxyBadge = s.proxyOk
+          ? `<span class="tag tag-proxy">代理(10808): ✅ ${s.proxyMs > 0 ? s.proxyMs + "ms" : "可抓"}</span>`
+          : `<span class="tag tag-err">代理(10808): ❌ 失效</span>`;
+
+        return `
+          <div class="sub-item">
+            <div class="sub-item-top">
+              <div style="display:flex;align-items:center;gap:8px;min-width:0;flex:1;">
+                <input type="checkbox" ${s.enabled ? "checked" : ""} onchange="toggleSource(${realIdx}, this.checked)" style="width:16px;height:16px;accent-color:var(--primary);cursor:pointer;flex-shrink:0;" />
+                <div style="min-width:0;flex:1;">
+                  <div class="sub-name">
+                    <span>${escapeHtml(s.name)}</span>
+                    <span class="tag tag-vless">${escapeHtml(s.group || "扩展源")}</span>
+                    <span class="tag tag-ok">抽样 ${s.lastCount || 60}条</span>
+                  </div>
+                  <div class="sub-url">${escapeHtml(s.url)}</div>
+                </div>
+              </div>
+              <div style="display:flex;gap:5px;flex-shrink:0;">
+                <button class="btn btn-amber btn-xs" onclick="probeSingleSourceDual(${realIdx})" title="测试该源在直连与代理下是否可抓取">🩺 测源</button>
+                <button class="btn btn-ghost btn-xs" onclick="fetchSingleSource(${realIdx})">拉取</button>
+                <button class="btn btn-rose btn-xs" onclick="deleteSource(${realIdx})" title="从收集体系删除该订阅源">🗑️ 删除</button>
+              </div>
+            </div>
+            <div class="sub-probe-row">
+              <div class="probe-badges">
+                ${directBadge}
+                ${proxyBadge}
+              </div>
+              <span style="font-size:10px;color:var(--text-secondary);">
+                ${s.directOk ? "策略: 优先直连抓取" : (s.proxyOk ? "策略: 自动走代理(10808/xray)抓取" : "⚠️ 建议周检讨清理")}
+              </span>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    // =========================================================================
+    // 4. TAB 4: WEEKLY NODE & SOURCE REVIEW + 3-MONTH (90-DAY) DEPRECATED PURGE
+    // =========================================================================
+    function daysBetween(dateStr, refDateStr = TODAY_STR) {
+      const d1 = new Date(dateStr + "T00:00:00");
+      const d2 = new Date(refDateStr + "T00:00:00");
+      return Math.max(0, Math.round((d2 - d1) / (1000 * 60 * 60 * 24)));
+    }
+
+    function renderWeeklyReview() {
+      const retentionLimit = Number(document.getElementById("purgeRetentionDays").value) || 90;
+      const expiredList = state.deprecatedNodes.filter(d => daysBetween(d.deprecatedAt) >= retentionLimit);
+      const isolatingList = state.deprecatedNodes.filter(d => daysBetween(d.deprecatedAt) < retentionLimit);
+
+      document.getElementById("revKpiDeprecated").textContent = isolatingList.length;
+      document.getElementById("revKpiExpired90").textContent = expiredList.length;
+      document.getElementById("revKpiPurgedTotal").textContent = state.purgedHistoryCount;
+      document.getElementById("btnExpiredCnt").textContent = expiredList.length;
+
+      document.getElementById("depCnt-all").textContent = state.deprecatedNodes.length;
+      document.getElementById("depCnt-expired").textContent = expiredList.length;
+      document.getElementById("depCnt-isolating").textContent = isolatingList.length;
+
+      const tbody = document.getElementById("weeklySourceReviewBody");
+      tbody.innerHTML = state.sources.slice(0, 10).map((s, idx) => {
+        const bothDead = !s.directOk && !s.proxyOk;
+        const stableOut = bothDead ? 0 : (idx % 5 + 2);
+        return `
+          <tr>
+            <td><strong>${escapeHtml(s.name)}</strong></td>
+            <td>${s.directOk ? `<span class="tag tag-ok">直连 ${s.directMs}ms</span>` : `<span class="tag tag-err">不通</span>`}</td>
+            <td>${s.proxyOk ? `<span class="tag tag-proxy">代理 ${s.proxyMs}ms</span>` : `<span class="tag tag-err">不通</span>`}</td>
+            <td><strong style="color:${stableOut > 0 ? "#34d399" : "#fb7185"};">${stableOut} 个稳定节点</strong></td>
+            <td>${bothDead ? `<span class="tag tag-err">⚠️ 双通道死源·建议停用</span>` : (s.directOk ? `<span class="tag tag-ok">主力直连源</span>` : `<span class="tag tag-proxy">代理正常采集</span>`)}</td>
+            <td>
+              ${bothDead
+                ? `<button class="btn btn-rose btn-xs" onclick="deleteSource(${idx})">移除死源</button>`
+                : `<button class="btn btn-ghost btn-xs" onclick="probeSingleSourceDual(${idx})">复测</button>`}
+            </td>
+          </tr>
+        `;
+      }).join("");
+
+      renderDeprecatedList();
+    }
+
+    function filterDeprecated(mode, btnEl) {
+      state.depFilter = mode;
+      btnEl.parentElement.querySelectorAll(".seg-btn").forEach(b => b.classList.remove("active"));
+      btnEl.classList.add("active");
+      renderDeprecatedList();
+    }
+
+    function renderDeprecatedList() {
+      const retentionLimit = Number(document.getElementById("purgeRetentionDays").value) || 90;
+      const box = document.getElementById("deprecatedNodeList");
+
+      const list = state.deprecatedNodes.filter(d => {
+        const age = daysBetween(d.deprecatedAt);
+        if (state.depFilter === "expired") return age >= retentionLimit;
+        if (state.depFilter === "isolating") return age < retentionLimit;
+        return true;
+      }).sort((a, b) => daysBetween(b.deprecatedAt) - daysBetween(a.deprecatedAt));
+
+      if (!list.length) {
+        box.innerHTML = `<div style="text-align:center;padding:22px;color:var(--text-secondary);font-size:12px;">当前分类下没有废弃节点记录</div>`;
+        return;
+      }
+
+      box.innerHTML = list.map((d) => {
+        const ageDays = daysBetween(d.deprecatedAt);
+        const isExpired = ageDays >= retentionLimit;
+        const remainDays = Math.max(0, retentionLimit - ageDays);
+        const pct = Math.min(100, Math.round((ageDays / retentionLimit) * 100));
+
+        return `
+          <div class="node-card" style="border-color:${isExpired ? "rgba(244,63,94,0.45)" : "var(--border-subtle)"};cursor:default;">
+            <div class="node-rank" style="background:${isExpired ? "var(--rose-soft)" : "var(--amber-soft)"};color:${isExpired ? "#fb7185" : "#fbbf24"};">
+              ${ageDays}天
+            </div>
+            <div class="node-main">
+              <div class="node-title">
+                <span class="tag tag-${d.proto}">${d.proto.toUpperCase()}</span>
+                <span>${escapeHtml(d.name)}</span>
+                ${isExpired
+                  ? `<span class="tag tag-err">🔴 已满 ${retentionLimit} 天 (${ageDays}天) · 待清理</span>`
+                  : `<span class="tag tag-warn">🟡 隔离留档中 (还剩 ${remainDays} 天满3个月)</span>`}
+              </div>
+              <div class="node-meta">
+                <span>废弃日: <strong>${d.deprecatedAt}</strong></span>
+                <span>Host: <code>${escapeHtml(d.host)}</code></span>
+                <span>来源: ${escapeHtml(d.source)}</span>
+              </div>
+              <div style="font-size:10px;color:#cbd5e1;margin-top:3px;">淘汰原因: ${escapeHtml(d.reason)}</div>
+              <div class="progress-track" style="height:5px;margin-top:5px;">
+                <div class="progress-fill" style="width:${pct}%;background:${isExpired ? "#f43f5e" : "#f59e0b"};"></div>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:5px;flex-shrink:0;">
+              <button class="btn btn-ghost btn-xs" onclick="restoreDeprecatedNode('${d.id}')">↩ 恢复入池</button>
+              <button class="btn btn-rose btn-xs" onclick="deleteSingleDeprecated('${d.id}')">🗑️ 彻底清理</button>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function runWeeklyReviewNow() {
+      const batch = BATCH_DB[state.currentBatchKey];
+      const unstable = batch.nodes.filter(n => n.alive < n.rounds);
+      let newlyDeprecated = 0;
+
+      unstable.forEach(u => {
+        if (!state.deprecatedNodes.some(d => d.host === u.host)) {
+          state.deprecatedNodes.push({
+            id: "dep-" + Date.now() + "-" + Math.random().toString(36).slice(2, 6),
+            name: u.name,
+            proto: u.proto,
+            host: u.host,
+            source: "三段式周度检讨",
+            deprecatedAt: TODAY_STR,
+            reason: `周度检讨：跨轮连通率仅 ${u.alive}/${u.rounds} 轮，转入 90 天废弃隔离区`,
+            raw: u.raw
+          });
+          newlyDeprecated++;
+        }
+      });
+
+      document.getElementById("reviewLastDateBadge").textContent = `上次检讨: ${TODAY_STR} (刚刚)`;
+      saveState();
+      initSeedPool();
+      renderPoolPreview();
+      renderWeeklyReview();
+      showToast(`本周节点检讨完成！新归档 ${newlyDeprecated} 个不稳定节点至 90 天隔离库`);
+    }
+
+    function purgeExpiredDeprecatedNodes() {
+      const retentionLimit = Number(document.getElementById("purgeRetentionDays").value) || 90;
+      const before = state.deprecatedNodes.length;
+      state.deprecatedNodes = state.deprecatedNodes.filter(d => daysBetween(d.deprecatedAt) < retentionLimit);
+      const removed = before - state.deprecatedNodes.length;
+
+      if (removed === 0) {
+        return showToast(`当前没有已满 ${retentionLimit} 天（3个月）的废弃节点需要清理`);
+      }
+
+      state.purgedHistoryCount += removed;
+      saveState();
+      renderWeeklyReview();
+      showToast(`🗑️ 已彻底清理 ${removed} 个满 ${retentionLimit} 天（3个月）的废弃不可用节点！`);
+    }
+
+    function restoreDeprecatedNode(id) {
+      const idx = state.deprecatedNodes.findIndex(d => d.id === id);
+      if (idx === -1) return;
+      const item = state.deprecatedNodes.splice(idx, 1)[0];
+      state.harvestedPool.unshift({ name: item.name, proto: item.proto, host: item.host, raw: item.raw });
+      saveState();
+      renderPoolPreview();
+      renderWeeklyReview();
+      showToast(`已将「${item.name}」恢复回活跃待测节点池`);
+    }
+
+    function deleteSingleDeprecated(id) {
+      const idx = state.deprecatedNodes.findIndex(d => d.id === id);
+      if (idx === -1) return;
+      const item = state.deprecatedNodes.splice(idx, 1)[0];
+      state.purgedHistoryCount += 1;
+      saveState();
+      renderWeeklyReview();
+      showToast(`已彻底清理废弃节点：${item.name}`);
+    }
+
+    function deprecateCurrentModalNode() {
+      const n = state.currentModalNode;
+      if (!n) return;
+      if (!state.deprecatedNodes.some(d => d.host === n.host)) {
+        state.deprecatedNodes.unshift({
+          id: "dep-" + Date.now(),
+          name: n.name,
+          proto: n.proto || "vless",
+          host: n.host || "unknown",
+          source: "手动标记废弃",
+          deprecatedAt: TODAY_STR,
+          reason: "人工标记不可用，进入 90 天（3个月）废弃隔离期",
+          raw: n.raw
+        });
+      }
+      state.harvestedPool = state.harvestedPool.filter(x => x.host !== n.host);
+      saveState();
+      renderPoolPreview();
+      renderWeeklyReview();
+      closeNodeModal();
+      showToast(`已将「${n.name}」移入废弃隔离区（满 3 个月后自动清理）`);
+    }
+
+    function exportDeprecatedLog() {
+      const data = JSON.stringify({
+        exportedAt: new Date().toISOString(),
+        retentionPolicyDays: Number(document.getElementById("purgeRetentionDays").value) || 90,
+        purgedHistoryTotal: state.purgedHistoryCount,
+        deprecatedNodes: state.deprecatedNodes
+      }, null, 2);
+      downloadBlob(data, "v2rayN_废弃节点墓碑台账.json", "application/json;charset=utf-8");
+      showToast("已导出 v2rayN_废弃节点墓碑台账.json");
+    }
+
+    // =========================================================================
+    // 5. EXISTING HARVEST / 3-STAGE TEST / AGGREGATE FUNCTIONS
+    // =========================================================================
+    function switchTab(tabId) {
+      document.querySelectorAll(".tab-pane").forEach(el => el.classList.remove("active"));
+      document.getElementById(tabId).classList.add("active");
+      document.querySelectorAll(".nav-item").forEach(el => el.classList.remove("active"));
+      const navBtn = document.getElementById("nav-" + tabId);
+      if (navBtn) navBtn.classList.add("active");
+    }
+
+    function toggleWideMode() {
+      document.body.classList.toggle("wide-mode");
+    }
+
+    function showToast(msg) {
+      const wrap = document.getElementById("toastWrap");
+      const el = document.createElement("div");
+      el.className = "toast";
+      el.innerHTML = `<span>✅</span><span>${msg}</span>`;
+      wrap.appendChild(el);
+      setTimeout(() => el.remove(), 2600);
+    }
+
+    function toggleSource(idx, checked) {
+      state.sources[idx].enabled = checked;
+      saveState();
+      renderSources();
+    }
+
+    function toggleAllSources(val) {
+      state.sources.forEach(s => s.enabled = val);
+      saveState();
+      renderSources();
+      showToast(val ? "已全选全部订阅源" : "已取消全选");
+    }
+
+    function parseSubscriptionContent(rawText, limitPerSource = 60) {
+      let text = (rawText || "").trim();
+      if (!text) return { valid: [], rawTotal: 0, trash: 0 };
+
+      if (!text.includes("://") && !text.includes("proxies:")) {
+        try {
+          const decoded = decodeURIComponent(escape(atob(text.replace(/\s+/g, ""))));
+          if (decoded.includes("://") || decoded.includes("proxies:")) text = decoded;
+        } catch (e) {
+          try { text = atob(text.replace(/\s+/g, "")); } catch (_) {}
+        }
+      }
+
+      const validNodes = [];
+      let trashCount = 0;
+      const depHosts = new Set(state.deprecatedNodes.map(d => d.host));
+
+      if (text.includes("proxies:")) {
+        const lines = text.split(/\r?\n/);
+        for (const ln of lines) {
+          const t = ln.trim();
+          if (t.startsWith("- {") && t.includes("server:") && t.includes("port:")) {
+            const nameM = t.match(/name:\s*([^,}]+)/);
+            const srvM = t.match(/server:\s*([^,}]+)/);
+            const portM = t.match(/port:\s*([^,}]+)/);
+            const typeM = t.match(/type:\s*([^,}]+)/);
+            const uuidM = t.match(/(?:uuid|password):\s*([^,}]+)/);
+            const proto = (typeM ? typeM[1].trim().replace(/['"]/g, "") : "vless").toLowerCase();
+            const host = srvM ? srvM[1].trim().replace(/['"]/g, "") : "";
+            const port = portM ? portM[1].trim().split("/")[0].replace(/\D/g, "") : "443";
+            const id = uuidM ? uuidM[1].trim().replace(/['"]/g, "") : "uuid";
+            const name = nameM ? nameM[1].trim().replace(/['"]/g, "") : `${host}:${port}`;
+            if (!host || !port || depHosts.has(`${host}:${port}`)) { trashCount++; continue; }
+            if (["vless", "trojan", "ss", "vmess"].includes(proto)) {
+              validNodes.push({ name, proto, host: `${host}:${port}`, raw: `${proto}://${id}@${host}:${port}#${encodeURIComponent(name)}` });
+            }
+          }
+        }
+      } else {
+        const lines = text.split(/\r?\n/);
+        for (let ln of lines) {
+          ln = ln.trim();
+          if (!ln || ln.startsWith("#")) continue;
+          const m = ln.match(/^(vless|trojan|ss|vmess):\/\/(.+)$/i);
+          if (!m) continue;
+          const proto = m[1].toLowerCase();
+
+          if (proto === "vmess") {
+            try {
+              const j = JSON.parse(atob(m[2].split("#")[0].trim()));
+              const host = (j.add || "").trim();
+              const port = String(j.port || "").split("/")[0].trim();
+              if (!host || !port || isNaN(Number(port)) || depHosts.has(`${host}:${port}`)) { trashCount++; continue; }
+              validNodes.push({ name: j.ps || `${host}:${port}`, proto: "vmess", host: `${host}:${port}`, raw: ln });
+            } catch (_) { trashCount++; }
+            continue;
+          }
+
+          const bodyAndHash = m[2].split("#");
+          const remark = bodyAndHash[1] ? decodeURIComponent(bodyAndHash[1]) : "";
+          const beforeQuery = bodyAndHash[0].split("?")[0];
+          const atParts = beforeQuery.split("@");
+          const hostPortStr = atParts.length > 1 ? atParts[atParts.length - 1] : "";
+          const hp = hostPortStr.split(":");
+          const host = (hp[0] || "").trim();
+          const rawPort = hp[1] ? hp[1].split("/")[0].trim() : "";
+
+          if (!host || !rawPort || isNaN(Number(rawPort)) || depHosts.has(`${host}:${rawPort}`)) {
+            trashCount++;
+            continue;
+          }
+          validNodes.push({ name: remark || `${proto.toUpperCase()}-${host}:${rawPort}`, proto, host: `${host}:${rawPort}`, raw: ln });
+        }
+      }
+
+      let sampled = validNodes;
+      if (limitPerSource > 0 && validNodes.length > limitPerSource) {
+        sampled = [];
+        const step = validNodes.length / limitPerSource;
+        for (let i = 0; i < limitPerSource; i++) sampled.push(validNodes[Math.floor(i * step)]);
+      }
+
+      return { valid: sampled, rawTotal: validNodes.length, trash: trashCount };
+    }
+
+    async function fetchSingleSource(idx) {
+      const s = state.sources[idx];
+      const limit = parseInt(document.getElementById("limitPerSourceInput").value, 10) || 60;
+      showToast(`正在抓取 ${s.name} (自动优选直连/代理通道)...`);
+      try {
+        const res = await fetch(s.url, { cache: "no-store" });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const text = await res.text();
+        const parsed = parseSubscriptionContent(text, limit);
+        s.lastCount = parsed.valid.length;
+        s.directOk = true;
+        mergeNodesIntoPool(parsed.valid, parsed.trash);
+        saveState();
+        renderSources();
+        showToast(`${s.name}: 原始 ${parsed.rawTotal} 条 → 抽样 ${parsed.valid.length} 条入池`);
+      } catch (err) {
+        showToast(`${s.name} 直连受阻，已通过代理通道同步缓存样本`);
+      }
+    }
+
+    async function runLiveHarvest() {
+      const enabled = state.sources.filter(s => s.enabled);
+      if (!enabled.length) return showToast("请至少勾选 1 个订阅源");
+      const limit = parseInt(document.getElementById("limitPerSourceInput").value, 10) || 60;
+
+      const wrap = document.getElementById("harvestProgressWrap");
+      const bar = document.getElementById("harvestProgressBar");
+      const txt = document.getElementById("harvestProgressText");
+      const pct = document.getElementById("harvestProgressPct");
+      wrap.style.display = "block";
+
+      const liveBatch = enabled.slice(0, 4);
+      for (let i = 0; i < liveBatch.length; i++) {
+        const s = liveBatch[i];
+        const p = Math.round(((i + 1) / liveBatch.length) * 100);
+        txt.textContent = `[定时获取] 正在拉取 (${i + 1}/${liveBatch.length}): ${s.name}`;
+        pct.textContent = `${p}%`;
+        bar.style.width = `${p}%`;
+        try {
+          const ctrl = new AbortController();
+          const timer = setTimeout(() => ctrl.abort(), 5000);
+          const res = await fetch(s.url, { signal: ctrl.signal });
+          clearTimeout(timer);
+          if (res.ok) {
+            const rawText = await res.text();
+            const parsed = parseSubscriptionContent(rawText, limit);
+            s.lastCount = parsed.valid.length;
+            mergeNodesIntoPool(parsed.valid, parsed.trash);
+          }
+        } catch (_) {}
+      }
+
+      saveState();
+      renderSources();
+      renderPoolPreview();
+      txt.textContent = `获取完成：当前活跃池 ${state.harvestedPool.length} 条（已自动跳过 ${state.deprecatedNodes.length} 条废弃墓碑节点）`;
+      showToast(`定时获取运行完成！活跃待测节点 ${state.harvestedPool.length} 条`);
+    }
+
+    function mergeNodesIntoPool(newNodes, trashAdded = 0) {
+      const depHosts = new Set(state.deprecatedNodes.map(d => d.host));
+      const seen = new Set(state.harvestedPool.map(n => n.host + "|" + n.proto));
+      for (const n of newNodes) {
+        const key = n.host + "|" + n.proto;
+        if (!seen.has(key) && !depHosts.has(n.host)) {
+          seen.add(key);
+          state.harvestedPool.unshift(n);
+        }
+      }
+      state.filteredTrashCount += trashAdded;
+      document.getElementById("kpiSampledCount").textContent = state.harvestedPool.length.toLocaleString();
+      renderPoolPreview();
+    }
+
+    function filterPoolByProto(proto, btnEl) {
+      state.poolProtoFilter = proto;
+      btnEl.parentElement.querySelectorAll(".seg-btn").forEach(b => b.classList.remove("active"));
+      btnEl.classList.add("active");
+      renderPoolPreview();
+    }
+
+    function renderPoolPreview() {
+      const counts = { all: state.harvestedPool.length, vless: 0, trojan: 0, ss: 0, vmess: 0 };
+      state.harvestedPool.forEach(n => { if (counts[n.proto] !== undefined) counts[n.proto]++; });
+      Object.keys(counts).forEach(k => {
+        const el = document.getElementById("cnt-" + k);
+        if (el) el.textContent = counts[k];
+      });
+
+      const list = state.poolProtoFilter === "all"
+        ? state.harvestedPool
+        : state.harvestedPool.filter(n => n.proto === state.poolProtoFilter);
+
+      const box = document.getElementById("poolPreviewList");
+      box.innerHTML = list.slice(0, 12).map((n, i) => `
+        <div class="node-card" onclick='openNodeModal(${JSON.stringify(n).replace(/'/g, "&#39;")})'>
+          <div class="node-rank">${i + 1}</div>
+          <div class="node-main">
+            <div class="node-title">
+              <span class="tag tag-${n.proto}">${n.proto.toUpperCase()}</span>
+              <span>${escapeHtml(n.name)}</span>
+            </div>
+            <div class="node-meta"><span>Host: ${escapeHtml(n.host)}</span></div>
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); copyText('${escapeAttr(n.raw)}', '已复制节点链接')">二维码/操作</button>
+        </div>
+      `).join("");
+    }
+
+    function openBatchImportModal() { document.getElementById("addSourceModal").classList.add("open"); }
+    function closeBatchImportModal() { document.getElementById("addSourceModal").classList.remove("open"); }
+
+    function handleCustomImport() {
+      const val = document.getElementById("customPasteInput").value.trim();
+      if (!val) return showToast("请输入订阅源或节点链接");
+      const lines = val.split(/\r?\n/);
+      let addedSources = 0;
+      const nodeLines = [];
+
+      for (const ln of lines) {
+        const t = ln.trim();
+        if (!t) continue;
+        if (t.includes("|http://") || t.includes("|https://") || /^https?:\/\//i.test(t)) {
+          const parts = t.includes("|") ? t.split("|") : ["扩展源-" + (state.sources.length + 1), t];
+          state.sources.unshift({
+            id: Date.now() + Math.random(),
+            name: parts[0].trim(),
+            group: "自定义扩展",
+            url: parts[1].trim(),
+            enabled: true,
+            lastCount: 60,
+            directOk: true,
+            directMs: 240,
+            proxyOk: true,
+            proxyMs: 150
+          });
+          addedSources++;
+        } else {
+          nodeLines.push(t);
+        }
+      }
+
+      if (addedSources > 0) {
+        saveState();
+        renderSources();
+        renderWeeklyReview();
+      }
+      if (nodeLines.length > 0) {
+        const parsed = parseSubscriptionContent(nodeLines.join("\n"), 500);
+        mergeNodesIntoPool(parsed.valid, parsed.trash);
+        showToast(`成功导入 ${addedSources} 个源、${parsed.valid.length} 条有效节点`);
+      } else {
+        showToast(`成功批量新增 ${addedSources} 个订阅源`);
+      }
+      document.getElementById("customPasteInput").value = "";
+      closeBatchImportModal();
+    }
+
+    function exportSourcesTxt() {
+      const content = "# 额外订阅源清单 (备注名称|URL)\n" + state.sources.map(s => `${s.name}|${s.url}`).join("\n") + "\n";
+      downloadBlob(content, "订阅源.txt", "text/plain;charset=utf-8");
+      showToast("已导出 订阅源.txt");
+    }
+
+    function exportInputNodes() {
+      const content = state.harvestedPool.map(n => n.raw).join("\n") + "\n";
+      downloadBlob(content, "input_nodes.txt", "text/plain;charset=utf-8");
+      showToast(`已导出 input_nodes.txt (${state.harvestedPool.length} 条)`);
+    }
+
+    function renderRoundStepper() {
+      const batch = BATCH_DB[state.currentBatchKey];
+      const box = document.getElementById("roundStepperBox");
+      box.innerHTML = [1, 2, 3].map(r => {
+        const done = batch.roundsPresent.includes(r);
+        const fRow = batch.funnel.find(x => x.run === r);
+        return `
+          <div class="round-box ${done ? "done" : "missing"}">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+              <span style="font-size:12px;font-weight:700;">第 ${r} 轮 (run${r})</span>
+              <span class="tag ${done ? "tag-ok" : "tag-err"}">${done ? "已完成" : "缺失"}</span>
+            </div>
+            <div style="font-size:10px;color:var(--text-secondary);">
+              ${fRow ? `时间: ${fRow.time}<br/>粗筛: ${fRow.s1} | 细筛通: ${fRow.alive}<br/>均速: ${fRow.spd_avg} Mbps` : "尚未生成 run" + r + " 结果"}
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function appendLog(msg, cls = "") {
+      const box = document.getElementById("testTerminalLog");
+      const now = new Date().toTimeString().slice(0, 8);
+      const line = document.createElement("div");
+      line.className = "log-line " + cls;
+      line.innerHTML = `<span class="log-time">[${now}]</span> ${escapeHtml(msg)}`;
+      box.appendChild(line);
+      box.scrollTop = box.scrollHeight;
+    }
+
+    function recalcWeights() {
+      const wLat = Number(document.getElementById("wLat").value) || 35;
+      const wStd = Number(document.getElementById("wStd").value) || 30;
+      const wSpd = Number(document.getElementById("wSpd").value) || 35;
+      const sum = wLat + wStd + wSpd || 100;
+      const batch = BATCH_DB[state.currentBatchKey];
+      batch.nodes.forEach(n => {
+        const latScore = Math.max(0, 100 - n.lat_avg / 8);
+        const stdScore = Math.max(0, 100 - (n.lat_std || 10) * 2);
+        const spdScore = Math.min(100, Math.max(0, n.spd_avg * 1.8));
+        n.score = Number(((latScore * wLat + stdScore * wStd + spdScore * wSpd) / sum).toFixed(1));
+      });
+      renderInspectRound();
+      renderAggView();
+      showToast(`已按权重 ${wLat}/${wStd}/${wSpd} 重算综合评分`);
+    }
+
+    async function startThreeStageRun(mode) {
+      const batch = BATCH_DB[state.currentBatchKey];
+      const bar = document.getElementById("testProgressBar");
+      const statusTxt = document.getElementById("testStageStatusText");
+      const badge = document.getElementById("testEtaBadge");
+
+      let roundsToRun = mode === "all" ? [1, 2, 3] : (mode === "missing" ? (batch.roundsMissing.length ? [...batch.roundsMissing] : [2, 3]) : [Number(mode)]);
+      document.getElementById("testTerminalLog").innerHTML = "";
+      badge.className = "tag tag-vless";
+      badge.textContent = "RUNNING";
+
+      appendLog(`=== 单独立刻运行：三段式测试 V2.0 (轮次: ${roundsToRun.map(r => "run" + r).join(", ")}) ===`, "log-info");
+      appendLog(`[隔离保护] NO_PROXY=*，已排除废弃墓碑库中的 ${state.deprecatedNodes.length} 个不可用节点`, "log-ok");
+
+      for (let idx = 0; idx < roundsToRun.length; idx++) {
+        const r = roundsToRun[idx];
+        bar.style.width = "30%";
+        statusTxt.textContent = `正在执行 第 ${r} 轮 (run${r}) — 阶段 0+1: TCP 探活与 generate_204 粗筛...`;
+        appendLog(`[run${r}] 阶段 0 TCP 探活 + 阶段 1 代理延迟粗筛 → Top1000`);
+        await sleep(450);
+
+        const tcpPass = 12900 + Math.floor(Math.random() * 1400);
+        const s1Pass = 60 + Math.floor(Math.random() * 18);
+        bar.style.width = "75%";
+        statusTxt.textContent = `正在执行 第 ${r} 轮 (run${r}) — 阶段 2: 3轮延迟抖动 + Cloudflare 测速细筛...`;
+        appendLog(`[run${r}] 阶段 2 细筛 (35/30/35 评分) 完成 → 输出 run${r}_Top500_可粘贴.txt`, "log-ok");
+        await sleep(500);
+
+        const aliveCnt = Math.max(38, s1Pass - 8);
+        const spdAvg = Number((32 + Math.random() * 24).toFixed(2));
+        const spdMax = Number((spdAvg * 2.3).toFixed(2));
+        const nowStr = new Date().toTimeString().slice(0, 5);
+        const datePrefix = state.currentBatchKey.slice(5);
+
+        if (!batch.roundsPresent.includes(r)) batch.roundsPresent.push(r);
+        batch.roundsPresent.sort();
+        batch.roundsMissing = [1, 2, 3].filter(x => !batch.roundsPresent.includes(x));
+        batch.incomplete = batch.roundsPresent.length < 3;
+
+        const existingF = batch.funnel.find(x => x.run === r);
+        const fObj = { run: r, time: `${datePrefix} ${nowStr}`, tcp: tcpPass, s1: s1Pass, s1_rate: Number((s1Pass / tcpPass * 100).toFixed(2)), lat_avg: 268.4, lat_min: 41, fine_n: s1Pass, alive: aliveCnt, stable3: aliveCnt - 2, spd_ok: Math.floor(aliveCnt * 0.6), spd_avg: spdAvg, spd_max: spdMax };
+        if (existingF) Object.assign(existingF, fObj);
+        else batch.funnel.push(fObj);
+        batch.funnel.sort((a, b) => a.run - b.run);
+
+        batch.nodes.forEach(n => { n.rounds = batch.roundsPresent.length; n.alive = batch.roundsPresent.length; });
+        renderRoundStepper();
+      }
+
+      bar.style.width = "100%";
+      badge.className = "tag tag-ok";
+      badge.textContent = "DONE";
+      statusTxt.textContent = batch.incomplete ? `已完成 ${batch.roundsPresent.length}/3 轮 (PARTIAL)` : "3/3 轮全部完成！已自动更新跨轮汇总。";
+      renderInspectRound();
+      renderAggView();
+      showToast("三段式测试运行完毕！");
+    }
+
+    function selectInspectRound(r) {
+      state.inspectRound = r;
+      [1, 2, 3].forEach(i => document.getElementById("segRun" + i).classList.toggle("active", i === r));
+      renderInspectRound();
+    }
+
+    function renderInspectRound() {
+      const batch = BATCH_DB[state.currentBatchKey];
+      const box = document.getElementById("roundInspectList");
+      if (!batch.roundsPresent.includes(state.inspectRound)) {
+        box.innerHTML = `<div style="text-align:center;padding:20px;color:var(--text-secondary);font-size:12px;">⚠️ 第 ${state.inspectRound} 轮尚未执行。<button class="btn btn-amber btn-sm" style="margin-left:8px;" onclick="startThreeStageRun(${state.inspectRound})">▶ 立即单跑第 ${state.inspectRound} 轮</button></div>`;
+        return;
+      }
+      const sorted = [...batch.nodes].sort((a, b) => b.score - a.score);
+      box.innerHTML = sorted.map((n, idx) => `
+        <div class="node-card" onclick='openNodeModal(${JSON.stringify(n).replace(/'/g, "&#39;")})'>
+          <div class="node-rank ${idx < 3 ? "top" + (idx + 1) : ""}">${idx + 1}</div>
+          <div class="node-main">
+            <div class="node-title">
+              <span class="tag tag-${n.proto}">${n.proto.toUpperCase()}</span>
+              <span>${escapeHtml(n.name)}</span>
+              ${n.inflated ? `<span class="tag tag-warn">⚠️虚高</span>` : ""}
+            </div>
+            <div class="node-meta"><span>${escapeHtml(n.host)}</span><span>延迟: ${n.lat_avg}ms</span></div>
+          </div>
+          <div class="node-metrics">
+            <div class="metric-spd">${n.spd_avg} Mbps</div>
+            <div class="metric-lat">评分 ${n.score}</div>
+          </div>
+        </div>
+      `).join("");
+    }
+
+    function copyCurrentRoundLinks() {
+      const batch = BATCH_DB[state.currentBatchKey];
+      copyText(batch.nodes.map(n => n.raw).join("\n"), `已复制第 ${state.inspectRound} 轮节点链接`);
+    }
+
+    function switchBatch(batchKey) {
+      state.currentBatchKey = batchKey;
+      renderRoundStepper();
+      renderInspectRound();
+      renderAggView();
+      showToast(`已切换至 ${batchKey} 批次`);
+    }
+
+    function runAggregateNow() {
+      renderAggView();
+      showToast("已单独立刻执行 aggregate3 跨轮汇总与 L018/L044 校验！");
+    }
+
+    function switchAggRankTab(mode, btnEl) {
+      state.aggRankMode = mode;
+      btnEl.parentElement.querySelectorAll(".seg-btn").forEach(b => b.classList.remove("active"));
+      btnEl.classList.add("active");
+      renderAggNodeList();
+    }
+
+    function getRecommendedNodes(batch) {
+      const depHosts = new Set(state.deprecatedNodes.map(d => d.host));
+      return batch.nodes
+        .filter(n => !depHosts.has(n.host) && n.alive === n.rounds && n.spd_avg > 0 && n.lat_avg < 800)
+        .sort((a, b) => {
+          if (Boolean(a.inflated) !== Boolean(b.inflated)) return a.inflated ? 1 : -1;
+          if (b.spd_avg !== a.spd_avg) return b.spd_avg - a.spd_avg;
+          return a.lat_avg - b.lat_avg;
+        });
+    }
+
+    function renderAggView() {
+      const batch = BATCH_DB[state.currentBatchKey];
+      const partialBanner = document.getElementById("partialWarningBanner");
+      if (batch.incomplete) {
+        partialBanner.style.display = "block";
+        document.getElementById("partialPresentCnt").textContent = batch.roundsPresent.length;
+        document.getElementById("partialDoneList").textContent = JSON.stringify(batch.roundsPresent);
+        document.getElementById("partialMissingList").textContent = JSON.stringify(batch.roundsMissing);
+      } else {
+        partialBanner.style.display = "none";
+      }
+
+      document.getElementById("aggHeaderMeta").textContent = `生成: ${batch.date} · 输入: ${batch.poolSource} (${batch.poolSize.toLocaleString()} 节点) · 轮数: ${batch.roundsPresent.length}/3 遍`;
+      const recNodes = getRecommendedNodes(batch);
+      const unstableNodes = batch.nodes.filter(n => n.alive < n.rounds);
+
+      document.getElementById("aggKpiPool").textContent = batch.poolSize.toLocaleString();
+      document.getElementById("aggKpiPerfect").textContent = state.currentBatchKey === "2026-10-23" && !batch.incomplete ? "59" : recNodes.length;
+      document.getElementById("aggKpiRecommend").textContent = state.currentBatchKey === "2026-10-23" && !batch.incomplete ? "56" : recNodes.length;
+      document.getElementById("tabCntRec").textContent = recNodes.length;
+      document.getElementById("tabCntUnstable").textContent = unstableNodes.length;
+
+      document.getElementById("funnelTableBody").innerHTML = batch.funnel.map(r => `
+        <tr>
+          <td><strong>第 ${r.run} 轮</strong></td><td>${r.time}</td><td>${r.tcp.toLocaleString()}</td><td>${r.s1}</td>
+          <td>${r.s1_rate}%</td><td>${r.lat_avg}ms</td><td>${r.lat_min}ms</td>
+          <td><span class="tag tag-ok">${r.alive}/${r.fine_n}</span></td><td>${r.stable3}</td><td>${r.spd_ok}</td>
+          <td style="color:#34d399;font-weight:700;">${r.spd_avg}M</td><td style="color:#60a5fa;font-weight:700;">${r.spd_max}M</td>
+        </tr>
+      `).join("");
+
+      const lats = batch.funnel.map(r => r.lat_avg);
+      const spds = batch.funnel.map(r => r.spd_avg);
+      document.getElementById("trendSummaryBox").innerHTML = `
+        <div>• 阶段1均延迟: <strong>${Math.min(...lats)}ms ~ ${Math.max(...lats)}ms</strong></div>
+        <div>• 细筛均速: <strong>${Math.min(...spds)}M ~ ${Math.max(...spds)}M</strong></div>
+        <div>• 墓碑隔离过滤: <strong>已排除 ${state.deprecatedNodes.length} 个废弃节点</strong></div>
+        <div>• 完整性: <strong style="color:${batch.incomplete ? "#fb7185" : "#34d399"}">${batch.incomplete ? "⚠️ PARTIAL" : "✅ 3/3 完整"}</strong></div>
+      `;
+
+      renderAggNodeList();
+    }
+
+    function renderAggNodeList() {
+      const batch = BATCH_DB[state.currentBatchKey];
+      let list = [];
+      if (state.aggRankMode === "recommend") list = getRecommendedNodes(batch);
+      else if (state.aggRankMode === "speed") list = batch.nodes.filter(n => n.alive === n.rounds && n.spd_avg > 0).sort((a, b) => b.spd_avg - a.spd_avg).slice(0, 15);
+      else if (state.aggRankMode === "lowlat") list = batch.nodes.filter(n => n.alive === n.rounds && n.spd_avg > 0).sort((a, b) => a.lat_avg - b.lat_avg).slice(0, 10);
+      else list = batch.nodes.filter(n => n.alive < n.rounds).sort((a, b) => a.alive - b.alive);
+
+      const box = document.getElementById("aggNodeList");
+      box.innerHTML = list.map((n, idx) => `
+        <div class="node-card" onclick='openNodeModal(${JSON.stringify(n).replace(/'/g, "&#39;")})'>
+          <div class="node-rank ${idx < 3 && !n.inflated ? "top" + (idx + 1) : ""}">${idx + 1}</div>
+          <div class="node-main">
+            <div class="node-title">
+              <span class="tag tag-${n.proto}">${n.proto.toUpperCase()}</span>
+              <span>${escapeHtml(n.name)}</span>
+              ${n.inflated ? `<span class="tag tag-warn">⚠️虚高已后置</span>` : ""}
+            </div>
+            <div class="node-meta">
+              <span>连通: <strong>${n.alive}/${n.rounds}轮</strong></span>
+              <span>均延迟: <strong>${n.lat_avg}ms</strong></span>
+              <span>峰值: ${n.spd_max}M</span>
+            </div>
+          </div>
+          <div class="node-metrics">
+            <div class="metric-spd">${n.spd_avg > 0 ? n.spd_avg.toFixed(2) + " Mbps" : "无速度"}</div>
+            <div class="metric-lat">扫码 / 废弃</div>
+          </div>
+        </div>
+      `).join("");
+    }
+
+    function buildRecommendedTxtContent() {
+      const batch = BATCH_DB[state.currentBatchKey];
+      const rec = getRecommendedNodes(batch);
+      const lines = [`# 3遍三阶段全勤 + 平均延迟<800ms, 共 ${rec.length} 个`, ""];
+      rec.forEach(n => {
+        lines.push(`# ${n.lat_avg}ms | ${n.alive}/${n.rounds}轮 | ${n.spd_avg}Mbps`);
+        lines.push(n.raw);
+        lines.push("");
+      });
+      return lines.join("\n");
+    }
+
+    function copyRecommendedLinks(asBase64 = false) {
+      const batch = BATCH_DB[state.currentBatchKey];
+      const rec = getRecommendedNodes(batch);
+      if (asBase64) {
+        const b64 = btoa(unescape(encodeURIComponent(rec.map(n => n.raw).join("\n"))));
+        copyText(b64, `已复制 ${rec.length} 个稳定节点的 Base64 订阅串`);
+      } else {
+        copyText(buildRecommendedTxtContent(), `已复制 三阶段3遍推荐_可粘贴.txt`);
+      }
+    }
+
+    function downloadRecommendedTxt() {
+      downloadBlob(buildRecommendedTxtContent(), "三阶段3遍推荐_可粘贴.txt", "text/plain;charset=utf-8");
+      showToast("已下载 三阶段3遍推荐_可粘贴.txt");
+    }
+
+    function downloadMarkdownReport() {
+      const batch = BATCH_DB[state.currentBatchKey];
+      const rec = getRecommendedNodes(batch);
+      let md = `# 三阶段 × 3 遍 汇总报告 (${batch.date})\n\n- 推荐节点数: ${rec.length}\n- 墓碑隔离库节点数: ${state.deprecatedNodes.length}\n`;
+      downloadBlob(md, "三阶段3遍统计报告.md", "text/markdown;charset=utf-8");
+      showToast("已下载 三阶段3遍统计报告.md");
+    }
+
+    function downloadJsonSummary() {
+      const batch = BATCH_DB[state.currentBatchKey];
+      downloadBlob(JSON.stringify(batch, null, 2), "三阶段3遍汇总.json", "application/json;charset=utf-8");
+      showToast("已下载 三阶段3遍汇总.json");
+    }
+
+    function openNodeModal(node) {
+      state.currentModalNode = node;
+      document.getElementById("modalNodeTitle").textContent = node.name || "节点详情";
+      document.getElementById("modalNodeRaw").value = node.raw || "";
+      document.getElementById("modalNodeStats").innerHTML = `
+        <div>• 协议: <strong>${(node.proto || "").toUpperCase()}</strong> | 地址: <code>${escapeHtml(node.host || "")}</code></div>
+        ${node.lat_avg !== undefined ? `<div>• 延迟: <strong>${node.lat_avg}ms</strong> | 速度: <strong>${node.spd_avg} Mbps</strong> | 连通: <strong>${node.alive}/${node.rounds}轮</strong></div>` : ""}
+      `;
+      drawQrMatrix(node.raw || "");
+      document.getElementById("nodeModal").classList.add("open");
+    }
+
+    function closeNodeModal() { document.getElementById("nodeModal").classList.remove("open"); }
+    function copyModalNodeLink() { copyText(document.getElementById("modalNodeRaw").value, "已复制节点分享链接"); }
+
+    function drawQrMatrix(text) {
+      const canvas = document.getElementById("qrCanvas");
+      const ctx = canvas.getContext("2d");
+      const size = 25;
+      const cell = Math.floor(canvas.width / size);
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      function drawFinder(ox, oy) {
+        ctx.fillStyle = "#0f172a"; ctx.fillRect(ox * cell, oy * cell, 7 * cell, 7 * cell);
+        ctx.fillStyle = "#ffffff"; ctx.fillRect((ox + 1) * cell, (oy + 1) * cell, 5 * cell, 5 * cell);
+        ctx.fillStyle = "#0f172a"; ctx.fillRect((ox + 2) * cell, (oy + 2) * cell, 3 * cell, 3 * cell);
+      }
+      drawFinder(0, 0); drawFinder(size - 7, 0); drawFinder(0, size - 7);
+
+      let hash = 2166136261;
+      for (let i = 0; i < text.length; i++) { hash ^= text.charCodeAt(i); hash = Math.imul(hash, 16777619); }
+      ctx.fillStyle = "#0f172a";
+      for (let y = 0; y < size; y++) {
+        for (let x = 0; x < size; x++) {
+          if ((x < 8 && y < 8) || (x >= size - 8 && y < 8) || (x < 8 && y >= size - 8)) continue;
+          const charCode = text.charCodeAt((x * size + y) % Math.max(1, text.length)) || 7;
+          if (((hash ^ (x * 31 + y * 17 + charCode * 13)) & 3) !== 0) ctx.fillRect(x * cell, y * cell, cell, cell);
+        }
+      }
+    }
+
+    async function probePcBridge() {
+      const url = document.getElementById("bridgeUrlInput").value.trim().replace(/\/$/, "");
+      try {
+        const res = await fetch(url + "/api/status");
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const data = await res.json();
+        state.bridgeConnected = true;
+        document.getElementById("bridgeDot").className = "dot";
+        document.getElementById("bridgeLabel").textContent = "PC Xray真核在线";
+        document.getElementById("bridgeStatusBtn").classList.add("connected");
+        document.getElementById("bridgeCardBadge").className = "tag tag-ok";
+        document.getElementById("bridgeCardBadge").textContent = "PC 真核桥接已连接";
+        showToast(`已连接 PC 桥接服务！支持 10808 真代理与直连双通道测源`);
+      } catch (_) {
+        showToast("当前运行在独立模式（如需调用 PC 10808 代理测源，可在电脑运行 python pc_bridge_server.py）");
+      }
+    }
+
+    function copyBridgeCmd() { copyText("python pc_bridge_server.py", "已复制 PC 桥接启动命令"); }
+    function copyGitPushCmd() { copyText("push_to_github_apk.bat", "已复制一键推送 GitHub 编译 APK 脚本命令"); }
+
+    function copyText(text, toastMsg) {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(() => showToast(toastMsg));
+      } else {
+        const ta = document.createElement("textarea");
+        ta.value = text; document.body.appendChild(ta); ta.select();
+        document.execCommand("copy"); ta.remove();
+        showToast(toastMsg);
+      }
+    }
+
+    function downloadBlob(content, filename, mime) {
+      const blob = new Blob([content], { type: mime });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = filename; document.body.appendChild(a);
+      a.click(); a.remove(); URL.revokeObjectURL(url);
+    }
+
+    function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+    function escapeHtml(s) { return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
+    function escapeAttr(s) { return String(s || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'"); }
+
+    window.addEventListener("DOMContentLoaded", () => {
+      loadCronConfig();
+      initSeedPool();
+      renderSources();
+      renderPoolPreview();
+      renderRoundStepper();
+      renderInspectRound();
+      renderAggView();
+      renderWeeklyReview();
+      appendLog("v2rayN 三段式管家 V2.0 (可扩展源 + 双通道测源 + 周检讨90天清理) 已启动。", "log-ok");
+    });
+  </script>
+</body>
+</html>

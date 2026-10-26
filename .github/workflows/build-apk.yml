@@ -1,0 +1,61 @@
+name: Build Android APK (v2rayN 3-Stage Butler V2.0)
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Capacitor & Add Android Platform
+        run: |
+          npm install
+          npm run prepare:www
+          npx cap add android
+          npx cap sync android
+
+      - name: Build Debug APK with Gradle
+        working-directory: ./android
+        run: |
+          chmod +x ./gradlew
+          ./gradlew assembleDebug
+          cp app/build/outputs/apk/debug/app-debug.apk ../v2rayN-3Stage-Butler-v2.0.apk
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: v2rayN-3Stage-Butler-v2.0-debug-apk
+          path: v2rayN-3Stage-Butler-v2.0.apk
+
+      - name: Publish Direct APK Download to GitHub Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v2.0-latest
+          name: "v2rayN 三段式管家 V2.0 (Android APK)"
+          body: "Automated build of v2rayN 3-Stage Butler V2.0 Android APK. Direct download: v2rayN-3Stage-Butler-v2.0.apk"
+          files: v2rayN-3Stage-Butler-v2.0.apk
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

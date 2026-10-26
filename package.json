@@ -1,0 +1,19 @@
+{
+  "name": "v2rayn-three-stage-app",
+  "version": "2.0.0",
+  "description": "v2rayN 定时获取-定时测试-定时汇总 三段式管家 V2.0 (Capacitor Android APP)",
+  "private": true,
+  "scripts": {
+    "prepare:www": "node -e \"const fs=require('fs');fs.mkdirSync('www',{recursive:true});fs.copyFileSync('index.html','www/index.html');fs.copyFileSync('manifest.json','www/manifest.json');\"",
+    "cap:init": "npm run prepare:www && npx cap add android",
+    "cap:sync": "npm run prepare:www && npx cap sync android",
+    "apk:debug": "npm run cap:sync && cd android && gradlew.bat assembleDebug"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.0.0",
+    "@capacitor/core": "^6.0.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.0.0"
+  }
+}
