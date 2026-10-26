@@ -211,6 +211,28 @@ class BridgeHandler(SimpleHTTPRequestHandler):
             self._send_json({"ok": True, "removed": removed})
             return
 
+        if parsed.path == "/api/bench_node":
+            raw_uri = (payload.get("raw") or "").strip()
+            listen_port = int(payload.get("port") or 32199)
+            if not raw_uri:
+                self._send_json({"ok": False, "error": "empty raw"}, 400)
+                return
+            try:
+                if str(SKILL_SCRIPTS_DIR) not in sys.path:
+                    sys.path.insert(0, str(SKILL_SCRIPTS_DIR))
+                from real_bench_via_xray import parse_v2ray_link
+                import real_bench_v2 as rb
+                xray_bin = r"D:\火狐14.0.1\v2rayN-windows-64-SelfContained\bin\xray\xray.exe"
+                node_dict = parse_v2ray_link(raw_uri)
+                if not node_dict:
+                    self._send_json({"latency_avg": -1, "speed_mbps": -1, "score": 0, "error": "parse_fail"})
+                    return
+                res = rb.run_one(node_dict, xray_bin, listen_port)
+                self._send_json(res)
+            except Exception as e:
+                self._send_json({"latency_avg": -1, "speed_mbps": -1, "score": 0, "error": str(e)})
+            return
+
         self._send_json({"ok": False, "error": "unknown endpoint"}, 404)
 
     def _send_json(self, obj, code=200):
