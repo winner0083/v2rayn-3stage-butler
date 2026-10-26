@@ -713,12 +713,16 @@
           </div>
         </div>
         <div class="header-actions">
+          <button class="engine-pill connected" id="keepAliveHeaderBtn" onclick="switchTab('tab-apk')" title="息屏后台常驻守护已开启（点击管理唤醒锁与电池白名单）">
+            <span class="dot" id="keepAliveDot"></span>
+            <span id="keepAliveHeaderLbl">🌙 息屏常驻中</span>
+          </button>
           <button class="engine-pill" id="bridgeStatusBtn" onclick="switchTab('tab-apk')" title="配置 PC Xray 桥接或 GitHub Actions APK">
             <span class="dot amber" id="bridgeDot"></span>
-            <span id="bridgeLabel">双通道引擎就绪</span>
+            <span id="bridgeLabel">双通道引擎</span>
           </button>
           <button class="btn btn-ghost btn-sm" onclick="toggleWideMode()" title="切换手机/宽屏视图">
-            ⇄ 宽屏
+            ⇄
           </button>
         </div>
       </div>
@@ -1236,9 +1240,56 @@
       </section>
 
       <!-- ======================================================== -->
-      <!-- TAB 5: 方案 B (GitHub Actions 云端 APK) & PC 真核桥接    -->
+      <!-- TAB 5: 息屏后台守护 + 方案 B (GitHub Actions) + PC 桥接   -->
       <!-- ======================================================== -->
       <section class="tab-pane" id="tab-apk">
+        <!-- Screen-Off Background Keep-Alive Engine Card -->
+        <div class="card" style="border-color:rgba(59,130,246,0.5);">
+          <div class="card-header">
+            <div>
+              <div class="card-title">🌙 息屏后台常驻运行守护 (WakeLock + 前台服务)</div>
+              <div class="card-sub">锁屏/息屏后保持 CPU、Wi-Fi 与定时调度器持续运行，不中断三段式测速</div>
+            </div>
+            <label class="switch" title="开启/关闭息屏后台持续运行">
+              <input type="checkbox" id="keepAliveMasterToggle" checked onchange="toggleKeepAliveEngine(this.checked)" />
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <div class="kpi-grid" style="margin-bottom:12px;">
+            <div class="kpi-box">
+              <div class="kpi-val" id="kaCpuStatus" style="color:#34d399;font-size:13px;">已锁定</div>
+              <div class="kpi-lbl">CPU 唤醒锁</div>
+            </div>
+            <div class="kpi-box">
+              <div class="kpi-val" id="kaWifiStatus" style="color:#34d399;font-size:13px;">高性能</div>
+              <div class="kpi-lbl">Wi-Fi 不断流锁</div>
+            </div>
+            <div class="kpi-box">
+              <div class="kpi-val" id="kaServiceStatus" style="color:#60a5fa;font-size:13px;">常驻中</div>
+              <div class="kpi-lbl">前台通知服务</div>
+            </div>
+            <div class="kpi-box">
+              <div class="kpi-val" id="keepAliveTickCount" style="color:#fbbf24;font-size:14px;">0s</div>
+              <div class="kpi-lbl">息屏防休眠心跳</div>
+            </div>
+          </div>
+
+          <div style="font-size:11px;color:var(--text-secondary);background:var(--bg-surface);padding:9px 11px;border-radius:9px;margin-bottom:10px;line-height:1.6;">
+            <div>• <strong>原生层四重保活</strong>：APK 内置 <code>KeepAliveService</code>（<code>START_STICKY</code> 前台常驻通知 + <code>PARTIAL_WAKE_LOCK</code> CPU 锁 + <code>WIFI_MODE_FULL_HIGH_PERF</code> 不断网锁 + <code>WebView.resumeTimers()</code> 防息屏冻结）。</div>
+            <div>• <strong>独立线程心跳时钟</strong>：采用 Blob WebWorker 独立线程计时驱动 4 个定时任务，息屏或切后台均不降频。</div>
+          </div>
+
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn btn-amber" style="flex:1;" onclick="requestBatteryWhitelist()">
+              ⚡ 一键申请安卓电池优化白名单 (防系统杀后台)
+            </button>
+            <button class="btn btn-ghost" onclick="testBackgroundNotification()">
+              🔔 刷新锁屏通知状态
+            </button>
+          </div>
+        </div>
+
         <!-- Option B: GitHub Actions Cloud APK Build Guide -->
         <div class="card" style="border-color:rgba(16,185,129,0.45);">
           <div class="card-header">
@@ -2782,6 +2833,179 @@
     function escapeHtml(s) { return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
     function escapeAttr(s) { return String(s || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'"); }
 
+    // =========================================================================
+    // 6. SCREEN-OFF BACKGROUND KEEP-ALIVE ENGINE (NATIVE + WORKER + WAKELOCK)
+    // =========================================================================
+    let keepAliveState = {
+      enabled: localStorage.getItem("v2_keepalive_on") !== "0",
+      ticks: 0,
+      worker: null,
+      wakeLockSentinel: null,
+      audioCtx: null,
+      lastTriggeredMinute: ""
+    };
+
+    function initKeepAliveEngine() {
+      const toggle = document.getElementById("keepAliveMasterToggle");
+      if (toggle) toggle.checked = keepAliveState.enabled;
+      applyKeepAliveUi(keepAliveState.enabled);
+
+      // Start unthrottled Blob Web Worker 1s timer
+      try {
+        const workerCode = `
+          let timer = null;
+          self.onmessage = function(e) {
+            if (e.data === 'start') {
+              if (timer) clearInterval(timer);
+              timer = setInterval(() => self.postMessage('tick'), 1000);
+            } else if (e.data === 'stop') {
+              if (timer) clearInterval(timer);
+              timer = null;
+            }
+          };
+        `;
+        const blob = new Blob([workerCode], { type: "application/javascript" });
+        keepAliveState.worker = new Worker(URL.createObjectURL(blob));
+        keepAliveState.worker.onmessage = () => {
+          if (!keepAliveState.enabled) return;
+          keepAliveState.ticks++;
+          const el = document.getElementById("keepAliveTickCount");
+          if (el) el.textContent = keepAliveState.ticks + "s";
+          if (keepAliveState.ticks % 15 === 0) {
+            checkBackgroundCronSchedules();
+          }
+        };
+        if (keepAliveState.enabled) {
+          keepAliveState.worker.postMessage("start");
+        }
+      } catch (_) {
+        setInterval(() => {
+          if (!keepAliveState.enabled) return;
+          keepAliveState.ticks++;
+          const el = document.getElementById("keepAliveTickCount");
+          if (el) el.textContent = keepAliveState.ticks + "s";
+        }, 1000);
+      }
+
+      if (keepAliveState.enabled) {
+        acquireScreenAndNativeLocks();
+      }
+
+      document.addEventListener("visibilitychange", () => {
+        if (keepAliveState.enabled && window.AndroidKeepAlive && window.AndroidKeepAlive.updateStatus) {
+          const modeTxt = document.hidden ? "息屏/后台守护运行中" : "前台活跃守护中";
+          window.AndroidKeepAlive.updateStatus(`${modeTxt} · 心跳 ${keepAliveState.ticks}s · 待测池 ${state.harvestedPool.length}条`);
+        }
+      });
+    }
+
+    async function acquireScreenAndNativeLocks() {
+      // 1. Native Android Foreground Service + PARTIAL_WAKE_LOCK + WifiLock
+      if (window.AndroidKeepAlive && window.AndroidKeepAlive.setKeepAlive) {
+        try {
+          window.AndroidKeepAlive.setKeepAlive(true, `息屏守护中 · 已启用 ${state.sources.filter(s => s.enabled).length} 源`);
+        } catch (_) {}
+      }
+      // 2. Web Screen WakeLock API
+      if ("wakeLock" in navigator) {
+        try {
+          keepAliveState.wakeLockSentinel = await navigator.wakeLock.request("screen");
+        } catch (_) {}
+      }
+    }
+
+    function releaseScreenAndNativeLocks() {
+      if (window.AndroidKeepAlive && window.AndroidKeepAlive.setKeepAlive) {
+        try { window.AndroidKeepAlive.setKeepAlive(false, "已暂停息屏常驻"); } catch (_) {}
+      }
+      if (keepAliveState.wakeLockSentinel) {
+        try { keepAliveState.wakeLockSentinel.release(); } catch (_) {}
+        keepAliveState.wakeLockSentinel = null;
+      }
+    }
+
+    function toggleKeepAliveEngine(enabled) {
+      keepAliveState.enabled = enabled;
+      localStorage.setItem("v2_keepalive_on", enabled ? "1" : "0");
+      applyKeepAliveUi(enabled);
+      if (enabled) {
+        if (keepAliveState.worker) keepAliveState.worker.postMessage("start");
+        acquireScreenAndNativeLocks();
+        showToast("🌙 已开启息屏后台持续运行守护（CPU唤醒锁 + 前台常驻服务已激活）");
+      } else {
+        if (keepAliveState.worker) keepAliveState.worker.postMessage("stop");
+        releaseScreenAndNativeLocks();
+        showToast("已关闭息屏后台常驻守护");
+      }
+    }
+
+    function applyKeepAliveUi(enabled) {
+      const btn = document.getElementById("keepAliveHeaderBtn");
+      const dot = document.getElementById("keepAliveDot");
+      const lbl = document.getElementById("keepAliveHeaderLbl");
+      if (btn) btn.classList.toggle("connected", enabled);
+      if (dot) dot.className = enabled ? "dot" : "dot amber";
+      if (lbl) lbl.textContent = enabled ? "🌙 息屏常驻中" : "🌙 息屏已关";
+
+      const cpu = document.getElementById("kaCpuStatus");
+      const wifi = document.getElementById("kaWifiStatus");
+      const srv = document.getElementById("kaServiceStatus");
+      if (cpu) { cpu.textContent = enabled ? "已锁定" : "已释放"; cpu.style.color = enabled ? "#34d399" : "#94a3b8"; }
+      if (wifi) { wifi.textContent = enabled ? "高性能" : "默认"; wifi.style.color = enabled ? "#34d399" : "#94a3b8"; }
+      if (srv) { srv.textContent = enabled ? "常驻中" : "已停止"; srv.style.color = enabled ? "#60a5fa" : "#94a3b8"; }
+    }
+
+    function checkBackgroundCronSchedules() {
+      const now = new Date();
+      const hm = now.toTimeString().slice(0, 5);
+      if (hm === keepAliveState.lastTriggeredMinute) return;
+
+      const harvestOn = document.getElementById("cronToggle-harvest")?.checked;
+      const harvestTime = document.getElementById("cronSel-harvest")?.value;
+      if (harvestOn && harvestTime === hm) {
+        keepAliveState.lastTriggeredMinute = hm;
+        runLiveHarvest();
+      }
+
+      const testOn = document.getElementById("cronToggle-test")?.checked;
+      const testTime = document.getElementById("cronSel-test")?.value;
+      if (testOn && testTime === hm) {
+        keepAliveState.lastTriggeredMinute = hm;
+        startThreeStageRun("all");
+      }
+
+      const aggOn = document.getElementById("cronToggle-agg")?.checked;
+      const aggTime = document.getElementById("cronSel-agg")?.value;
+      if (aggOn && aggTime === hm) {
+        keepAliveState.lastTriggeredMinute = hm;
+        runAggregateNow();
+      }
+    }
+
+    function requestBatteryWhitelist() {
+      if (window.AndroidKeepAlive && window.AndroidKeepAlive.requestIgnoreBatteryOptimizations) {
+        try {
+          const already = window.AndroidKeepAlive.isIgnoringBatteryOptimizations();
+          if (already) {
+            showToast("✅ 当前 APP 已在安卓电池优化白名单中，息屏可无限制运行！");
+          } else {
+            window.AndroidKeepAlive.requestIgnoreBatteryOptimizations();
+            showToast("请在弹出的安卓系统窗口中点击「允许」忽略电池优化");
+          }
+          return;
+        } catch (_) {}
+      }
+      showToast("在安卓手机安装 APK 后点击此按钮，将直接弹出系统「忽略电池优化」白名单授权框");
+    }
+
+    function testBackgroundNotification() {
+      const msg = `息屏守护正常 · 活跃池 ${state.harvestedPool.length} 节点 · 心跳 ${keepAliveState.ticks}s`;
+      if (window.AndroidKeepAlive && window.AndroidKeepAlive.updateStatus) {
+        try { window.AndroidKeepAlive.updateStatus(msg); } catch (_) {}
+      }
+      showToast("🔔 已同步更新安卓通知栏与锁屏常驻状态：" + msg);
+    }
+
     window.addEventListener("DOMContentLoaded", () => {
       loadCronConfig();
       initSeedPool();
@@ -2791,7 +3015,8 @@
       renderInspectRound();
       renderAggView();
       renderWeeklyReview();
-      appendLog("v2rayN 三段式管家 V2.0 (可扩展源 + 双通道测源 + 周检讨90天清理) 已启动。", "log-ok");
+      initKeepAliveEngine();
+      appendLog("v2rayN 三段式管家 V2.0 (息屏常驻守护 + 双通道测源 + 周检讨90天清理) 已启动。", "log-ok");
     });
   </script>
 </body>

@@ -32,6 +32,7 @@ jobs:
           npm run prepare:www
           npx cap add android
           npx cap sync android
+          python3 patch_android_keepalive.py
 
       - name: Build Debug APK with Gradle
         working-directory: ./android
