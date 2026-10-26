@@ -1030,13 +1030,14 @@
           </div>
         </div>
 
-        <!-- Live Execution Terminal -->
+          <!-- Live Execution Terminal -->
         <div class="card">
           <div class="card-header">
             <div>
               <div class="card-title">🖥️ 实时测试流水线日志 (3stage_run.log)</div>
               <div class="card-sub" id="testStageStatusText">就绪 — 测速强制直连 (NO_PROXY=*)，不走系统代理</div>
             </div>
+            <button class="btn btn-rose btn-sm" id="btnStopBench" style="display:none;" onclick="stopCurrentXrayBench()">⏹ 停止测试</button>
           </div>
           <div style="margin-bottom:10px;">
             <div class="progress-track">
@@ -1154,9 +1155,10 @@
             </div>
           </div>
 
-          <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:10px;">
-            <button class="btn btn-emerald" onclick="copyRecommendedLinks(false)">📋 复制推荐纯链接 (可粘贴.txt)</button>
-            <button class="btn btn-primary" onclick="copyRecommendedLinks(true)">📦 复制 Base64 订阅串 (v2rayNG)</button>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px;">
+            <button class="btn btn-emerald" onclick="copyRecommendedLinks(false)">📋 复制纯链接</button>
+            <button class="btn btn-primary" onclick="copyRecommendedLinks(true)">📦 复制 Base64</button>
+            <button class="btn btn-amber" onclick="launchV2rayNGWithRecommended()">🚀 导入 v2rayNG</button>
           </div>
           <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:12px;">
             <button class="btn btn-ghost btn-sm" onclick="downloadMarkdownReport()">📥 导出统计报告.md</button>
@@ -1446,8 +1448,9 @@
       </div>
       <div id="modalNodeStats" style="font-size:12px;color:var(--text-secondary);margin-bottom:10px;line-height:1.6;"></div>
       <textarea class="textarea" id="modalNodeRaw" readonly style="margin-bottom:10px;"></textarea>
-      <div style="display:grid;grid-template-columns:2fr 1fr;gap:8px;">
-        <button class="btn btn-primary" onclick="copyModalNodeLink()">📋 复制节点链接</button>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;">
+        <button class="btn btn-primary" onclick="copyModalNodeLink()">📋 复制链接</button>
+        <button class="btn btn-emerald" onclick="launchV2rayNGWithModalNode()">🚀 导入v2rayNG</button>
         <button class="btn btn-rose" onclick="deprecateCurrentModalNode()">🗑️ 标为废弃</button>
       </div>
     </div>
@@ -1672,14 +1675,43 @@
     // =========================================================================
     // 3. DUAL-CHANNEL SOURCE TESTER (DIRECT vs PROXY 10808) & EXTENSIBLE ADD
     // =========================================================================
+    function getBestProxyNodeUri() {
+      const batch = BATCH_DB[state.currentBatchKey];
+      if (batch && batch.nodes && batch.nodes.length) {
+        const alive = batch.nodes.filter(n => n.lat_avg > 0 && !n.inflated);
+        if (alive.length) return alive[0].raw;
+      }
+      if (state.harvestedPool.length) return state.harvestedPool[0].raw;
+      return "";
+    }
+
     async function probeUrlDualChannel(url) {
+      // 1. Native Android Dual-Channel Probe & Fetcher (Zero CORS, Direct Proxy.NO_PROXY + libxray.so Proxy)
+      if (window.AndroidKeepAlive && typeof window.AndroidKeepAlive.probeAndFetchSubJson === "function") {
+        try {
+          const bestNode = getBestProxyNodeUri();
+          const resStr = window.AndroidKeepAlive.probeAndFetchSubJson(url, bestNode);
+          const r = JSON.parse(resStr);
+          const parsed = r.body ? parseSubscriptionContent(r.body, 5000) : { rawTotal: 0, valid: [], trash: 0 };
+          return {
+            ok: true,
+            directOk: Boolean(r.directOk),
+            directMs: r.directMs || -1,
+            directNodes: r.directOk ? (parsed.rawTotal || parsed.valid.length) : 0,
+            proxyOk: Boolean(r.proxyOk),
+            proxyMs: r.proxyMs || -1,
+            proxyNodes: r.proxyOk ? (parsed.rawTotal || parsed.valid.length) : 0,
+            body: r.body || ""
+          };
+        } catch (_) {}
+      }
+
+      // 2. PC Bridge true dual-channel probe (/api/probe_source)
       const bridgeUrl = document.getElementById("bridgeUrlInput").value.trim().replace(/\/$/, "");
       const proxyAddr = document.getElementById("localProxyInput").value.trim();
-
-      // 1. Try PC Bridge true dual-channel probe (/api/probe_source) first
       try {
         const ctrl = new AbortController();
-        const t = setTimeout(() => ctrl.abort(), 3500);
+        const t = setTimeout(() => ctrl.abort(), 4500);
         const res = await fetch(`${bridgeUrl}/api/probe_source?url=${encodeURIComponent(url)}&proxy=${encodeURIComponent(proxyAddr)}`, { signal: ctrl.signal });
         clearTimeout(t);
         if (res.ok) {
@@ -1687,8 +1719,8 @@
         }
       } catch (_) {}
 
-      // 2. Standalone Browser/Mobile Direct vs Proxy Relay Probe
-      let directOk = false, directMs = -1, directNodes = 0;
+      // 3. Browser Direct + Relay Probe
+      let directOk = false, directMs = -1, directNodes = 0, bodyText = "";
       let proxyOk = false, proxyMs = -1, proxyNodes = 0;
 
       const t0 = performance.now();
@@ -1703,6 +1735,7 @@
           directMs = Math.round(performance.now() - t0);
           directNodes = parsed.rawTotal || parsed.valid.length;
           directOk = directNodes > 0 || txt.length > 20;
+          if (directOk) bodyText = txt;
         }
       } catch (_) {
         directOk = false;
@@ -1721,6 +1754,7 @@
           proxyMs = Math.round(performance.now() - t1);
           proxyNodes = parsed2.rawTotal || parsed2.valid.length;
           proxyOk = proxyNodes > 0 || txt2.length > 20;
+          if (proxyOk && !bodyText) bodyText = txt2;
         }
       } catch (_) {
         if (directOk) {
@@ -1730,7 +1764,7 @@
         }
       }
 
-      return { ok: true, directOk, directMs, directNodes, proxyOk, proxyMs, proxyNodes };
+      return { ok: true, directOk, directMs, directNodes, proxyOk, proxyMs, proxyNodes, body: bodyText };
     }
 
     async function preTestNewSource() {
@@ -1833,32 +1867,31 @@
       const pct = document.getElementById("harvestProgressPct");
       wrap.style.display = "block";
 
-      const total = state.sources.length;
+      const targets = state.sources.filter(s => s.enabled);
+      const listToProbe = targets.length ? targets : state.sources;
+      const total = listToProbe.length;
+
       for (let i = 0; i < total; i++) {
-        const s = state.sources[i];
+        const s = listToProbe[i];
         const p = Math.round(((i + 1) / total) * 100);
-        txt.textContent = `[双通道测源 ${i + 1}/${total}] 正在测试直连与代理: ${s.name}...`;
+        txt.textContent = `[双通道真实测源 ${i + 1}/${total}] 正在实测直连与代理: ${s.name}...`;
         pct.textContent = `${p}%`;
         bar.style.width = `${p}%`;
 
-        if (i < 4) {
-          const r = await probeUrlDualChannel(s.url);
-          if (r.directOk || r.proxyOk) {
-            s.directOk = r.directOk;
-            s.directMs = r.directMs;
-            s.proxyOk = r.proxyOk;
-            s.proxyMs = r.proxyMs;
-          }
-        } else {
-          await sleep(45);
-        }
+        const r = await probeUrlDualChannel(s.url);
+        s.directOk = Boolean(r.directOk);
+        s.directMs = r.directMs || -1;
+        s.proxyOk = Boolean(r.proxyOk);
+        s.proxyMs = r.proxyMs || -1;
+        renderSources();
+        await sleep(20);
       }
 
       saveState();
       renderSources();
       renderWeeklyReview();
-      txt.textContent = `全部 ${total} 个订阅源「直连 vs 代理」双通道可用性测试完成！`;
-      showToast("批量双通道测源完成！已更新直连/代理可达标记");
+      txt.textContent = `全部 ${total} 个订阅源「直连 vs 代理」双通道真实可用性测试完成！`;
+      showToast(`批量双通道测源完成！已实测全部 ${total} 个订阅源`);
     }
 
     function filterSources(mode, btnEl) {
@@ -2324,20 +2357,24 @@
     async function fetchSingleSource(idx) {
       const s = state.sources[idx];
       const limit = parseInt(document.getElementById("limitPerSourceInput").value, 10) || 60;
-      showToast(`正在抓取 ${s.name} (自动优选直连/代理通道)...`);
-      try {
-        const res = await fetch(s.url, { cache: "no-store" });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const text = await res.text();
-        const parsed = parseSubscriptionContent(text, limit);
+      showToast(`正在抓取 ${s.name} (自动走直连/Xray代理双通道)...`);
+      const res = await probeUrlDualChannel(s.url);
+      s.directOk = Boolean(res.directOk);
+      s.directMs = res.directMs || -1;
+      s.proxyOk = Boolean(res.proxyOk);
+      s.proxyMs = res.proxyMs || -1;
+
+      if (res.body && res.body.trim()) {
+        const parsed = parseSubscriptionContent(res.body, limit);
         s.lastCount = parsed.valid.length;
-        s.directOk = true;
         mergeNodesIntoPool(parsed.valid, parsed.trash);
         saveState();
         renderSources();
-        showToast(`${s.name}: 原始 ${parsed.rawTotal} 条 → 抽样 ${parsed.valid.length} 条入池`);
-      } catch (err) {
-        showToast(`${s.name} 直连受阻，已通过代理通道同步缓存样本`);
+        showToast(`${s.name}: 原始 ${parsed.rawTotal} 条 → 等距抽样 ${parsed.valid.length} 条入池`);
+      } else {
+        saveState();
+        renderSources();
+        showToast(`${s.name}: 直连与代理均未抓到有效内容`);
       }
     }
 
@@ -2352,32 +2389,34 @@
       const pct = document.getElementById("harvestProgressPct");
       wrap.style.display = "block";
 
-      const liveBatch = enabled.slice(0, 4);
-      for (let i = 0; i < liveBatch.length; i++) {
-        const s = liveBatch[i];
-        const p = Math.round(((i + 1) / liveBatch.length) * 100);
-        txt.textContent = `[定时获取] 正在拉取 (${i + 1}/${liveBatch.length}): ${s.name}`;
+      let newlyFetchedTotal = 0;
+      for (let i = 0; i < enabled.length; i++) {
+        const s = enabled[i];
+        const p = Math.round(((i + 1) / enabled.length) * 100);
+        txt.textContent = `[定时获取 ${i + 1}/${enabled.length}] 正在拉取并解析: ${s.name}...`;
         pct.textContent = `${p}%`;
         bar.style.width = `${p}%`;
-        try {
-          const ctrl = new AbortController();
-          const timer = setTimeout(() => ctrl.abort(), 5000);
-          const res = await fetch(s.url, { signal: ctrl.signal });
-          clearTimeout(timer);
-          if (res.ok) {
-            const rawText = await res.text();
-            const parsed = parseSubscriptionContent(rawText, limit);
-            s.lastCount = parsed.valid.length;
-            mergeNodesIntoPool(parsed.valid, parsed.trash);
-          }
-        } catch (_) {}
+
+        const res = await probeUrlDualChannel(s.url);
+        s.directOk = Boolean(res.directOk);
+        s.directMs = res.directMs || -1;
+        s.proxyOk = Boolean(res.proxyOk);
+        s.proxyMs = res.proxyMs || -1;
+
+        if (res.body && res.body.trim()) {
+          const parsed = parseSubscriptionContent(res.body, limit);
+          s.lastCount = parsed.valid.length;
+          newlyFetchedTotal += parsed.valid.length;
+          mergeNodesIntoPool(parsed.valid, parsed.trash);
+        }
+        await sleep(20);
       }
 
       saveState();
       renderSources();
       renderPoolPreview();
-      txt.textContent = `获取完成：当前活跃池 ${state.harvestedPool.length} 条（已自动跳过 ${state.deprecatedNodes.length} 条废弃墓碑节点）`;
-      showToast(`定时获取运行完成！活跃待测节点 ${state.harvestedPool.length} 条`);
+      txt.textContent = `全量拉取完成：本轮从 ${enabled.length} 个源抽样入池 ${newlyFetchedTotal} 条，当前活跃池共 ${state.harvestedPool.length} 条`;
+      showToast(`定时获取完成！当前活跃待测节点池共 ${state.harvestedPool.length} 条`);
     }
 
     function mergeNodesIntoPool(newNodes, trashAdded = 0) {
@@ -2655,6 +2694,101 @@
       };
     }
 
+    let activeBenchCancel = false;
+
+    function stopCurrentXrayBench() {
+      activeBenchCancel = true;
+      if (window.AndroidKeepAlive && typeof window.AndroidKeepAlive.stopBatchBench === "function") {
+        try { window.AndroidKeepAlive.stopBatchBench(); } catch (_) {}
+      }
+      document.getElementById("btnStopBench").style.display = "none";
+      appendLog("⚠️ 用户已手动停止当前测试。", "log-warn");
+      showToast("已停止当前测试");
+    }
+
+    // Unified Non-Blocking Batch Runner (Uses Android 4-Thread Native Executor OR PC Bridge)
+    async function executeNodesBatchWithRealXray(nodeList, doSpeed = true, roundLabel = "run1") {
+      activeBenchCancel = false;
+      const stopBtn = document.getElementById("btnStopBench");
+      const bar = document.getElementById("testProgressBar");
+      const statusTxt = document.getElementById("testStageStatusText");
+      stopBtn.style.display = "inline-flex";
+
+      const totalN = nodeList.length;
+
+      // Path A: Native Android Multi-Threaded Executor Pool (Non-blocking UI!)
+      if (window.AndroidKeepAlive && typeof window.AndroidKeepAlive.startBatchBench === "function") {
+        const uris = nodeList.map(n => n.raw);
+        window.AndroidKeepAlive.startBatchBench(JSON.stringify(uris), doSpeed, 4);
+
+        while (!activeBenchCancel) {
+          await sleep(300);
+          let prog = {};
+          try {
+            prog = JSON.parse(window.AndroidKeepAlive.getBatchProgressJson() || "{}");
+          } catch (_) {}
+
+          const done = prog.done || 0;
+          const alive = prog.alive || 0;
+          const pct = totalN > 0 ? Math.round((done / totalN) * 100) : 100;
+          bar.style.width = `${pct}%`;
+          statusTxt.textContent = `[${roundLabel}] Xray真核并发实测中: ${done}/${totalN} (已连通 ${alive})...`;
+
+          if (Array.isArray(prog.newLogs)) {
+            prog.newLogs.forEach(lg => {
+              const isPass = lg.startsWith("PASS|");
+              appendLog(`[${roundLabel}] ` + lg.replace(/^(PASS|DEAD)\|/, ""), isPass ? "log-ok" : "log-err");
+            });
+          }
+
+          if (!prog.running || done >= totalN) {
+            stopBtn.style.display = "none";
+            const rawResults = Array.isArray(prog.results) ? prog.results : [];
+            return rawResults.map(r => ({
+              name: r.name || "node",
+              proto: r.proto || "vless",
+              host: r.host || "",
+              lat_avg: r.latency_avg !== undefined ? r.latency_avg : -1,
+              lat_min: r.latency_min !== undefined ? r.latency_min : -1,
+              lat_std: r.latency_std !== undefined ? r.latency_std : -1,
+              spd_avg: r.speed_mbps !== undefined ? r.speed_mbps : -1,
+              spd_max: r.speed_mbps !== undefined ? r.speed_mbps : -1,
+              alive: r.latency_avg >= 0 ? 1 : 0,
+              rounds: 1,
+              score: r.score || 0,
+              inflated: false,
+              error: r.error || "",
+              raw: r.raw || ""
+            }));
+          }
+        }
+        stopBtn.style.display = "none";
+        return [];
+      }
+
+      // Path B: PC Bridge or Sequential Fallback
+      const testedNodes = [];
+      let aliveCount = 0;
+      for (let i = 0; i < totalN; i++) {
+        if (activeBenchCancel) break;
+        const n = nodeList[i];
+        const pct = Math.round(((i + 1) / totalN) * 100);
+        bar.style.width = `${pct}%`;
+        statusTxt.textContent = `[${roundLabel}] 正在实测 (${i + 1}/${totalN}): ${n.name} (${n.host})...`;
+
+        const res = await benchOneNodeRealXray(n, i, doSpeed);
+        testedNodes.push(res);
+        if (res.lat_avg >= 0) {
+          aliveCount++;
+          appendLog(`[${roundLabel}] [${i + 1}/${totalN}] ${res.name} (${res.host}) -> 延迟 ${res.lat_avg}ms | 速度 ${res.spd_avg > 0 ? res.spd_avg + "Mbps" : "无速度"} | 评分 ${res.score}`, "log-ok");
+        } else {
+          appendLog(`[${roundLabel}] [${i + 1}/${totalN}] ${res.name} (${res.host}) -> -1ms (${res.error || "ping_fail"})`, "log-err");
+        }
+      }
+      stopBtn.style.display = "none";
+      return testedNodes;
+    }
+
     async function runThreeStageOnPastedNodes(mode) {
       const raw = document.getElementById("pasteTestTextarea").value;
       const info = smartExtractNodesFromText(raw);
@@ -2682,32 +2816,14 @@
       badge.textContent = "XRAY-TESTING";
 
       const hasAndroidXray = Boolean(window.AndroidKeepAlive && window.AndroidKeepAlive.hasNativeXray && window.AndroidKeepAlive.hasNativeXray());
-      const xrayVer = (hasAndroidXray && window.AndroidKeepAlive.getXrayVersion) ? window.AndroidKeepAlive.getXrayVersion() : "PC Bridge / Native Xray";
+      const xrayVer = (hasAndroidXray && window.AndroidKeepAlive.getXrayVersion) ? window.AndroidKeepAlive.getXrayVersion() : "PC Bridge / Xray";
 
       appendLog(`=== 启动【Xray真核】粘贴节点实测 (共 ${totalN} 条节点) ===`, "log-info");
-      appendLog(`[Xray内核] ${xrayVer} | 测试目标: https://i.ytimg.com/generate_204 + speed.cloudflare.com`, "log-ok");
+      appendLog(`[Xray内核] ${xrayVer} | 阶段0 TCP探活 -> 阶段1 i.ytimg.com/generate_204 -> 阶段2 Cloudflare测速`, "log-ok");
 
-      const testedNodes = [];
-      let aliveCount = 0;
-
-      for (let i = 0; i < totalN; i++) {
-        const n = info.valid[i];
-        const pct = Math.round(((i + 1) / totalN) * 100);
-        bar.style.width = `${pct}%`;
-        statusTxt.textContent = `正在用 Xray 真核实测 (${i + 1}/${totalN}): ${n.name} (${n.host})...`;
-
-        const res = await benchOneNodeRealXray(n, i, true);
-        testedNodes.push(res);
-
-        if (res.lat_avg >= 0) {
-          aliveCount++;
-          appendLog(`[PASS ${i + 1}/${totalN}] ${res.name} (${res.host}) -> 延迟 ${res.lat_avg}ms (±${res.lat_std}ms) | 速度 ${res.spd_avg > 0 ? res.spd_avg + "Mbps" : "无速度"} | 评分 ${res.score}`, "log-ok");
-        } else {
-          appendLog(`[DEAD ${i + 1}/${totalN}] ${res.name} (${res.host}) -> 延迟 -1ms (${res.error || "ping_fail"}) [已剔除推荐榜]`, "log-err");
-        }
-      }
-
+      const testedNodes = await executeNodesBatchWithRealXray(info.valid, true, "粘贴实测");
       const aliveNodes = testedNodes.filter(x => x.lat_avg >= 0);
+      const aliveCount = aliveNodes.length;
       const withSpd = aliveNodes.filter(x => x.spd_avg > 0);
       const avgLatAll = aliveNodes.length ? Number((aliveNodes.reduce((a, b) => a + b.lat_avg, 0) / aliveNodes.length).toFixed(1)) : -1;
       const minLatAll = aliveNodes.length ? Math.min(...aliveNodes.map(x => x.lat_min)) : -1;
@@ -2726,7 +2842,7 @@
           time: `10-26 ${timeTag}`,
           tcp: aliveCount,
           s1: aliveCount,
-          s1_rate: Number(((aliveCount / totalN) * 100).toFixed(1)),
+          s1_rate: Number(((aliveCount / Math.max(1, totalN)) * 100).toFixed(1)),
           lat_avg: avgLatAll,
           lat_min: minLatAll,
           fine_n: totalN,
@@ -2812,55 +2928,115 @@
       const badge = document.getElementById("testEtaBadge");
 
       let roundsToRun = mode === "all" ? [1, 2, 3] : (mode === "missing" ? (batch.roundsMissing.length ? [...batch.roundsMissing] : [2, 3]) : [Number(mode)]);
+      const targetPool = state.harvestedPool.length ? state.harvestedPool.slice(0, 60) : batch.nodes;
+      if (!targetPool.length) {
+        return showToast("当前待测节点池为空，请先拉取订阅源或粘贴节点");
+      }
+
       document.getElementById("testTerminalLog").innerHTML = "";
       badge.className = "tag tag-vless";
       badge.textContent = "RUNNING";
 
-      appendLog(`=== 单独立刻运行：三段式测试 V2.0 (轮次: ${roundsToRun.map(r => "run" + r).join(", ")}) ===`, "log-info");
+      appendLog(`=== 启动真核三段式测试 V2.0 (轮次: ${roundsToRun.map(r => "run" + r).join(", ")} | 待测: ${targetPool.length}条) ===`, "log-info");
       appendLog(`[隔离保护] NO_PROXY=*，已排除废弃墓碑库中的 ${state.deprecatedNodes.length} 个不可用节点`, "log-ok");
 
+      if (!batch._roundHistory) batch._roundHistory = {};
+
       for (let idx = 0; idx < roundsToRun.length; idx++) {
+        if (activeBenchCancel) break;
         const r = roundsToRun[idx];
-        bar.style.width = "30%";
-        statusTxt.textContent = `正在执行 第 ${r} 轮 (run${r}) — 阶段 0+1: TCP 探活与 generate_204 粗筛...`;
-        appendLog(`[run${r}] 阶段 0 TCP 探活 + 阶段 1 代理延迟粗筛 → Top1000`);
-        await sleep(450);
+        appendLog(`--- 开始执行 第 ${r} 轮 (run${r}) Xray 真核测试 ---`, "log-info");
 
-        const tcpPass = 12900 + Math.floor(Math.random() * 1400);
-        const s1Pass = 60 + Math.floor(Math.random() * 18);
-        bar.style.width = "75%";
-        statusTxt.textContent = `正在执行 第 ${r} 轮 (run${r}) — 阶段 2: 3轮延迟抖动 + Cloudflare 测速细筛...`;
-        appendLog(`[run${r}] 阶段 2 细筛 (35/30/35 评分) 完成 → 输出 run${r}_Top500_可粘贴.txt`, "log-ok");
-        await sleep(500);
+        const roundRes = await executeNodesBatchWithRealXray(targetPool, true, `run${r}`);
+        if (activeBenchCancel) break;
 
-        const aliveCnt = Math.max(38, s1Pass - 8);
-        const spdAvg = Number((32 + Math.random() * 24).toFixed(2));
-        const spdMax = Number((spdAvg * 2.3).toFixed(2));
+        batch._roundHistory[r] = roundRes;
+        const aliveList = roundRes.filter(x => x.lat_avg >= 0);
+        const spdList = aliveList.filter(x => x.spd_avg > 0);
+        const avgLat = aliveList.length ? Number((aliveList.reduce((a, b) => a + b.lat_avg, 0) / aliveList.length).toFixed(1)) : 0;
+        const minLat = aliveList.length ? Math.min(...aliveList.map(x => x.lat_min)) : 0;
+        const avgSpd = spdList.length ? Number((spdList.reduce((a, b) => a + b.spd_avg, 0) / spdList.length).toFixed(2)) : 0;
+        const maxSpd = spdList.length ? Number(Math.max(...spdList.map(x => x.spd_max)).toFixed(2)) : 0;
+
         const nowStr = new Date().toTimeString().slice(0, 5);
-        const datePrefix = state.currentBatchKey.slice(5);
+        const datePrefix = state.currentBatchKey.slice(5, 10) || "10-26";
 
         if (!batch.roundsPresent.includes(r)) batch.roundsPresent.push(r);
         batch.roundsPresent.sort();
         batch.roundsMissing = [1, 2, 3].filter(x => !batch.roundsPresent.includes(x));
         batch.incomplete = batch.roundsPresent.length < 3;
 
+        const fObj = {
+          run: r,
+          time: `${datePrefix} ${nowStr}`,
+          tcp: roundRes.length,
+          s1: aliveList.length,
+          s1_rate: Number(((aliveList.length / Math.max(1, roundRes.length)) * 100).toFixed(2)),
+          lat_avg: avgLat,
+          lat_min: minLat,
+          fine_n: roundRes.length,
+          alive: aliveList.length,
+          stable3: aliveList.length,
+          spd_ok: spdList.length,
+          spd_avg: avgSpd,
+          spd_max: maxSpd
+        };
         const existingF = batch.funnel.find(x => x.run === r);
-        const fObj = { run: r, time: `${datePrefix} ${nowStr}`, tcp: tcpPass, s1: s1Pass, s1_rate: Number((s1Pass / tcpPass * 100).toFixed(2)), lat_avg: 268.4, lat_min: 41, fine_n: s1Pass, alive: aliveCnt, stable3: aliveCnt - 2, spd_ok: Math.floor(aliveCnt * 0.6), spd_avg: spdAvg, spd_max: spdMax };
         if (existingF) Object.assign(existingF, fObj);
         else batch.funnel.push(fObj);
         batch.funnel.sort((a, b) => a.run - b.run);
 
-        batch.nodes.forEach(n => { n.rounds = batch.roundsPresent.length; n.alive = batch.roundsPresent.length; });
+        // Aggregate across all completed rounds in _roundHistory
+        const aggMap = new Map();
+        const completedRoundsCount = Object.keys(batch._roundHistory).length;
+        Object.values(batch._roundHistory).forEach(rList => {
+          rList.forEach(item => {
+            const cur = aggMap.get(item.raw) || {
+              name: item.name, proto: item.proto, host: item.host, raw: item.raw,
+              lats: [], mins: [], stds: [], spds: [], scores: [], alive: 0, rounds: 0, error: item.error
+            };
+            cur.rounds++;
+            if (item.lat_avg >= 0) {
+              cur.alive++;
+              cur.lats.push(item.lat_avg);
+              cur.mins.push(item.lat_min > 0 ? item.lat_min : item.lat_avg);
+              cur.stds.push(item.lat_std || 0);
+              cur.scores.push(item.score || 0);
+            } else {
+              cur.error = item.error || "ping_fail";
+            }
+            if (item.spd_avg > 0) cur.spds.push(item.spd_avg);
+            aggMap.set(item.raw, cur);
+          });
+        });
+
+        batch.nodes = Array.from(aggMap.values()).map(c => ({
+          name: c.name,
+          proto: c.proto,
+          host: c.host,
+          raw: c.raw,
+          alive: c.alive,
+          rounds: Math.max(c.rounds, completedRoundsCount),
+          lat_avg: c.lats.length ? Number((c.lats.reduce((a, b) => a + b, 0) / c.lats.length).toFixed(1)) : -1,
+          lat_min: c.mins.length ? Math.min(...c.mins) : -1,
+          lat_std: c.stds.length ? Number((c.stds.reduce((a, b) => a + b, 0) / c.stds.length).toFixed(1)) : -1,
+          spd_avg: c.spds.length ? Number((c.spds.reduce((a, b) => a + b, 0) / c.spds.length).toFixed(2)) : -1,
+          spd_max: c.spds.length ? Number(Math.max(...c.spds).toFixed(2)) : -1,
+          score: c.scores.length ? Number((c.scores.reduce((a, b) => a + b, 0) / c.scores.length).toFixed(1)) : 0,
+          inflated: false,
+          error: c.error || ""
+        }));
+
         renderRoundStepper();
+        renderInspectRound();
+        renderAggView();
       }
 
       bar.style.width = "100%";
       badge.className = "tag tag-ok";
       badge.textContent = "DONE";
-      statusTxt.textContent = batch.incomplete ? `已完成 ${batch.roundsPresent.length}/3 轮 (PARTIAL)` : "3/3 轮全部完成！已自动更新跨轮汇总。";
-      renderInspectRound();
-      renderAggView();
-      showToast("三段式测试运行完毕！");
+      statusTxt.textContent = batch.incomplete ? `已完成 ${batch.roundsPresent.length}/3 轮 (PARTIAL)` : "3/3 轮真核测试全部完成！已自动更新跨轮汇总。";
+      showToast("三段式真核测试运行完毕！");
     }
 
     function selectInspectRound(r) {
@@ -3118,7 +3294,43 @@
     function copyBridgeCmd() { copyText("python pc_bridge_server.py", "已复制 PC 桥接启动命令"); }
     function copyGitPushCmd() { copyText("push_to_github_apk.bat", "已复制一键推送 GitHub 编译 APK 脚本命令"); }
 
+    function launchV2rayNGWithRecommended() {
+      const batch = BATCH_DB[state.currentBatchKey];
+      const rec = getRecommendedNodes(batch);
+      if (!rec.length) return showToast("当前批次暂无可导入的连通节点");
+      const rawLinks = rec.map(n => n.raw).join("\n");
+      if (window.AndroidKeepAlive && typeof window.AndroidKeepAlive.launchV2rayNG === "function") {
+        const launched = window.AndroidKeepAlive.launchV2rayNG(rawLinks);
+        if (launched) {
+          showToast(`已复制 ${rec.length} 条稳定节点并正在打开 v2rayNG / NekoBox（点右上角+号 -> 从剪贴板导入）`);
+          return;
+        }
+      }
+      copyText(rawLinks, `已复制 ${rec.length} 条节点到剪贴板，请打开 v2rayNG 点「从剪贴板导入」`);
+    }
+
+    function launchV2rayNGWithModalNode() {
+      const raw = document.getElementById("modalNodeRaw").value.trim();
+      if (!raw) return;
+      if (window.AndroidKeepAlive && typeof window.AndroidKeepAlive.launchV2rayNG === "function") {
+        const launched = window.AndroidKeepAlive.launchV2rayNG(raw);
+        if (launched) {
+          showToast("已复制该节点并打开 v2rayNG（点右上角+号 -> 从剪贴板导入）");
+          return;
+        }
+      }
+      copyText(raw, "已复制该节点链接，请打开 v2rayNG 点「从剪贴板导入」");
+    }
+
     function copyText(text, toastMsg) {
+      if (window.AndroidKeepAlive && typeof window.AndroidKeepAlive.copyToClipboard === "function") {
+        try {
+          if (window.AndroidKeepAlive.copyToClipboard(text)) {
+            showToast(toastMsg);
+            return;
+          }
+        } catch (_) {}
+      }
       if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(text).then(() => showToast(toastMsg));
       } else {
@@ -3130,6 +3342,15 @@
     }
 
     function downloadBlob(content, filename, mime) {
+      if (window.AndroidKeepAlive && typeof window.AndroidKeepAlive.exportOrShareFile === "function") {
+        try {
+          const savedPath = window.AndroidKeepAlive.exportOrShareFile(filename, content);
+          if (savedPath) {
+            showToast(`已保存至手机 Download/${filename} 并调起系统分享`);
+            return;
+          }
+        } catch (_) {}
+      }
       const blob = new Blob([content], { type: mime });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -3324,7 +3545,20 @@
       renderAggView();
       renderWeeklyReview();
       initKeepAliveEngine();
-      appendLog("v2rayN 三段式管家 V2.0 (息屏常驻守护 + 双通道测源 + 周检讨90天清理) 已启动。", "log-ok");
+      if (window.AndroidKeepAlive && typeof window.AndroidKeepAlive.hasNativeXray === "function") {
+        try {
+          if (window.AndroidKeepAlive.hasNativeXray()) {
+            const ver = window.AndroidKeepAlive.getXrayVersion ? window.AndroidKeepAlive.getXrayVersion() : "libxray.so";
+            document.getElementById("bridgeDot").className = "dot";
+            document.getElementById("bridgeLabel").textContent = "内置Xray真核已就绪";
+            document.getElementById("bridgeStatusBtn").classList.add("connected");
+            document.getElementById("bridgeCardBadge").className = "tag tag-ok";
+            document.getElementById("bridgeCardBadge").textContent = "内置 libxray.so 真核运行中";
+            appendLog(`[Android Native] 已加载手机内置 Xray 真核: ${ver}`, "log-ok");
+          }
+        } catch (_) {}
+      }
+      appendLog("v2rayN 三段式管家 V2.0 (内置libxray.so真核 + 息屏常驻守护 + 原生双通道测源 + 周检讨90天清理) 已启动。", "log-ok");
     });
   </script>
 </body>

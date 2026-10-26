@@ -1,18 +1,26 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Injects:
-1. Native Android Xray-Core Benchmark Engine (XrayBenchEngine.java + bundled libxray.so)
-   - Line-by-line Java port of real_bench_via_xray.py + real_bench_v2.py
-   - Stage 0: Real TCP socket connect probe
-   - Stage 1: Spawns real libxray.so child process -> raw SOCKS5 (ATYP=0x03 remote DNS) ->
-              TLS 443 -> https://i.ytimg.com/generate_204 (3 rounds: avg / min / std)
-              Dead/unreachable nodes genuinely return latency_avg = -1, score = 0!
-   - Stage 2: Raw SOCKS5 -> TLS 443 -> https://speed.cloudflare.com/__down?bytes=5000000
-              (with L041 minimum 128KB payload check) -> real Mbps download speed
-2. Screen-Off KeepAliveService.java (PARTIAL_WAKE_LOCK + WifiLock + ForegroundService)
-3. MainActivity.java (@JavascriptInterface AndroidKeepAlive + WebView.resumeTimers())
-4. AndroidManifest.xml (extractNativeLibs="true" + permissions) & build.gradle (useLegacyPackaging true)
+Injects Full Native Android Capabilities into the Capacitor Android Project:
+1. XrayBenchEngine.java:
+   - Bundled libxray.so (Xray-android-arm64-v8a) process manager
+   - Single-node & Asynchronous Multi-Threaded Batch Benchmark Pool (4 concurrent workers)
+   - Stage 0: Real Java Socket TCP connect probe
+   - Stage 1: Real libxray.so SOCKS5 (ATYP=0x03 remote DNS) -> TLS 443 -> i.ytimg.com/generate_204 (3 rounds)
+   - Stage 2: Real libxray.so SOCKS5 -> TLS 443 -> speed.cloudflare.com/__down?bytes=5000000 (L041 >=128KB check)
+   - Native Dual-Channel Subscription Fetcher (Direct Proxy.NO_PROXY vs Local 10808 / Self-Started libxray.so Proxy)
+2. KeepAliveService.java:
+   - Screen-Off PARTIAL_WAKE_LOCK + WIFI_MODE_FULL_HIGH_PERF + START_STICKY Foreground Notification
+3. MainActivity.java:
+   - @JavascriptInterface "AndroidKeepAlive" exposing:
+     * hasNativeXray(), getXrayVersion()
+     * benchNodeJson(rawUri, port, doSpeed)
+     * startBatchBench(urisJsonArray, doSpeed, workers), getBatchProgressJson(), stopBatchBench()
+     * probeAndFetchSubJson(targetUrl, proxyNodeRaw)
+     * copyToClipboard(text), launchV2rayNG(clipText), exportOrShareFile(filename, content)
+     * setKeepAlive(enabled, status), updateStatus(status)
+     * isIgnoringBatteryOptimizations(), requestIgnoreBatteryOptimizations()
+   - Overrides onPause()/onStop() with webView.resumeTimers()
 """
 from pathlib import Path
 
@@ -162,13 +170,17 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.net.HttpURLConnection;
 import java.net.InetSocketAddress;
+import java.net.Proxy;
 import java.net.Socket;
+import java.net.URL;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
@@ -177,6 +189,12 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
@@ -193,10 +211,19 @@ public class XrayBenchEngine {
     public static final String SPEED_PATH = "/__down?bytes=5000000";
     public static final int SPEED_MIN_BYTES = 128 * 1024; // L041: reject fake 24-byte empty responses
 
+    // Async Batch Runner State
+    private static volatile ExecutorService batchExecutor = null;
+    private static final AtomicBoolean batchRunning = new AtomicBoolean(false);
+    private static final AtomicBoolean batchCancel = new AtomicBoolean(false);
+    private static final AtomicInteger batchTotal = new AtomicInteger(0);
+    private static final AtomicInteger batchDone = new AtomicInteger(0);
+    private static final AtomicInteger batchAlive = new AtomicInteger(0);
+    private static final CopyOnWriteArrayList<JSONObject> batchResults = new CopyOnWriteArrayList<>();
+    private static final CopyOnWriteArrayList<String> batchLogs = new CopyOnWriteArrayList<>();
+
     public static File getXrayBinary(Context ctx) {
         String nativeDir = ctx.getApplicationInfo().nativeLibraryDir;
-        File f = new File(nativeDir, "libxray.so");
-        return f;
+        return new File(nativeDir, "libxray.so");
     }
 
     public static boolean isXrayAvailable(Context ctx) {
@@ -212,7 +239,7 @@ public class XrayBenchEngine {
             BufferedReader br = new BufferedReader(new InputStreamReader(p.getInputStream()));
             String line = br.readLine();
             p.destroy();
-            return line != null ? line : "available";
+            return line != null ? line : "Xray-core available";
         } catch (Exception e) {
             return "error: " + e.getMessage();
         }
@@ -468,7 +495,6 @@ public class XrayBenchEngine {
         return sc.getSocketFactory();
     }
 
-    // Exact port of real_bench_v2.py socks5_connect (ATYP=0x03 remote DNS resolution via Xray)
     private static Socket socks5Connect(int socksPort, String targetHost, int targetPort, int timeoutMs) throws Exception {
         Socket s = new Socket();
         s.connect(new InetSocketAddress("127.0.0.1", socksPort), timeoutMs);
@@ -489,7 +515,7 @@ public class XrayBenchEngine {
         req[0] = 0x05;
         req[1] = 0x01; // CONNECT
         req[2] = 0x00;
-        req[3] = 0x03; // ATYP = Domain name (let Xray resolve DNS remotely)
+        req[3] = 0x03; // ATYP = Domain name (remote DNS resolution via Xray)
         req[4] = (byte) hostBytes.length;
         System.arraycopy(hostBytes, 0, req, 5, hostBytes.length);
         req[5 + hostBytes.length] = (byte) ((targetPort >> 8) & 0xFF);
@@ -502,7 +528,7 @@ public class XrayBenchEngine {
         int n = in.read(resp);
         if (n < 4 || resp[1] != 0x00) {
             s.close();
-            throw new RuntimeException("SOCKS5 connect rejected: " + (n > 1 ? resp[1] : -1));
+            throw new RuntimeException("SOCKS5 connect rejected");
         }
         return s;
     }
@@ -585,7 +611,7 @@ public class XrayBenchEngine {
         }
     }
 
-    public static String benchOneNodeJson(Context ctx, String rawUri, int listenPort, boolean doSpeed) {
+    public static JSONObject benchOneNodeObj(Context ctx, String rawUri, int listenPort, boolean doSpeed) {
         JSONObject result = new JSONObject();
         Process xrayProc = null;
         File cfgFile = null;
@@ -610,17 +636,16 @@ public class XrayBenchEngine {
                 result.put("speed_mbps", -1);
                 result.put("score", 0);
                 result.put("error", "tcp_timeout");
-                return result.toString();
+                return result;
             }
 
-            // Stage 1: Spawn real libxray.so process
             File xrayBin = getXrayBinary(ctx);
             if (!xrayBin.exists()) {
                 result.put("latency_avg", -1);
                 result.put("speed_mbps", -1);
                 result.put("score", 0);
                 result.put("error", "xray_binary_missing");
-                return result.toString();
+                return result;
             }
 
             JSONObject xrayCfg = buildXrayConfig(node, listenPort);
@@ -633,7 +658,6 @@ public class XrayBenchEngine {
             pb.directory(ctx.getCacheDir());
             xrayProc = pb.start();
 
-            // Wait up to 1200ms for local SOCKS5 port to listen
             boolean socksReady = false;
             for (int i = 0; i < 15; i++) {
                 Thread.sleep(80);
@@ -649,14 +673,13 @@ public class XrayBenchEngine {
                 result.put("speed_mbps", -1);
                 result.put("score", 0);
                 result.put("error", "xray_start_fail");
-                return result.toString();
+                return result;
             }
 
-            // 3 rounds of real generate_204 over Xray SOCKS5 tunnel
             List<Integer> lats = new ArrayList<>();
             for (int r = 0; r < LATENCY_ROUNDS; r++) {
                 try {
-                    int ms = httpPingThroughSocks(listenPort, 6000);
+                    int ms = httpPingThroughSocks(listenPort, 5500);
                     if (ms > 0) lats.add(ms);
                 } catch (Exception ignored) {}
             }
@@ -668,7 +691,7 @@ public class XrayBenchEngine {
                 result.put("speed_mbps", -1);
                 result.put("score", 0);
                 result.put("error", "ping_fail");
-                return result.toString();
+                return result;
             }
 
             double sum = 0;
@@ -684,7 +707,7 @@ public class XrayBenchEngine {
 
             double spdMbps = -1.0;
             if (doSpeed) {
-                spdMbps = httpSpeedThroughSocks(listenPort, 8000);
+                spdMbps = httpSpeedThroughSocks(listenPort, 7500);
             }
 
             double latScore = Math.max(0.0, 100.0 - avgLat / 8.0);
@@ -699,7 +722,7 @@ public class XrayBenchEngine {
             result.put("speed_mbps", spdMbps);
             result.put("score", score);
             result.put("error", "");
-            return result.toString();
+            return result;
         } catch (Exception e) {
             try {
                 result.put("latency_avg", -1);
@@ -707,7 +730,7 @@ public class XrayBenchEngine {
                 result.put("score", 0);
                 result.put("error", e.getMessage());
             } catch (Exception ignored) {}
-            return result.toString();
+            return result;
         } finally {
             if (xrayProc != null) {
                 try { xrayProc.destroyForcibly(); } catch (Exception ignored) {}
@@ -717,21 +740,262 @@ public class XrayBenchEngine {
             }
         }
     }
+
+    public static String benchOneNodeJson(Context ctx, String rawUri, int listenPort, boolean doSpeed) {
+        return benchOneNodeObj(ctx, rawUri, listenPort, doSpeed).toString();
+    }
+
+    // Asynchronous Multi-Threaded Batch Benchmark Pool
+    public static synchronized String startBatchBench(final Context ctx, String urisJsonArrayStr, final boolean doSpeed, int workers) {
+        stopBatchBench();
+        try {
+            final JSONArray arr = new JSONArray(urisJsonArrayStr);
+            final int total = arr.length();
+            batchTotal.set(total);
+            batchDone.set(0);
+            batchAlive.set(0);
+            batchResults.clear();
+            batchLogs.clear();
+            batchCancel.set(false);
+            batchRunning.set(true);
+
+            final int nWorkers = Math.max(1, Math.min(6, workers));
+            batchExecutor = Executors.newFixedThreadPool(nWorkers);
+
+            for (int i = 0; i < total; i++) {
+                final int idx = i;
+                final String uri = arr.optString(i, "");
+                batchExecutor.submit(() -> {
+                    if (batchCancel.get() || uri.isEmpty()) {
+                        batchDone.incrementAndGet();
+                        return;
+                    }
+                    int port = 32200 + (idx % (nWorkers * 3)) * 2 + (int) (Thread.currentThread().getId() % 2);
+                    JSONObject res = benchOneNodeObj(ctx, uri, port, doSpeed);
+                    batchResults.add(res);
+                    int doneNow = batchDone.incrementAndGet();
+                    double lat = res.optDouble("latency_avg", -1);
+                    String name = res.optString("name", "node");
+                    String host = res.optString("host", "");
+                    if (lat >= 0) {
+                        batchAlive.incrementAndGet();
+                        double spd = res.optDouble("speed_mbps", -1);
+                        double sc = res.optDouble("score", 0);
+                        batchLogs.add("PASS|[" + doneNow + "/" + total + "] " + name + " (" + host + ") -> 延迟 " + lat + "ms | 速度 " + (spd > 0 ? spd + "Mbps" : "仅延迟通") + " | 评分 " + sc);
+                    } else {
+                        batchLogs.add("DEAD|[" + doneNow + "/" + total + "] " + name + " (" + host + ") -> -1ms (" + res.optString("error", "ping_fail") + ")");
+                    }
+                    if (doneNow >= total) {
+                        batchRunning.set(false);
+                    }
+                });
+            }
+            return new JSONObject().put("ok", true).put("total", total).toString();
+        } catch (Exception e) {
+            batchRunning.set(false);
+            return "{\"ok\":false,\"error\":\"" + e.getMessage() + "\"}";
+        }
+    }
+
+    public static String getBatchProgressJson() {
+        try {
+            JSONObject obj = new JSONObject();
+            int total = batchTotal.get();
+            int done = batchDone.get();
+            obj.put("running", batchRunning.get() && done < total);
+            obj.put("total", total);
+            obj.put("done", done);
+            obj.put("alive", batchAlive.get());
+
+            JSONArray logsArr = new JSONArray();
+            List<String> drained = new ArrayList<>(batchLogs);
+            batchLogs.clear();
+            for (String l : drained) logsArr.put(l);
+            obj.put("newLogs", logsArr);
+
+            if (!batchRunning.get() || done >= total) {
+                JSONArray resArr = new JSONArray();
+                for (JSONObject r : batchResults) resArr.put(r);
+                obj.put("results", resArr);
+            }
+            return obj.toString();
+        } catch (Exception e) {
+            return "{\"running\":false}";
+        }
+    }
+
+    public static synchronized void stopBatchBench() {
+        batchCancel.set(true);
+        batchRunning.set(false);
+        if (batchExecutor != null) {
+            try { batchExecutor.shutdownNow(); } catch (Exception ignored) {}
+            batchExecutor = null;
+        }
+    }
+
+    // Native Dual-Channel Subscription Probe & Fetcher (Zero CORS, Direct + Xray Proxy)
+    private static String readStreamAsString(InputStream in, int maxBytes) throws Exception {
+        ByteArrayOutputStream bos = new ByteArrayOutputStream();
+        byte[] buf = new byte[8192];
+        int n;
+        while ((n = in.read(buf)) > 0) {
+            bos.write(buf, 0, n);
+            if (bos.size() >= maxBytes) break;
+        }
+        return new String(bos.toByteArray(), StandardCharsets.UTF_8);
+    }
+
+    private static String fetchOverSocks(int socksPort, String urlStr, int timeoutMs) throws Exception {
+        URL u = new URL(urlStr);
+        String host = u.getHost();
+        boolean isHttps = "https".equalsIgnoreCase(u.getProtocol());
+        int port = u.getPort() > 0 ? u.getPort() : (isHttps ? 443 : 80);
+        String path = u.getFile();
+        if (path == null || path.isEmpty()) path = "/";
+
+        Socket rawSock = null;
+        Socket workSock = null;
+        try {
+            rawSock = socks5Connect(socksPort, host, port, timeoutMs);
+            if (isHttps) {
+                SSLSocketFactory factory = getTrustAllSslFactory();
+                SSLSocket ssl = (SSLSocket) factory.createSocket(rawSock, host, port, true);
+                ssl.setSoTimeout(timeoutMs);
+                ssl.startHandshake();
+                workSock = ssl;
+            } else {
+                workSock = rawSock;
+            }
+            String req = "GET " + path + " HTTP/1.1\r\nHost: " + host + "\r\nUser-Agent: v2rayN/7.0\r\nAccept: */*\r\nConnection: close\r\n\r\n";
+            OutputStream out = workSock.getOutputStream();
+            out.write(req.getBytes(StandardCharsets.UTF_8));
+            out.flush();
+
+            String rawResp = readStreamAsString(workSock.getInputStream(), 2 * 1024 * 1024);
+            int splitIdx = rawResp.indexOf("\r\n\r\n");
+            if (splitIdx < 0) return "";
+            String header = rawResp.substring(0, splitIdx);
+            if (!header.contains(" 200")) throw new RuntimeException("HTTP non-200");
+            return rawResp.substring(splitIdx + 4);
+        } finally {
+            try { if (workSock != null) workSock.close(); } catch (Exception ignored) {}
+            try { if (rawSock != null) rawSock.close(); } catch (Exception ignored) {}
+        }
+    }
+
+    public static String probeAndFetchSubJson(Context ctx, String targetUrl, String proxyNodeRaw) {
+        JSONObject out = new JSONObject();
+        String body = "";
+        boolean directOk = false;
+        long directMs = -1;
+        boolean proxyOk = false;
+        long proxyMs = -1;
+
+        // 1. Test Direct (Proxy.NO_PROXY)
+        long t0 = System.currentTimeMillis();
+        try {
+            URL u = new URL(targetUrl);
+            HttpURLConnection conn = (HttpURLConnection) u.openConnection(Proxy.NO_PROXY);
+            if (conn instanceof HttpsURLConnection) {
+                ((HttpsURLConnection) conn).setSSLSocketFactory(getTrustAllSslFactory());
+            }
+            conn.setConnectTimeout(4500);
+            conn.setReadTimeout(6000);
+            conn.setRequestProperty("User-Agent", "v2rayN/7.0 (Android)");
+            int code = conn.getResponseCode();
+            if (code >= 200 && code < 300) {
+                String txt = readStreamAsString(conn.getInputStream(), 2 * 1024 * 1024);
+                if (txt != null && txt.trim().length() > 10) {
+                    directOk = true;
+                    directMs = System.currentTimeMillis() - t0;
+                    body = txt;
+                }
+            }
+            conn.disconnect();
+        } catch (Exception ignored) {}
+
+        // 2. Test Proxy (Try local 10808 first, then temporary libxray.so on port 32091)
+        long t1 = System.currentTimeMillis();
+        Process tempXray = null;
+        File tempCfg = null;
+        try {
+            int activeSocksPort = -1;
+            try (Socket s = new Socket()) {
+                s.connect(new InetSocketAddress("127.0.0.1", 10808), 150);
+                activeSocksPort = 10808;
+            } catch (Exception ignored) {}
+
+            if (activeSocksPort < 0 && proxyNodeRaw != null && !proxyNodeRaw.trim().isEmpty()) {
+                File xrayBin = getXrayBinary(ctx);
+                if (xrayBin.exists()) {
+                    JSONObject node = parseNodeLink(proxyNodeRaw);
+                    JSONObject cfg = buildXrayConfig(node, 32091);
+                    tempCfg = new File(ctx.getCacheDir(), "xray_sub_32091.json");
+                    try (FileOutputStream fos = new FileOutputStream(tempCfg)) {
+                        fos.write(cfg.toString().getBytes(StandardCharsets.UTF_8));
+                    }
+                    tempXray = new ProcessBuilder(xrayBin.getAbsolutePath(), "run", "-c", tempCfg.getAbsolutePath())
+                        .directory(ctx.getCacheDir()).start();
+                    for (int i = 0; i < 12; i++) {
+                        Thread.sleep(80);
+                        try (Socket s = new Socket()) {
+                            s.connect(new InetSocketAddress("127.0.0.1", 32091), 100);
+                            activeSocksPort = 32091;
+                            break;
+                        } catch (Exception ignored) {}
+                    }
+                }
+            }
+
+            if (activeSocksPort > 0) {
+                String pTxt = fetchOverSocks(activeSocksPort, targetUrl, 7000);
+                if (pTxt != null && pTxt.trim().length() > 10) {
+                    proxyOk = true;
+                    proxyMs = System.currentTimeMillis() - t1;
+                    if (body.isEmpty()) body = pTxt;
+                }
+            }
+        } catch (Exception ignored) {
+        } finally {
+            if (tempXray != null) {
+                try { tempXray.destroyForcibly(); } catch (Exception ignored) {}
+            }
+            if (tempCfg != null && tempCfg.exists()) {
+                try { tempCfg.delete(); } catch (Exception ignored) {}
+            }
+        }
+
+        try {
+            out.put("ok", true);
+            out.put("directOk", directOk);
+            out.put("directMs", directMs);
+            out.put("proxyOk", proxyOk);
+            out.put("proxyMs", proxyMs);
+            out.put("body", body);
+        } catch (Exception ignored) {}
+        return out.toString();
+    }
 }
 """
 
 MAIN_ACTIVITY_JAVA = r"""package com.winnerds.v2rayn.threestage;
 
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.PowerManager;
 import android.provider.Settings;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebView;
 import com.getcapacitor.BridgeActivity;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.nio.charset.StandardCharsets;
 
 public class MainActivity extends BridgeActivity {
     private volatile boolean keepAliveEnabled = true;
@@ -800,6 +1064,82 @@ public class MainActivity extends BridgeActivity {
         }
 
         @JavascriptInterface
+        public String startBatchBench(String urisJsonArray, boolean doSpeed, int workers) {
+            return XrayBenchEngine.startBatchBench(MainActivity.this, urisJsonArray, doSpeed, workers);
+        }
+
+        @JavascriptInterface
+        public String getBatchProgressJson() {
+            return XrayBenchEngine.getBatchProgressJson();
+        }
+
+        @JavascriptInterface
+        public void stopBatchBench() {
+            XrayBenchEngine.stopBatchBench();
+        }
+
+        @JavascriptInterface
+        public String probeAndFetchSubJson(String targetUrl, String proxyNodeRaw) {
+            return XrayBenchEngine.probeAndFetchSubJson(MainActivity.this, targetUrl, proxyNodeRaw);
+        }
+
+        @JavascriptInterface
+        public boolean copyToClipboard(String text) {
+            try {
+                ClipboardManager cm = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+                if (cm != null) {
+                    cm.setPrimaryClip(ClipData.newPlainText("v2rayN-nodes", text));
+                    return true;
+                }
+            } catch (Exception ignored) {}
+            return false;
+        }
+
+        @JavascriptInterface
+        public boolean launchV2rayNG(String clipText) {
+            if (clipText != null && !clipText.isEmpty()) {
+                copyToClipboard(clipText);
+            }
+            String[] pkgs = new String[]{"com.v2ray.ang", "moe.nb4a", "io.nekohasekai.sagernet"};
+            for (String pkg : pkgs) {
+                try {
+                    Intent launch = getPackageManager().getLaunchIntentForPackage(pkg);
+                    if (launch != null) {
+                        launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                        startActivity(launch);
+                        return true;
+                    }
+                } catch (Exception ignored) {}
+            }
+            return false;
+        }
+
+        @JavascriptInterface
+        public String exportOrShareFile(String filename, String content) {
+            String savedPath = "";
+            try {
+                File dlDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+                if (!dlDir.exists()) dlDir.mkdirs();
+                File outFile = new File(dlDir, filename);
+                try (FileOutputStream fos = new FileOutputStream(outFile)) {
+                    fos.write(content.getBytes(StandardCharsets.UTF_8));
+                }
+                savedPath = outFile.getAbsolutePath();
+            } catch (Exception ignored) {}
+
+            try {
+                Intent sendIntent = new Intent(Intent.ACTION_SEND);
+                sendIntent.setType("text/plain");
+                sendIntent.putExtra(Intent.EXTRA_SUBJECT, filename);
+                sendIntent.putExtra(Intent.EXTRA_TEXT, content);
+                Intent shareIntent = Intent.createChooser(sendIntent, "导出 / 分享: " + filename);
+                shareIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                startActivity(shareIntent);
+            } catch (Exception ignored) {}
+            return savedPath;
+        }
+
+        @JavascriptInterface
         public boolean setKeepAlive(boolean enabled, String statusText) {
             keepAliveEnabled = enabled;
             if (enabled) {
@@ -849,7 +1189,6 @@ def patch_manifest():
         raise FileNotFoundError(f"Manifest not found: {MANIFEST_PATH}")
     xml = MANIFEST_PATH.read_text(encoding="utf-8")
 
-    # Ensure extractNativeLibs="true" on <application so libxray.so is extracted with 0755 permissions
     if 'android:extractNativeLibs=' not in xml:
         xml = xml.replace("<application", '<application\n        android:extractNativeLibs="true"', 1)
     else:
@@ -864,6 +1203,16 @@ def patch_manifest():
     )
     if "KeepAliveService" not in xml:
         xml = xml.replace("</application>", service_decl + "    </application>")
+
+    queries_decl = (
+        '    <queries>\n'
+        '        <package android:name="com.v2ray.ang" />\n'
+        '        <package android:name="moe.nb4a" />\n'
+        '        <package android:name="io.nekohasekai.sagernet" />\n'
+        '    </queries>\n'
+    )
+    if "<queries>" not in xml:
+        xml = xml.replace("</manifest>", queries_decl + "</manifest>")
 
     perms = [
         '<uses-permission android:name="android.permission.INTERNET" />',
@@ -880,7 +1229,7 @@ def patch_manifest():
         xml = xml.replace("</manifest>", perm_block + "\n</manifest>")
 
     MANIFEST_PATH.write_text(xml, encoding="utf-8")
-    print("[KeepAlivePatch] Patched AndroidManifest.xml (with extractNativeLibs=true).")
+    print("[KeepAlivePatch] Patched AndroidManifest.xml (with extractNativeLibs=true & queries).")
 
 
 def patch_build_gradle():
