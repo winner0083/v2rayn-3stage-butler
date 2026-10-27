@@ -2,7 +2,7 @@
 <html lang="zh-CN" class="dark">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta id="viewportMeta" name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <meta name="theme-color" content="#0b0f19" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -44,11 +44,13 @@
 
     html, body {
       width: 100%;
-      max-width: 100vw;
+      max-width: 100%;
       overflow-x: hidden;
       overflow-y: auto;
       -webkit-overflow-scrolling: touch;
       touch-action: pan-y;
+      -webkit-text-size-adjust: 100%;
+      text-size-adjust: 100%;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
       background-color: var(--bg-base);
       color: var(--text-main);
@@ -58,17 +60,26 @@
 
     body {
       min-height: 100vh;
+      min-height: 100dvh;
       padding-bottom: calc(84px + var(--safe-bottom));
     }
 
     .app-shell {
       width: 100%;
-      max-width: 600px;
+      max-width: 100%;
       margin: 0 auto;
       min-height: 100vh;
+      min-height: 100dvh;
       display: flex;
       flex-direction: column;
       background: var(--bg-base);
+      overflow-x: hidden;
+    }
+
+    @media (min-width: 720px) and (orientation: landscape) {
+      .app-shell {
+        max-width: 960px;
+      }
     }
 
     body.wide-mode .app-shell {
@@ -86,6 +97,14 @@
       border-bottom: 1px solid var(--border);
       padding: 10px 12px;
       width: 100%;
+      max-width: 100%;
+    }
+
+    @media (orientation: landscape) and (max-height: 520px) {
+      .app-header {
+        position: relative;
+        padding: 6px 12px;
+      }
     }
 
     .header-top {
@@ -207,8 +226,9 @@
     .cron-matrix {
       margin-top: 8px;
       display: none;
-      grid-template-columns: repeat(2, 1fr);
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 8px;
+      width: 100%;
     }
 
     .cron-matrix.open {
@@ -217,12 +237,12 @@
 
     @media (max-width: 400px) {
       .cron-matrix {
-        grid-template-columns: 1fr;
+        grid-template-columns: minmax(0, 1fr);
       }
     }
 
     body.wide-mode .cron-matrix {
-      grid-template-columns: repeat(4, 1fr);
+      grid-template-columns: repeat(4, minmax(0, 1fr));
     }
 
     .cron-card {
@@ -380,14 +400,14 @@
     /* KPI Grid — 2x2 on Mobile, 4x1 on Wide Screen */
     .kpi-grid {
       display: grid;
-      grid-template-columns: repeat(2, 1fr);
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 8px;
       width: 100%;
     }
 
     @media (min-width: 540px) {
       .kpi-grid {
-        grid-template-columns: repeat(4, 1fr);
+        grid-template-columns: repeat(4, minmax(0, 1fr));
       }
     }
 
@@ -448,27 +468,27 @@
     /* Responsive Button Grids */
     .btn-grid-2 {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 8px;
       width: 100%;
     }
 
     @media (max-width: 380px) {
       .btn-grid-2.stack-sm {
-        grid-template-columns: 1fr;
+        grid-template-columns: minmax(0, 1fr);
       }
     }
 
     .btn-grid-3 {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 8px;
       width: 100%;
     }
 
     @media (max-width: 400px) {
       .btn-grid-3.stack-sm {
-        grid-template-columns: 1fr;
+        grid-template-columns: minmax(0, 1fr);
       }
     }
 
@@ -509,6 +529,7 @@
     .input, .select, .textarea {
       width: 100%;
       max-width: 100%;
+      min-width: 0;
       background: var(--bg-surface);
       border: 1px solid var(--border);
       color: var(--text-main);
@@ -518,6 +539,11 @@
       font-size: 14px;
       outline: none;
       font-family: inherit;
+    }
+    .select, .cron-time-sel {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
     .input:focus, .select:focus, .textarea:focus { border-color: var(--primary); }
     .textarea {
@@ -611,7 +637,7 @@
 
     .sub-action-bar {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 8px;
       width: 100%;
       padding-top: 6px;
@@ -621,8 +647,9 @@
     /* Mode Switcher for Tab 2: 3-Stage Test vs Standalone Test */
     .mode-switcher {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 8px;
+      width: 100%;
       background: var(--bg-card);
       padding: 6px;
       border-radius: 14px;
@@ -707,14 +734,14 @@
     /* Round Stepper — Stacked on Mobile, 3-Col on Wide Screen */
     .round-stepper {
       display: grid;
-      grid-template-columns: 1fr;
+      grid-template-columns: minmax(0, 1fr);
       gap: 8px;
       width: 100%;
     }
 
     @media (min-width: 520px) {
       .round-stepper {
-        grid-template-columns: repeat(3, 1fr);
+        grid-template-columns: repeat(3, minmax(0, 1fr));
       }
     }
 
@@ -846,20 +873,21 @@
       border-radius: 99px; transition: width 0.25s ease;
     }
 
-    /* Bottom Navigation (5 Large Touch Tabs) */
+    /* Bottom Navigation (5 Large Touch Tabs — Immune to Rotation Offset!) */
     .bottom-nav {
       position: fixed;
       bottom: 0;
-      left: 50%;
-      transform: translateX(-50%);
+      left: 0;
+      right: 0;
+      margin: 0 auto;
       width: 100%;
-      max-width: 600px;
+      max-width: 100%;
       background: rgba(15, 23, 42, 0.97);
       backdrop-filter: blur(16px);
       -webkit-backdrop-filter: blur(16px);
       border-top: 1px solid var(--border);
       display: grid;
-      grid-template-columns: repeat(5, 1fr);
+      grid-template-columns: repeat(5, minmax(0, 1fr));
       padding: 6px 4px calc(8px + var(--safe-bottom));
       z-index: 50;
     }
@@ -868,10 +896,11 @@
       display: flex; flex-direction: column; align-items: center; justify-content: center;
       gap: 4px; min-height: 54px; padding: 4px 2px; color: var(--text-muted); cursor: pointer;
       border-radius: 10px; border: none; background: none; font-family: inherit;
+      min-width: 0; overflow: hidden;
     }
     .nav-item.active { color: #60a5fa; background: rgba(59, 130, 246, 0.1); }
-    .nav-item svg { width: 22px; height: 22px; }
-    .nav-lbl { font-size: 11.5px; font-weight: 700; white-space: nowrap; }
+    .nav-item svg { width: 22px; height: 22px; flex-shrink: 0; }
+    .nav-lbl { font-size: 11.5px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 
     /* Modal */
     .modal-backdrop {
@@ -888,7 +917,7 @@
 
     /* Toast */
     .toast-wrap {
-      position: fixed; top: 68px; left: 50%; transform: translateX(-50%);
+      position: fixed; top: 68px; left: 0; right: 0; margin: 0 auto;
       z-index: 120; display: flex; flex-direction: column; gap: 6px;
       pointer-events: none; width: 92%; max-width: 420px;
     }
@@ -914,6 +943,9 @@
           </div>
         </div>
         <div class="header-actions">
+          <button class="engine-pill" id="orientLockBtn" onclick="toggleOrientationLock()" title="切换自由旋转 / 锁定竖屏">
+            <span id="orientLockLbl">🔄 自由旋转</span>
+          </button>
           <button class="engine-pill connected" id="keepAliveHeaderBtn" onclick="switchTab('tab-apk')" title="息屏后台常驻守护">
             <span class="dot" id="keepAliveDot"></span>
             <span id="keepAliveHeaderLbl">🌙 息屏常驻</span>
@@ -4150,6 +4182,83 @@
       showToast("🔔 已刷新锁屏通知：" + msg);
     }
 
+    // =========================================================================
+    // 12. ORIENTATION CHANGE REFLOW FIX (Portrait <-> Landscape <-> Portrait)
+    // =========================================================================
+    let orientMode = localStorage.getItem("v2_orient_mode") || "auto"; // "auto" or "portrait"
+
+    function applyOrientationMode(mode, showMsg = false) {
+      orientMode = mode;
+      localStorage.setItem("v2_orient_mode", mode);
+      const lbl = document.getElementById("orientLockLbl");
+      const btn = document.getElementById("orientLockBtn");
+      if (lbl) lbl.textContent = mode === "portrait" ? "🔒 已锁竖屏" : "🔄 自由旋转";
+      if (btn) btn.classList.toggle("connected", mode === "portrait");
+      if (window.AndroidKeepAlive && typeof window.AndroidKeepAlive.setScreenOrientationMode === "function") {
+        try { window.AndroidKeepAlive.setScreenOrientationMode(mode); } catch (_) {}
+      }
+      if (showMsg) {
+        showToast(mode === "portrait" ? "🔒 已锁定竖屏显示（防止误转屏）" : "🔄 已开启横竖屏自由旋转自适应");
+      }
+      forceViewportReflow();
+    }
+
+    function toggleOrientationLock() {
+      applyOrientationMode(orientMode === "portrait" ? "auto" : "portrait", true);
+    }
+
+    function forceViewportReflow() {
+      // 1. Reset any horizontal scroll drift caused by landscape -> portrait transition
+      if (window.scrollX !== 0) {
+        window.scrollTo(0, window.scrollY);
+      }
+      document.documentElement.scrollLeft = 0;
+      document.body.scrollLeft = 0;
+
+      // 2. Refresh viewport meta content to force Android Chromium WebView to recalculate device-width
+      const vp = document.getElementById("viewportMeta");
+      if (vp) {
+        vp.setAttribute("content", "width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover");
+      }
+
+      // 3. Force synchronous CSS layout recalculation on app-shell and fixed bottom-nav
+      const shell = document.querySelector(".app-shell");
+      const nav = document.querySelector(".bottom-nav");
+      if (shell) {
+        shell.style.maxWidth = "100%";
+        shell.style.width = "100%";
+      }
+      if (nav) {
+        nav.style.width = "100%";
+        nav.style.left = "0";
+        nav.style.right = "0";
+      }
+    }
+
+    // Exposed for Android Native MainActivity.onConfigurationChanged()
+    window.onNativeOrientationChanged = function() {
+      forceViewportReflow();
+      setTimeout(forceViewportReflow, 80);
+      setTimeout(forceViewportReflow, 260);
+    };
+
+    window.addEventListener("orientationchange", () => {
+      forceViewportReflow();
+      setTimeout(forceViewportReflow, 60);
+      setTimeout(forceViewportReflow, 220);
+      setTimeout(forceViewportReflow, 450);
+    });
+
+    window.addEventListener("resize", () => {
+      forceViewportReflow();
+    });
+
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener("resize", () => {
+        forceViewportReflow();
+      });
+    }
+
     window.addEventListener("DOMContentLoaded", () => {
       loadCronConfig();
       initSeedPool();
@@ -4161,6 +4270,7 @@
       renderAggView();
       renderWeeklyReview();
       initKeepAliveEngine();
+      applyOrientationMode(orientMode, false);
       if (window.AndroidKeepAlive && typeof window.AndroidKeepAlive.hasNativeXray === "function") {
         try {
           if (window.AndroidKeepAlive.hasNativeXray()) {

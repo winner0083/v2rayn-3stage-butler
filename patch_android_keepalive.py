@@ -984,6 +984,8 @@ import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.ActivityInfo;
+import android.content.res.Configuration;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -991,6 +993,7 @@ import android.os.Environment;
 import android.os.PowerManager;
 import android.provider.Settings;
 import android.webkit.JavascriptInterface;
+import android.webkit.WebSettings;
 import android.webkit.WebView;
 import com.getcapacitor.BridgeActivity;
 import java.io.File;
@@ -1007,8 +1010,38 @@ public class MainActivity extends BridgeActivity {
 
         if (getBridge() != null && getBridge().getWebView() != null) {
             WebView webView = getBridge().getWebView();
-            webView.getSettings().setMediaPlaybackRequiresUserGesture(false);
+            WebSettings ws = webView.getSettings();
+            ws.setMediaPlaybackRequiresUserGesture(false);
+            ws.setUseWideViewPort(true);
+            ws.setLoadWithOverviewMode(false);
+            ws.setSupportZoom(false);
+            ws.setBuiltInZoomControls(false);
+            ws.setDisplayZoomControls(false);
+            ws.setTextZoom(100);
+            webView.setInitialScale(0);
             webView.addJavascriptInterface(new KeepAliveJsBridge(), "AndroidKeepAlive");
+        }
+    }
+
+    @Override
+    public void onConfigurationChanged(Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        if (getBridge() != null && getBridge().getWebView() != null) {
+            final WebView webView = getBridge().getWebView();
+            final Runnable reflowTask = new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        webView.setInitialScale(0);
+                        webView.requestLayout();
+                        webView.invalidate();
+                        webView.evaluateJavascript("if(window.onNativeOrientationChanged) window.onNativeOrientationChanged();", null);
+                    } catch (Exception ignored) {}
+                }
+            };
+            webView.postDelayed(reflowTask, 50);
+            webView.postDelayed(reflowTask, 220);
+            webView.postDelayed(reflowTask, 450);
         }
     }
 
@@ -1178,6 +1211,24 @@ public class MainActivity extends BridgeActivity {
                     }
                 } catch (Exception ignored) {}
             }
+        }
+
+        @JavascriptInterface
+        public void setScreenOrientationMode(final String mode) {
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        if ("portrait".equalsIgnoreCase(mode)) {
+                            setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+                        } else if ("landscape".equalsIgnoreCase(mode)) {
+                            setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
+                        } else {
+                            setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_FULL_USER);
+                        }
+                    } catch (Exception ignored) {}
+                }
+            });
         }
     }
 }
