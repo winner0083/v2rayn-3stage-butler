@@ -214,12 +214,18 @@ public class XrayBenchEngine {
     // Async Batch Runner State
     private static volatile ExecutorService batchExecutor = null;
     private static final AtomicBoolean batchRunning = new AtomicBoolean(false);
+    private static final AtomicBoolean batchPaused = new AtomicBoolean(false);
     private static final AtomicBoolean batchCancel = new AtomicBoolean(false);
     private static final AtomicInteger batchTotal = new AtomicInteger(0);
     private static final AtomicInteger batchDone = new AtomicInteger(0);
     private static final AtomicInteger batchAlive = new AtomicInteger(0);
     private static final CopyOnWriteArrayList<JSONObject> batchResults = new CopyOnWriteArrayList<>();
     private static final CopyOnWriteArrayList<String> batchLogs = new CopyOnWriteArrayList<>();
+
+    // Async Subscription Fetcher State (Non-blocking UI bridge)
+    private static final AtomicBoolean subFetchRunning = new AtomicBoolean(false);
+    private static volatile String subFetchResultJson = "";
+    private static volatile Thread subFetchThread = null;
 
     public static File getXrayBinary(Context ctx) {
         String nativeDir = ctx.getApplicationInfo().nativeLibraryDir;
@@ -757,6 +763,7 @@ public class XrayBenchEngine {
             batchResults.clear();
             batchLogs.clear();
             batchCancel.set(false);
+            batchPaused.set(false);
             batchRunning.set(true);
 
             final int nWorkers = Math.max(1, Math.min(6, workers));
@@ -766,12 +773,21 @@ public class XrayBenchEngine {
                 final int idx = i;
                 final String uri = arr.optString(i, "");
                 batchExecutor.submit(() -> {
+                    while (batchPaused.get() && !batchCancel.get()) {
+                        try { Thread.sleep(150); } catch (Exception ignored) { break; }
+                    }
                     if (batchCancel.get() || uri.isEmpty()) {
-                        batchDone.incrementAndGet();
+                        int dNow = batchDone.incrementAndGet();
+                        if (dNow >= total) batchRunning.set(false);
                         return;
                     }
                     int port = 32200 + (idx % (nWorkers * 3)) * 2 + (int) (Thread.currentThread().getId() % 2);
                     JSONObject res = benchOneNodeObj(ctx, uri, port, doSpeed);
+                    if (batchCancel.get()) {
+                        int dNow = batchDone.incrementAndGet();
+                        if (dNow >= total) batchRunning.set(false);
+                        return;
+                    }
                     batchResults.add(res);
                     int doneNow = batchDone.incrementAndGet();
                     double lat = res.optDouble("latency_avg", -1);
@@ -803,6 +819,7 @@ public class XrayBenchEngine {
             int total = batchTotal.get();
             int done = batchDone.get();
             obj.put("running", batchRunning.get() && done < total);
+            obj.put("paused", batchPaused.get());
             obj.put("total", total);
             obj.put("done", done);
             obj.put("alive", batchAlive.get());
@@ -824,12 +841,52 @@ public class XrayBenchEngine {
         }
     }
 
+    public static void setBatchPaused(boolean paused) {
+        batchPaused.set(paused);
+    }
+
     public static synchronized void stopBatchBench() {
         batchCancel.set(true);
+        batchPaused.set(false);
         batchRunning.set(false);
         if (batchExecutor != null) {
             try { batchExecutor.shutdownNow(); } catch (Exception ignored) {}
             batchExecutor = null;
+        }
+    }
+
+    public static synchronized void startAsyncSubFetch(final Context ctx, final String targetUrl, final String proxyNodeRaw) {
+        stopAsyncSubFetch();
+        subFetchResultJson = "";
+        subFetchRunning.set(true);
+        subFetchThread = new Thread(() -> {
+            try {
+                String res = probeAndFetchSubJson(ctx, targetUrl, proxyNodeRaw);
+                subFetchResultJson = res;
+            } catch (Exception e) {
+                subFetchResultJson = "{\"ok\":false,\"directOk\":false,\"proxyOk\":false,\"body\":\"\"}";
+            } finally {
+                subFetchRunning.set(false);
+            }
+        });
+        subFetchThread.setDaemon(true);
+        subFetchThread.start();
+    }
+
+    public static String getAsyncSubFetchJson() {
+        if (subFetchRunning.get()) {
+            return "{\"running\":true}";
+        }
+        return subFetchResultJson != null && !subFetchResultJson.isEmpty()
+            ? subFetchResultJson
+            : "{\"running\":false,\"ok\":false}";
+    }
+
+    public static synchronized void stopAsyncSubFetch() {
+        subFetchRunning.set(false);
+        if (subFetchThread != null) {
+            try { subFetchThread.interrupt(); } catch (Exception ignored) {}
+            subFetchThread = null;
         }
     }
 
@@ -1046,6 +1103,48 @@ public class MainActivity extends BridgeActivity {
     }
 
     @Override
+    public void onResume() {
+        super.onResume();
+        if (getBridge() != null && getBridge().getWebView() != null) {
+            final WebView webView = getBridge().getWebView();
+            webView.onResume();
+            webView.resumeTimers();
+            final Runnable wakeRecover = new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        webView.setInitialScale(0);
+                        webView.requestLayout();
+                        webView.invalidate();
+                        webView.evaluateJavascript("if(window.onNativeScreenResume) window.onNativeScreenResume();", null);
+                    } catch (Exception ignored) {}
+                }
+            };
+            webView.postDelayed(wakeRecover, 40);
+            webView.postDelayed(wakeRecover, 260);
+        }
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus && getBridge() != null && getBridge().getWebView() != null) {
+            final WebView webView = getBridge().getWebView();
+            webView.resumeTimers();
+            webView.postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        webView.requestLayout();
+                        webView.invalidate();
+                        webView.evaluateJavascript("if(window.onNativeScreenResume) window.onNativeScreenResume();", null);
+                    } catch (Exception ignored) {}
+                }
+            }, 80);
+        }
+    }
+
+    @Override
     public void onPause() {
         super.onPause();
         if (keepAliveEnabled && getBridge() != null && getBridge().getWebView() != null) {
@@ -1107,8 +1206,28 @@ public class MainActivity extends BridgeActivity {
         }
 
         @JavascriptInterface
+        public void setBatchPaused(boolean paused) {
+            XrayBenchEngine.setBatchPaused(paused);
+        }
+
+        @JavascriptInterface
         public void stopBatchBench() {
             XrayBenchEngine.stopBatchBench();
+        }
+
+        @JavascriptInterface
+        public void startAsyncSubFetch(String targetUrl, String proxyNodeRaw) {
+            XrayBenchEngine.startAsyncSubFetch(MainActivity.this, targetUrl, proxyNodeRaw);
+        }
+
+        @JavascriptInterface
+        public String getAsyncSubFetchJson() {
+            return XrayBenchEngine.getAsyncSubFetchJson();
+        }
+
+        @JavascriptInterface
+        public void stopAsyncSubFetch() {
+            XrayBenchEngine.stopAsyncSubFetch();
         }
 
         @JavascriptInterface
