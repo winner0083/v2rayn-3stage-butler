@@ -830,7 +830,7 @@ public class XrayBenchEngine {
             for (String l : drained) logsArr.put(l);
             obj.put("newLogs", logsArr);
 
-            if (!batchRunning.get() || done >= total) {
+            if (!batchRunning.get() || batchPaused.get() || batchCancel.get() || done >= total) {
                 JSONArray resArr = new JSONArray();
                 for (JSONObject r : batchResults) resArr.put(r);
                 obj.put("results", resArr);

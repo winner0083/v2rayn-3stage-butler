@@ -1918,6 +1918,19 @@
       localStorage.setItem("v2_sources_v2", JSON.stringify(state.sources));
       localStorage.setItem("v2_deprecated_v2", JSON.stringify(state.deprecatedNodes));
       localStorage.setItem("v2_purged_cnt", String(state.purgedHistoryCount));
+      try {
+        localStorage.setItem("v2_batches_v2", JSON.stringify(BATCH_DB));
+      } catch (_) {}
+    }
+
+    function loadPersistedBatches() {
+      try {
+        const raw = localStorage.getItem("v2_batches_v2");
+        if (raw) {
+          const saved = JSON.parse(raw);
+          Object.keys(saved).forEach(k => { BATCH_DB[k] = saved[k]; });
+        }
+      } catch (_) {}
     }
 
     function initSeedPool() {
@@ -2314,13 +2327,33 @@
     // =========================================================================
     // 6. REAL XRAY BENCHMARK RUNNER (Supports Pause / Resume / Stop & Screen-Off)
     // =========================================================================
-    async function executeNodesBatchWithRealXray(nodeList, doSpeed = true, roundLabel = "run1") {
+    async function executeNodesBatchWithRealXray(nodeList, doSpeed = true, roundLabel = "run1", onPartialResults = null) {
       const totalN = nodeList.length;
       startGlobalTask(`[${roundLabel}] Xray真核实测 (0/${totalN})`);
+
+      function mapRawResults(rawResults) {
+        return (Array.isArray(rawResults) ? rawResults : []).map(r => ({
+          name: r.name || "node",
+          proto: r.proto || "vless",
+          host: r.host || "",
+          lat_avg: r.latency_avg !== undefined ? r.latency_avg : -1,
+          lat_min: r.latency_min !== undefined ? r.latency_min : -1,
+          lat_std: r.latency_std !== undefined ? r.latency_std : -1,
+          spd_avg: r.speed_mbps !== undefined ? r.speed_mbps : -1,
+          spd_max: r.speed_mbps !== undefined ? r.speed_mbps : -1,
+          alive: r.latency_avg >= 0 ? 1 : 0,
+          rounds: 1,
+          score: r.score || 0,
+          inflated: false,
+          error: r.error || "",
+          raw: r.raw || ""
+        }));
+      }
 
       if (window.AndroidKeepAlive && typeof window.AndroidKeepAlive.startBatchBench === "function") {
         const uris = nodeList.map(n => n.raw);
         window.AndroidKeepAlive.startBatchBench(JSON.stringify(uris), doSpeed, 4);
+        let latestMapped = [];
 
         while (!taskCtrl.cancelled) {
           await sleep(300);
@@ -2341,29 +2374,26 @@
             });
           }
 
+          if (Array.isArray(prog.results) && prog.results.length) {
+            latestMapped = mapRawResults(prog.results);
+            if (onPartialResults) onPartialResults(latestMapped);
+          }
+
           if (!prog.running || done >= totalN) {
             finishGlobalTask();
-            const rawResults = Array.isArray(prog.results) ? prog.results : [];
-            return rawResults.map(r => ({
-              name: r.name || "node",
-              proto: r.proto || "vless",
-              host: r.host || "",
-              lat_avg: r.latency_avg !== undefined ? r.latency_avg : -1,
-              lat_min: r.latency_min !== undefined ? r.latency_min : -1,
-              lat_std: r.latency_std !== undefined ? r.latency_std : -1,
-              spd_avg: r.speed_mbps !== undefined ? r.speed_mbps : -1,
-              spd_max: r.speed_mbps !== undefined ? r.speed_mbps : -1,
-              alive: r.latency_avg >= 0 ? 1 : 0,
-              rounds: 1,
-              score: r.score || 0,
-              inflated: false,
-              error: r.error || "",
-              raw: r.raw || ""
-            }));
+            return latestMapped;
           }
         }
+
+        // Even if user clicked Stop after Pause, preserve all results completed before stopping!
+        try {
+          const finalProg = JSON.parse(window.AndroidKeepAlive.getBatchProgressJson() || "{}");
+          if (Array.isArray(finalProg.results) && finalProg.results.length) {
+            latestMapped = mapRawResults(finalProg.results);
+          }
+        } catch (_) {}
         finishGlobalTask();
-        return [];
+        return latestMapped;
       }
 
       const testedNodes = [];
@@ -2377,6 +2407,7 @@
         const res = await benchOneNodeRealXray(n, i, doSpeed);
         if (taskCtrl.cancelled) break;
         testedNodes.push(res);
+        if (onPartialResults) onPartialResults([...testedNodes]);
         if (res.lat_avg >= 0) {
           appendLog(`[${roundLabel}] [${i + 1}/${totalN}] ${res.name} -> ${res.lat_avg}ms | ${res.spd_avg > 0 ? res.spd_avg + "Mbps" : "仅延迟"}`, "log-ok");
         } else {
@@ -2485,8 +2516,30 @@
       document.getElementById("testTerminalLog").innerHTML = "";
       appendLog(`=== 启动【🧪 单独测试】数据源: ${sourceDesc} (${totalN}条) ===`, "log-info");
 
-      const testedNodes = await executeNodesBatchWithRealXray(nodesToTest, true, "单独测试");
-      if (!testedNodes.length && taskCtrl.cancelled) return;
+      BATCH_DB[batchKey] = {
+        batchType: "standalone",
+        date: `${TODAY_STR} ${timeTag}`,
+        fetchedAt: fetchedAtStr,
+        poolSize: totalN,
+        poolSource: sourceDesc,
+        roundsPresent: [1],
+        roundsMissing: [],
+        incomplete: false,
+        funnel: [],
+        nodes: []
+      };
+      state.currentBatchKey = batchKey;
+      state.inspectRound = 1;
+
+      const testedNodes = await executeNodesBatchWithRealXray(nodesToTest, true, "单独测试", (partialList) => {
+        BATCH_DB[batchKey].nodes = partialList;
+        saveState();
+        if (!document.hidden && taskCtrl.paused) {
+          renderInspectRound();
+          renderAggView();
+        }
+      });
+      if (!testedNodes.length) return;
 
       const aliveNodes = testedNodes.filter(x => x.lat_avg >= 0);
       const aliveCount = aliveNodes.length;
@@ -2496,35 +2549,24 @@
       const avgSpdAll = withSpd.length ? Number((withSpd.reduce((a, b) => a + b.spd_avg, 0) / withSpd.length).toFixed(2)) : 0;
       const maxSpdAll = withSpd.length ? Number(Math.max(...withSpd.map(x => x.spd_max)).toFixed(2)) : 0;
 
-      BATCH_DB[batchKey] = {
-        batchType: "standalone",
-        date: `${TODAY_STR} ${timeTag}`,
-        fetchedAt: fetchedAtStr,
-        poolSize: testedNodes.length,
-        poolSource: sourceDesc,
-        roundsPresent: [1],
-        roundsMissing: [],
-        incomplete: false,
-        funnel: [{
-          run: 1,
-          time: `${TODAY_STR.slice(5)} ${timeTag.slice(0, 5)}`,
-          tcp: testedNodes.length,
-          s1: aliveCount,
-          s1_rate: Number(((aliveCount / Math.max(1, testedNodes.length)) * 100).toFixed(1)),
-          lat_avg: avgLatAll,
-          lat_min: minLatAll,
-          fine_n: testedNodes.length,
-          alive: aliveCount,
-          stable3: aliveCount,
-          spd_ok: withSpd.length,
-          spd_avg: avgSpdAll,
-          spd_max: maxSpdAll
-        }],
-        nodes: testedNodes
-      };
-
-      state.currentBatchKey = batchKey;
-      state.inspectRound = 1;
+      BATCH_DB[batchKey].poolSize = testedNodes.length;
+      BATCH_DB[batchKey].funnel = [{
+        run: 1,
+        time: `${TODAY_STR.slice(5)} ${timeTag.slice(0, 5)}`,
+        tcp: testedNodes.length,
+        s1: aliveCount,
+        s1_rate: Number(((aliveCount / Math.max(1, testedNodes.length)) * 100).toFixed(1)),
+        lat_avg: avgLatAll,
+        lat_min: minLatAll,
+        fine_n: testedNodes.length,
+        alive: aliveCount,
+        stable3: aliveCount,
+        spd_ok: withSpd.length,
+        spd_avg: avgSpdAll,
+        spd_max: maxSpdAll
+      }];
+      BATCH_DB[batchKey].nodes = testedNodes;
+      saveState();
       if (!document.hidden) {
         rebuildBatchSelectorOptions();
         renderInspectRound();
@@ -2581,8 +2623,16 @@
         const r = roundsToRun[idx];
         appendLog(`--- 执行 第 ${r} 轮 (run${r}) ---`, "log-info");
 
-        const roundRes = await executeNodesBatchWithRealXray(targetPool, true, `run${r}`);
-        if (!roundRes.length && taskCtrl.cancelled) break;
+        const roundRes = await executeNodesBatchWithRealXray(targetPool, true, `run${r}`, (partialList) => {
+          batch.nodes = partialList;
+          if (! batch.roundsPresent.includes(r)) batch.roundsPresent.push(r);
+          saveState();
+          if (!document.hidden && taskCtrl.paused) {
+            renderInspectRound();
+            renderAggView();
+          }
+        });
+        if (!roundRes.length) break;
 
         batch._roundHistory[r] = roundRes;
         const aliveList = roundRes.filter(x => x.lat_avg >= 0);
@@ -2659,6 +2709,7 @@
         }));
 
         state.inspectRound = r;
+        saveState();
         if (!document.hidden) {
           rebuildBatchSelectorOptions();
           renderRoundStepper();
@@ -3897,6 +3948,7 @@
     }
 
     window.addEventListener("DOMContentLoaded", () => {
+      loadPersistedBatches();
       loadCronConfig();
       initSeedPool();
       rebuildBatchSelectorOptions();
