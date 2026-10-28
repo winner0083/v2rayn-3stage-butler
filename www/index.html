@@ -3521,39 +3521,6 @@
       showToast(`${names[key]} 已${enabled ? "开启" : "关闭"}`);
     }
 
-    function saveCronConfig() {
-      const cfg = {};
-      let onCnt = 0;
-      ["harvest", "test", "agg", "review"].forEach(k => {
-        const checked = Boolean(document.getElementById("cronToggle-" + k)?.checked);
-        if (checked) onCnt++;
-        cfg[k] = { enabled: checked, schedule: document.getElementById("cronSel-" + k)?.value || "" };
-      });
-      localStorage.setItem("v2_cron_matrix", JSON.stringify(cfg));
-      const badge = document.getElementById("sidebarCronBadge");
-      if (badge) badge.textContent = `${onCnt}/4开启`;
-    }
-
-    function loadCronConfig() {
-      const raw = localStorage.getItem("v2_cron_matrix");
-      if (!raw) return;
-      try {
-        const cfg = JSON.parse(raw);
-        let onCnt = 0;
-        ["harvest", "test", "agg", "review"].forEach(k => {
-          if (cfg[k]) {
-            const toggle = document.getElementById("cronToggle-" + k);
-            const sel = document.getElementById("cronSel-" + k);
-            if (toggle) toggle.checked = Boolean(cfg[k].enabled);
-            if (sel && cfg[k].schedule) sel.value = cfg[k].schedule;
-            if (cfg[k].enabled) onCnt++;
-          }
-        });
-        const badge = document.getElementById("sidebarCronBadge");
-        if (badge) badge.textContent = `${onCnt}/4开启`;
-      } catch (_) {}
-    }
-
     function triggerCronNow(key) {
       if (key === "harvest") { switchTab("tab-harvest"); runLiveHarvest(); }
       else if (key === "test") { switchTab("tab-test"); switchTestSubMode("3stage"); startThreeStageRun("all"); }
@@ -3771,6 +3738,106 @@
       lastTriggeredMinute: ""
     };
 
+    // ---- Cron 调度配置：与弹窗 DOM 完全解耦，启动时读入内存 ----
+    let cronConfig = {
+      harvest: { enabled: true, schedule: "00:30" },
+      test: { enabled: true, schedule: "01:00" },
+      agg: { enabled: true, schedule: "04:55" },
+      review: { enabled: true, schedule: "sun_20" }
+    };
+    let cronWorker = null;
+    let cronLastFired = { harvest: "", test: "", agg: "", review: "" };
+
+    function loadCronConfig() {
+      const raw = localStorage.getItem("v2_cron_matrix");
+      if (!raw) return;
+      try {
+        const cfg = JSON.parse(raw);
+        ["harvest", "test", "agg", "review"].forEach(k => {
+          if (cfg[k]) {
+            if (typeof cfg[k].enabled === "boolean") cronConfig[k].enabled = cfg[k].enabled;
+            if (cfg[k].schedule) cronConfig[k].schedule = cfg[k].schedule;
+          }
+        });
+        ["harvest", "test", "agg", "review"].forEach(k => {
+          const toggle = document.getElementById("cronToggle-" + k);
+          const sel = document.getElementById("cronSel-" + k);
+          if (toggle) toggle.checked = Boolean(cronConfig[k].enabled);
+          if (sel && cronConfig[k].schedule) sel.value = cronConfig[k].schedule;
+        });
+        const badge = document.getElementById("sidebarCronBadge");
+        if (badge) badge.textContent = `${["harvest","test","agg","review"].filter(k => cronConfig[k].enabled).length}/4开启`;
+      } catch (_) {}
+    }
+
+    function saveCronConfig() {
+      ["harvest", "test", "agg", "review"].forEach(k => {
+        const toggle = document.getElementById("cronToggle-" + k);
+        const sel = document.getElementById("cronSel-" + k);
+        if (toggle) cronConfig[k].enabled = Boolean(toggle.checked);
+        if (sel && sel.value) cronConfig[k].schedule = sel.value;
+      });
+      localStorage.setItem("v2_cron_matrix", JSON.stringify(cronConfig));
+      const badge = document.getElementById("sidebarCronBadge");
+      if (badge) badge.textContent = `${["harvest","test","agg","review"].filter(k => cronConfig[k].enabled).length}/4开启`;
+    }
+
+    function cronShouldFire(key, now) {
+      const cfg = cronConfig[key];
+      if (!cfg || !cfg.enabled) return false;
+      const sched = String(cfg.schedule || "");
+      const hm = now.toTimeString().slice(0, 5);
+      const day = now.getDay();
+      const hour = String(now.getHours()).padStart(2, "0");
+      const minute = String(now.getMinutes()).padStart(2, "0");
+      const cur = hour + ":" + minute;
+      let should = false;
+      if (/^\d{2}:\d{2}$/.test(sched)) {
+        should = (cur === sched);
+      } else if (sched === "6h") {
+        should = (minute === "00" && [0, 6, 12, 18].includes(Number(hour)));
+      } else if (sched === "12h") {
+        should = (minute === "00" && (Number(hour) === 0 || Number(hour) === 12));
+      } else if (sched === "8h") {
+        should = (minute === "00" && [0, 8, 16].includes(Number(hour)));
+      } else if (sched === "after_3") {
+        should = (minute === "00" && Number(hour) === 5);
+      } else if (sched === "sun_20") {
+        should = (day === 0 && cur === "20:00");
+      } else if (sched === "mon_09") {
+        should = (day === 1 && cur === "09:00");
+      }
+      if (!should) return false;
+      if (cronLastFired[key] === hm) return false;
+      cronLastFired[key] = hm;
+      return true;
+    }
+
+    function startCronWorker() {
+      try {
+        if (cronWorker) return;
+        const workerCode = `
+          let timer = null;
+          self.onmessage = function(e) {
+            if (e.data === 'start') {
+              if (timer) clearInterval(timer);
+              timer = setInterval(() => self.postMessage('tick'), 1000);
+            } else if (e.data === 'stop') {
+              if (timer) clearInterval(timer);
+              timer = null;
+            }
+          };
+        `;
+        const blob = new Blob([workerCode], { type: "application/javascript" });
+        cronWorker = new Worker(URL.createObjectURL(blob));
+        cronWorker.onmessage = () => {
+          keepAliveState.ticks++;
+          if (keepAliveState.ticks % 15 === 0) checkBackgroundCronSchedules();
+        };
+        cronWorker.postMessage("start");
+      } catch (_) {}
+    }
+
     let orientMode = localStorage.getItem("v2_orient_mode") || "portrait";
 
     function applyOrientationMode(mode, showMsg = false) {
@@ -3846,28 +3913,8 @@
       if (toggle) toggle.checked = keepAliveState.enabled;
       applyKeepAliveUi(keepAliveState.enabled);
 
-      try {
-        const workerCode = `
-          let timer = null;
-          self.onmessage = function(e) {
-            if (e.data === 'start') {
-              if (timer) clearInterval(timer);
-              timer = setInterval(() => self.postMessage('tick'), 1000);
-            } else if (e.data === 'stop') {
-              if (timer) clearInterval(timer);
-              timer = null;
-            }
-          };
-        `;
-        const blob = new Blob([workerCode], { type: "application/javascript" });
-        keepAliveState.worker = new Worker(URL.createObjectURL(blob));
-        keepAliveState.worker.onmessage = () => {
-          if (!keepAliveState.enabled) return;
-          keepAliveState.ticks++;
-          if (keepAliveState.ticks % 15 === 0) checkBackgroundCronSchedules();
-        };
-        if (keepAliveState.enabled) keepAliveState.worker.postMessage("start");
-      } catch (_) {}
+      // 定时调度 Worker：独立常驻，不受息屏守护开关影响
+      startCronWorker();
 
       if (keepAliveState.enabled && window.AndroidKeepAlive && window.AndroidKeepAlive.setKeepAlive) {
         try { window.AndroidKeepAlive.setKeepAlive(true, "息屏守护中"); } catch (_) {}
@@ -3878,6 +3925,8 @@
       keepAliveState.enabled = enabled;
       localStorage.setItem("v2_keepalive_on", enabled ? "1" : "0");
       applyKeepAliveUi(enabled);
+      // 定时调度 Worker 不随息屏开关启停，常驻保证定时任务稳定触发
+      startCronWorker();
       if (window.AndroidKeepAlive && window.AndroidKeepAlive.setKeepAlive) {
         try { window.AndroidKeepAlive.setKeepAlive(enabled, enabled ? "息屏守护中" : "已暂停息屏常驻"); } catch (_) {}
       }
@@ -3898,18 +3947,21 @@
       const now = new Date();
       const hm = now.toTimeString().slice(0, 5);
       if (hm === keepAliveState.lastTriggeredMinute) return;
+      keepAliveState.lastTriggeredMinute = hm;
 
-      if (document.getElementById("cronToggle-harvest")?.checked && document.getElementById("cronSel-harvest")?.value === hm) {
-        keepAliveState.lastTriggeredMinute = hm;
+      // 从内存配置判断，不依赖弹窗 DOM
+      if (cronShouldFire("harvest", now)) {
         runLiveHarvest();
       }
-      if (document.getElementById("cronToggle-test")?.checked && document.getElementById("cronSel-test")?.value === hm) {
-        keepAliveState.lastTriggeredMinute = hm;
+      if (cronShouldFire("test", now)) {
         startThreeStageRun("all");
       }
-      if (document.getElementById("cronToggle-agg")?.checked && document.getElementById("cronSel-agg")?.value === hm) {
-        keepAliveState.lastTriggeredMinute = hm;
+      if (cronShouldFire("agg", now)) {
         renderAggView();
+        showToast("📊 已按定时执行跨轮汇总刷新");
+      }
+      if (cronShouldFire("review", now)) {
+        runWeeklyReviewNow();
       }
     }
 
