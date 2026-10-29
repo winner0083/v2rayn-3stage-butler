@@ -876,6 +876,74 @@
       color: #fff; padding: 12px 14px; border-radius: 11px; font-size: 13px; font-weight: 700;
       display: flex; align-items: center; gap: 8px;
     }
+
+    /* ========== 三段式合并数据推荐 横幅 (Top Banner) ========== */
+    .merge-banner {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      background: linear-gradient(135deg, rgba(139, 92, 246, 0.22), rgba(59, 130, 246, 0.14));
+      border: 1px solid rgba(139, 92, 246, 0.55);
+      border-radius: 13px;
+      padding: 12px 14px;
+      margin: 10px 0;
+      cursor: pointer;
+    }
+    .merge-banner.open { display: flex; }
+    .merge-banner-icon { font-size: 24px; flex-shrink: 0; }
+    .merge-banner-main { flex: 1; min-width: 0; }
+    .merge-banner-title { font-size: 14px; font-weight: 800; color: #c4b5fd; line-height: 1.35; }
+    .merge-banner-sub { font-size: 12px; color: var(--text-secondary); margin-top: 2px; line-height: 1.4; }
+    .merge-banner .btn { flex-shrink: 0; }
+
+    /* ========== 均衡 Top500 核验确认卡 ========== */
+    .top500-card {
+      border: 1px solid rgba(139, 92, 246, 0.5);
+      background: linear-gradient(180deg, rgba(139, 92, 246, 0.08), rgba(59, 130, 246, 0.05));
+    }
+    .top500-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 10px 0; }
+    .top500-kpi {
+      background: var(--bg-surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 10px 8px; text-align: center;
+    }
+    .top500-kpi .kpi-num { font-size: 19px; font-weight: 900; color: #c4b5fd; }
+    .top500-kpi .kpi-lbl2 { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+    .top500-kpi.ok .kpi-num { color: #34d399; }
+    .top500-kpi.warn .kpi-num { color: #fbbf24; }
+
+    /* 均衡评分条 */
+    .bal-bar { display: flex; align-items: center; gap: 6px; min-width: 110px; }
+    .bal-track { flex: 1; height: 5px; background: var(--bg-elevated); border-radius: 99px; overflow: hidden; }
+    .bal-fill { height: 100%; border-radius: 99px; background: linear-gradient(90deg, #8b5cf6, #34d399); }
+    .bal-fill.warn { background: linear-gradient(90deg, #f59e0b, #f43f5e); }
+    .bal-tag { font-size: 10.5px; font-weight: 800; padding: 2px 6px; border-radius: 6px; white-space: nowrap; }
+    .bal-tag.good { background: rgba(16,185,129,0.18); color: #34d399; }
+    .bal-tag.bad { background: rgba(244,63,94,0.18); color: #fb7185; }
+
+    /* 日期分组筛选条 */
+    .date-group-bar {
+      display: flex; gap: 6px; overflow-x: auto; padding: 2px 0 6px;
+      -webkit-overflow-scrolling: touch; scrollbar-width: none;
+    }
+    .date-group-bar::-webkit-scrollbar { display: none; }
+    .date-chip {
+      flex-shrink: 0; font-size: 12px; font-weight: 700;
+      padding: 6px 10px; border-radius: 99px;
+      background: var(--bg-surface); border: 1px solid var(--border);
+      color: var(--text-secondary); cursor: pointer; white-space: nowrap;
+    }
+    .date-chip.active { background: rgba(59,130,246,0.18); border-color: rgba(59,130,246,0.6); color: #60a5fa; }
+    .date-chip small { font-weight: 400; opacity: 0.75; }
+
+    /* 批次行（日期+时间归类） */
+    .dated-batch-row {
+      display: flex; align-items: center; gap: 8px;
+      background: var(--bg-surface); border: 1px solid var(--border-subtle);
+      border-radius: 10px; padding: 8px 10px; margin-bottom: 6px;
+    }
+    .dated-batch-row .db-time { font-size: 13px; font-weight: 800; color: #c4b5fd; min-width: 62px; }
+    .dated-batch-row .db-info { flex: 1; min-width: 0; font-size: 12px; color: var(--text-secondary); }
+    .dated-batch-row .db-info strong { color: var(--text-main); font-weight: 700; }
   </style>
 </head>
 <body>
@@ -1029,6 +1097,16 @@
     <!-- FOREGROUND MAIN CONTENT (Clean, Uncluttered, Focused on Daily Use) -->
     <!-- ================================================================== -->
     <main class="app-content">
+
+      <!-- 三段式合并数据推荐推送横幅 (跑满3轮自动出现) -->
+      <div class="merge-banner" id="mergeRecommendBanner" onclick="openMergeRecommendModal()">
+        <span class="merge-banner-icon">🎯</span>
+        <div class="merge-banner-main">
+          <div class="merge-banner-title" id="mergeBannerTitle">三段式合并数据推荐已就绪</div>
+          <div class="merge-banner-sub" id="mergeBannerSub">跨轮合并汇总 · 均衡 Top500 已确认</div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="event.stopPropagation(); openMergeRecommendModal()">查看推荐</button>
+      </div>
 
       <!-- ======================================================== -->
       <!-- TAB 1: 📡 源获取 (Foreground: Pull & Manage Sources)     -->
@@ -1260,6 +1338,7 @@
               <div class="card-title">📊 汇总交付中心</div>
               <div class="card-sub">严格区分【⚡三段式3遍汇总】与【🧪单独测试结果】</div>
             </div>
+            <button class="btn btn-ghost btn-xs" onclick="openMergeRecommendModal()">🎯 合并推荐</button>
           </div>
 
           <div class="seg-bar" style="margin-bottom:10px;">
@@ -1268,10 +1347,41 @@
             <button class="seg-btn" onclick="filterAggBatchCategory('standalone', this)">🧪 单独测试结果</button>
           </div>
 
+          <!-- 日期+时间归类：按日期分组 → 按时间排序 -->
+          <div style="font-size:12px;color:var(--text-secondary);margin-bottom:6px;">
+            📅 按日期归类（<span id="aggDateCount">0</span> 天）· 同日内按 <code>HH:MM:SS</code> 时间倒序
+          </div>
+          <div class="date-group-bar" id="aggDateGroupBar"></div>
           <select class="select" id="batchSelector" onchange="switchBatch(this.value)" style="margin-bottom:10px;"></select>
 
           <!-- Explicit Data Provenance Verification Card -->
           <div class="provenance-box" style="margin-bottom:10px;" id="aggProvenanceCard"></div>
+
+          <!-- 均衡 Top500 核验确认卡：延迟与下载速度双优 -->
+          <div class="card top500-card" style="margin-bottom:10px;">
+            <div class="card-header">
+              <div>
+                <div class="card-title" style="color:#c4b5fd;">⚖️ 均衡 Top500 核验确认（延迟 & 下载速度双优）</div>
+                <div class="card-sub">跨轮合并筛选 · 剔除高延迟虚快 / 低延迟零速度的偏科节点</div>
+              </div>
+              <button class="btn btn-ghost btn-xs" onclick="exportBalancedTop500()">📥 导出 Top500</button>
+            </div>
+            <div class="top500-kpis">
+              <div class="top500-kpi" id="top500KpiEligible"><div class="kpi-num">0</div><div class="kpi-lbl2">✅ 双优达标</div></div>
+              <div class="top500-kpi warn" id="top500KpiSkewed"><div class="kpi-num">0</div><div class="kpi-lbl2">⚠️ 偏科剔除</div></div>
+              <div class="top500-kpi ok" id="top500KpiConfirm"><div class="kpi-num">0</div><div class="kpi-lbl2">🎯 确认 Top500</div></div>
+            </div>
+            <div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px;" id="top500KpiMeta">尚无 3 轮合并数据，跑满三段式后自动生成</div>
+            <div class="btn-grid-3 stack-sm">
+              <button class="btn btn-primary" onclick="switchAggRankTab('balanced', document.getElementById('aggRankBtn-balanced'))">⚖️ 查看均衡 Top500</button>
+              <button class="btn btn-emerald" onclick="copyBalancedTop500(false)">📋 复制纯链接</button>
+              <button class="btn btn-amber" onclick="copyBalancedTop500(true)">📦 复制 Base64</button>
+            </div>
+            <div style="margin-top:8px;font-size:12px;color:var(--text-secondary);">
+              🎯 一键导入：<button class="btn btn-ghost btn-xs" onclick="launchV2rayNGWithBalanced()">🚀 导入 v2rayNG</button>
+              <span style="margin-left:6px;">达标率 <strong id="top500PassRate" style="color:#34d399;">0%</strong></span>
+            </div>
+          </div>
 
           <!-- Primary 3 One-Tap Delivery Buttons -->
           <div class="btn-grid-3 stack-sm">
@@ -1295,6 +1405,7 @@
         <div class="card">
           <div class="seg-bar" style="margin-bottom:10px;">
             <button class="seg-btn active" onclick="switchAggRankTab('recommend', this)">⭐ 最终推荐 (<span id="tabCntRec">0</span>)</button>
+            <button class="seg-btn" onclick="switchAggRankTab('balanced', this)" id="aggRankBtn-balanced">⚖️ 均衡Top500</button>
             <button class="seg-btn" onclick="switchAggRankTab('speed', this)">🚀 速度榜</button>
             <button class="seg-btn" onclick="switchAggRankTab('lowlat', this)">⚡ 低延迟</button>
             <button class="seg-btn" onclick="switchAggRankTab('unstable', this)">⚠️ 淘汰 (<span id="tabCntUnstable">0</span>)</button>
@@ -1604,6 +1715,44 @@
   </div>
 
   <!-- ==================================================================== -->
+  <!-- MODAL 4: 🎯 三段式合并数据推荐 (跨轮合并 Top500 + 一键交付)          -->
+  <!-- ==================================================================== -->
+  <div class="modal-backdrop" id="mergeRecommendModal" onclick="if(event.target===this)closeMergeRecommendModal()">
+    <div class="modal-card" style="max-width:520px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <div style="font-size:15px;font-weight:800;color:#c4b5fd;">🎯 三段式合并数据推荐</div>
+        <button class="btn btn-ghost btn-xs" onclick="closeMergeRecommendModal()">✕ 关闭</button>
+      </div>
+
+      <!-- 合并批次信息 -->
+      <div class="provenance-box" id="mergeRecProvenance" style="margin-bottom:10px;"></div>
+
+      <!-- 均衡 Top500 核验结果 -->
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px;">
+        <div class="top500-kpi"><div class="kpi-num" id="mergeRecKpiEligible">0</div><div class="kpi-lbl2">✅ 双优达标</div></div>
+        <div class="top500-kpi warn"><div class="kpi-num" id="mergeRecKpiSkewed">0</div><div class="kpi-lbl2">⚠️ 偏科剔除</div></div>
+        <div class="top500-kpi ok"><div class="kpi-num" id="mergeRecKpiConfirm">0</div><div class="kpi-lbl2">🎯 确认 Top500</div></div>
+      </div>
+
+      <!-- 推荐节点预览 (Top 8) -->
+      <div style="font-size:12.5px;color:var(--text-secondary);margin-bottom:6px;">
+        ⭐ 推荐预览（延迟+速度双优前 <span id="mergeRecPreviewCount">8</span> 名）· 达标率 <strong id="mergeRecPassRate" style="color:#34d399;">0%</strong>
+      </div>
+      <div class="node-list" id="mergeRecPreviewList" style="max-height:300px;overflow-y:auto;"></div>
+
+      <!-- 一键交付按钮 -->
+      <div class="btn-grid-2 stack-sm" style="margin-top:12px;">
+        <button class="btn btn-primary" onclick="launchV2rayNGWithBalanced()">🚀 导入 v2rayNG</button>
+        <button class="btn btn-emerald" onclick="copyBalancedTop500(false)">📋 复制 Top500 链接</button>
+      </div>
+      <div class="btn-grid-2" style="margin-top:8px;">
+        <button class="btn btn-amber" onclick="copyBalancedTop500(true)">📦 复制 Base64</button>
+        <button class="btn btn-ghost" onclick="exportBalancedTop500()">📥 导出 .txt</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================================================================== -->
   <!-- MODAL 3: NODE DETAIL & QR CODE                                       -->
   <!-- ==================================================================== -->
   <div class="modal-backdrop" id="nodeModal" onclick="if(event.target===this)closeNodeModal()">
@@ -1907,11 +2056,28 @@
     }
 
     // =========================================================================
-    // 4. DATA PROVENANCE SNAPSHOT SYSTEM
+    // 4. DATA PROVENANCE SNAPSHOT SYSTEM (动态日期/时间归类)
     // =========================================================================
-    function nowTimeStr() {
+    function getNowDateStr() {
       const d = new Date();
-      return `${TODAY_STR} ${d.toTimeString().slice(0, 8)}`;
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    }
+    function getNowTimeStr() {
+      const d = new Date();
+      return d.toTimeString().slice(0, 8);
+    }
+    function nowTimeStr() {
+      return `${getNowDateStr()} ${getNowTimeStr()}`;
+    }
+
+    // ---- 跨轮合并汇总数据库 SUMMARY_DB + 拉取批次采集账本 harvestedBatches ----
+    const SUMMARY_DB = JSON.parse(localStorage.getItem("v2_summary_db_v1") || "{}");
+    const harvestedBatches = JSON.parse(localStorage.getItem("v2_harvested_batches_v1") || "{}");
+    function saveSummaryDb() {
+      try { localStorage.setItem("v2_summary_db_v1", JSON.stringify(SUMMARY_DB)); } catch (_) {}
+    }
+    function saveHarvestedBatches() {
+      try { localStorage.setItem("v2_harvested_batches_v1", JSON.stringify(harvestedBatches)); } catch (_) {}
     }
 
     function saveState() {
@@ -1921,6 +2087,8 @@
       try {
         localStorage.setItem("v2_batches_v2", JSON.stringify(BATCH_DB));
       } catch (_) {}
+      saveSummaryDb();
+      saveHarvestedBatches();
     }
 
     function loadPersistedBatches() {
@@ -1953,7 +2121,7 @@
           mode: "pool",
           title: "🗂️ 主收集池全部活跃节点 (input_nodes.txt)",
           sourceDesc: "31个启用订阅源汇总池",
-          fetchedAt: `${TODAY_STR} 初始就绪`,
+          fetchedAt: `${getNowDateStr()} 初始就绪`,
           nodes: state.harvestedPool
         }
       ];
@@ -1971,6 +2139,8 @@
         title,
         sourceDesc,
         fetchedAt: tStr,
+        dateStr: getNowDateStr(),
+        timeStr: getNowTimeStr(),
         nodes: [...nodesList]
       };
       state.fetchSnapshots = state.fetchSnapshots.filter(s => s.id !== "pool_all");
@@ -1986,6 +2156,9 @@
 
       state.selectedStandaloneSnapId = snapId;
       state.selectedThreeStageSnapId = snapId;
+
+      // 拉取账本：收集的数据按日期+时间归类
+      syncHarvestedBatchRecord(mode, title, sourceDesc, nodesList, getNowDateStr(), getNowTimeStr());
 
       if (!document.hidden) {
         const firstNode = nodesList[0] ? `${nodesList[0].name} (${nodesList[0].host})` : "无";
@@ -2518,7 +2691,9 @@
 
       BATCH_DB[batchKey] = {
         batchType: "standalone",
-        date: `${TODAY_STR} ${timeTag}`,
+        date: `${getNowDateStr()} ${timeTag}`,
+        dateStr: getNowDateStr(),
+        timeStr: timeTag,
         fetchedAt: fetchedAtStr,
         poolSize: totalN,
         poolSource: sourceDesc,
@@ -2552,7 +2727,7 @@
       BATCH_DB[batchKey].poolSize = testedNodes.length;
       BATCH_DB[batchKey].funnel = [{
         run: 1,
-        time: `${TODAY_STR.slice(5)} ${timeTag.slice(0, 5)}`,
+        time: `${getNowDateStr().slice(5)} ${timeTag.slice(0, 5)}`,
         tcp: testedNodes.length,
         s1: aliveCount,
         s1_rate: Number(((aliveCount / Math.max(1, testedNodes.length)) * 100).toFixed(1)),
@@ -2586,15 +2761,19 @@
       }
 
       const now = new Date();
+      const dateStr = getNowDateStr();
+      const timeStr = getNowTimeStr();
       const timeTag = now.toTimeString().slice(0, 5);
       let batchKey = state.currentBatchKey;
 
       if (mode === "all" || !BATCH_DB[batchKey] || BATCH_DB[batchKey].batchType !== "3stage" || BATCH_DB[batchKey]._snapId !== chosenSnap.id) {
-        batchKey = `【三段式】${chosenSnap.title} (${timeTag})`;
+        batchKey = `【三段式】${chosenSnap.title} (${dateStr} ${timeStr})`;
         BATCH_DB[batchKey] = {
           batchType: "3stage",
           _snapId: chosenSnap.id,
-          date: `${TODAY_STR} ${now.toTimeString().slice(0, 8)}`,
+          date: `${dateStr} ${timeStr}`,
+          dateStr: dateStr,
+          timeStr: timeStr,
           fetchedAt: chosenSnap.fetchedAt,
           poolSize: targetPool.length,
           poolSource: `${chosenSnap.title} — ${chosenSnap.sourceDesc}`,
@@ -2650,7 +2829,7 @@
 
         const fObj = {
           run: r,
-          time: `${TODAY_STR.slice(5)} ${nowStr}`,
+          time: `${getNowDateStr().slice(5)} ${nowStr}`,
           tcp: roundRes.length,
           s1: aliveList.length,
           s1_rate: Number(((aliveList.length / Math.max(1, roundRes.length)) * 100).toFixed(1)),
@@ -2721,6 +2900,19 @@
       }
 
       finishGlobalTask();
+
+      // === 跑满 3 轮 → 自动跨轮合并 → 汇总库 SUMMARY_DB → 弹窗/横幅/原生通知 ===
+      const roundKeys = Object.keys(batch._roundHistory || {}).filter(k => batch._roundHistory[k] && batch._roundHistory[k].length);
+      if (roundKeys.length >= 3) {
+        try {
+          const merged = buildMergedSummary(batchKey, batch);
+          if (merged && merged.nodes.length) {
+            autoPushMergedRecommendation(merged);
+            if (document.hidden) taskCtrl.needsUiFlushOnWake = true;
+          }
+        } catch (e) { console.error("merge3stage error", e); }
+      }
+
       showToast(`⚡ 三段式测试执行完毕！数据源：${chosenSnap.title}`);
     }
 
@@ -3131,8 +3323,17 @@
       const batch = BATCH_DB[state.currentBatchKey];
       const box = document.getElementById("roundStepperBox");
       if (!batch || !box) return;
+      const roundsPresent = batch.roundsPresent || [];
+      if (batch.batchType === "merged3stage") {
+        box.innerHTML = `<div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <div class="round-box done"><span style="font-size:13px;font-weight:800;">🎯 跨轮合并汇总</span>
+          <span style="font-size:12px;color:var(--text-secondary);">${(batch.funnel || []).length} 轮数据合并 · 参评 ${batch.nodes.length} 条节点</span>
+          <span class="tag tag-ok">✅ 已确认</span></div>
+        </div>`;
+        return;
+      }
       box.innerHTML = [1, 2, 3].map(r => {
-        const done = batch.roundsPresent.includes(r);
+        const done = roundsPresent.includes(r);
         const fRow = batch.funnel.find(x => x.run === r);
         return `
           <div class="round-box ${done ? "done" : "missing"}">
@@ -3159,12 +3360,13 @@
       if (!batch || !box) return;
 
       const isStandalone = batch.batchType === "standalone";
+      const isMerged = batch.batchType === "merged3stage";
       document.getElementById("inspectCardTitle").textContent = isStandalone
         ? `🧪 单独测试结果 (${state.currentBatchKey})`
-        : `⚡ 三段式测试明细 (${state.currentBatchKey})`;
+        : (isMerged ? `🎯 跨轮合并汇总明细 (${state.currentBatchKey})` : `⚡ 三段式测试明细 (${state.currentBatchKey})`);
       document.getElementById("inspectCardSub").innerHTML = `被测数据源：<strong style="color:#34d399;">${escapeHtml(batch.poolSource)}</strong> · 拉取于 <code>${escapeHtml(batch.fetchedAt || batch.date)}</code>`;
 
-      if (!isStandalone && !batch.roundsPresent.includes(state.inspectRound)) {
+      if (!isStandalone && !isMerged && !(batch.roundsPresent || []).includes(state.inspectRound)) {
         box.innerHTML = `
           <div style="text-align:center;padding:20px;color:var(--text-secondary);font-size:13px;">
             第 ${state.inspectRound} 轮尚未执行
@@ -3209,14 +3411,300 @@
       renderAggView();
     }
 
+    // =========================================================================
+    // 9.5 ⚖️ 均衡 Top500：延迟+下载速度双优核验（跨轮合并专用）
+    // -------------------------------------------------------------------------
+    // 得分公式（参考 aggregate3.py / export_top500.py）：
+    //   均衡分 = 35% × 延迟得分 + 35% × 跨轮稳定性/低抖动 + 30% × 下载速度得分
+    // 偏科剔除（均衡度检验）：
+    //   - 高延迟虚快：lat_avg ≥ 350ms 且 spd_avg ≥ 25Mbps（速度虚高但延迟不可用）
+    //   - 低延迟零速度：lat_avg < 150ms 且 spd_avg ≤ 0.5Mbps（延迟好看但跑不动）
+    // 阈值：lat_avg < 800ms、spd_avg > 0.5Mbps、alive === rounds、非废弃节点
+    // =========================================================================
+    function computeBalancedTop500(batch) {
+      if (!batch || !batch.nodes || !batch.nodes.length) return { eligible: [], skewed: [], confirmed: [], passRate: 0, meta: "" };
+      const depHosts = new Set(state.deprecatedNodes.map(d => d.host));
+
+      const latScore = lat => lat <= 0 ? 0 : Math.max(0, 100 - (lat / 800) * 100);       // 0ms→100分, 800ms→0分
+      const spdScore = spd => spd <= 0 ? 0 : Math.min(100, (spd / 30) * 100);           // 0→0分, 30Mbps→满分
+      const stabScore = std => std <= 0 ? 100 : Math.max(0, 100 - std * 4);             // jitter越小越好
+
+      const raw = batch.nodes
+        .filter(n => !depHosts.has(n.host) && n.lat_avg >= 0 && n.alive === n.rounds && n.lat_avg < 800)
+        .map(n => {
+          const latS = latScore(n.lat_avg);
+          const spdS = spdScore(n.spd_avg);
+          const stbS = stabScore(n.lat_std);
+          const bal = Number((latS * 0.35 + stbS * 0.35 + spdS * 0.30).toFixed(1));
+          const skewed = (n.lat_avg >= 350 && n.spd_avg >= 25) || (n.lat_avg < 150 && n.spd_avg <= 0.5);
+          return Object.assign({}, n, { latS, spdS, stbS, bal, skewed });
+        });
+
+      const eligible = raw.filter(x => !x.skewed && x.spd_avg > 0.5)
+        .sort((a, b) => {
+          // L044: 出口虚高(CF自家测速虚高)节点整体后置，防踩坑
+          if (Boolean(a.inflated) !== Boolean(b.inflated)) return a.inflated ? 1 : -1;
+          return b.bal - a.bal || b.spd_avg - a.spd_avg || a.lat_avg - b.lat_avg;
+        });
+      const skewed = raw.filter(x => x.skewed || x.spd_avg <= 0.5)
+        .sort((a, b) => b.bal - a.bal);
+      const confirmed = eligible.slice(0, 500);
+      const total = raw.length;
+      const passRate = total ? Number((confirmed.length / total * 100).toFixed(1)) : 0;
+      const meta = `参评 ${total} 条（3轮全勤+延迟<800ms）→ 双优达标 ${eligible.length} 条 → 确认 Top${Math.min(500, eligible.length)} 条`;
+      return { eligible, skewed, confirmed, passRate, meta, total };
+    }
+
+    // ---- 跨轮合并：将同一数据源的多个三段式批次按 raw 聚合为一份跨轮汇总 ----
+    function buildMergedSummary(batchKey, batch) {
+      const rounds = Object.keys(batch._roundHistory || {}).filter(k => (batch._roundHistory[k] || []).length);
+      if (rounds.length < 3) return null;
+      const nowD = getNowDateStr(), nowT = getNowTimeStr();
+      const aggMap = new Map();
+      rounds.forEach(r => {
+        (batch._roundHistory[r] || []).forEach(item => {
+          const cur = aggMap.get(item.raw) || {
+            name: item.name, proto: item.proto, host: item.host, raw: item.raw,
+            lats: [], mins: [], stds: [], spds: [], scores: [], alive: 0, rounds: 0
+          };
+          cur.rounds++;
+          if (item.lat_avg >= 0) { cur.alive++; cur.lats.push(item.lat_avg); cur.mins.push(item.lat_min > 0 ? item.lat_min : item.lat_avg); cur.stds.push(item.lat_std || 0); cur.scores.push(item.score || 0); }
+          if (item.spd_avg > 0) cur.spds.push(item.spd_avg);
+          aggMap.set(item.raw, cur);
+        });
+      });
+      const nodes = Array.from(aggMap.values()).map(c => ({
+        name: c.name, proto: c.proto, host: c.host, raw: c.raw,
+        alive: c.alive, rounds: c.rounds,
+        lat_avg: c.lats.length ? Number((c.lats.reduce((a, b) => a + b, 0) / c.lats.length).toFixed(1)) : -1,
+        lat_min: c.mins.length ? Math.min(...c.mins) : -1,
+        lat_std: c.stds.length ? Number((c.stds.reduce((a, b) => a + b, 0) / c.stds.length).toFixed(1)) : -1,
+        spd_avg: c.spds.length ? Number((c.spds.reduce((a, b) => a + b, 0) / c.spds.length).toFixed(2)) : -1,
+        spd_max: c.spds.length ? Number(Math.max(...c.spds).toFixed(2)) : -1,
+        score: c.scores.length ? Number((c.scores.reduce((a, b) => a + b, 0) / c.scores.length).toFixed(1)) : 0,
+        inflated: false
+      })).filter(n => n.lat_avg >= 0);
+
+      const merged = {
+        batchType: "merged3stage",
+        key: batchKey,
+        sourceBatchKey: batchKey,
+        date: `${nowD} ${nowT}`,
+        dateStr: nowD,
+        timeStr: nowT,
+        poolSource: batch.poolSource,
+        poolSize: batch.poolSize,
+        rounds: rounds.length,
+        nodes,
+        summaryId: "sum_" + Date.now()
+      };
+      const top = computeBalancedTop500(merged);
+      merged.balanced = { eligible: top.eligible.length, skewed: top.skewed.length, confirmed: top.confirmed.length, passRate: top.passRate, total: top.total };
+      merged.confirmedNodes = top.confirmed.map(n => n.raw);
+      SUMMARY_DB[batchKey] = merged;
+      saveSummaryDb();
+      return merged;
+    }
+
+    // ---- 三段式跑满 3 轮 → 自动推送合并推荐（弹窗 + 顶栏横幅 + 原生系统通知）----
+    function autoPushMergedRecommendation(merged) {
+      const top = computeBalancedTop500(merged);
+      const confirmed = top.confirmed.slice(0, 8);
+      const banner = document.getElementById("mergeRecommendBanner");
+      if (banner) {
+        banner.style.display = "flex";
+        document.getElementById("mergeBannerTitle").textContent = `🎯 三段式合并数据推荐已就绪（${merged.dateStr} ${merged.timeStr}）`;
+        document.getElementById("mergeBannerSub").textContent = `${merged.poolSource} — 双优达标 ${top.eligible.length} 条 / 确认 Top${top.confirmed.length} 条`;
+      }
+
+      // 预览列表
+      const listBox = document.getElementById("mergeRecPreviewList");
+      if (listBox) {
+        listBox.innerHTML = confirmed.map((n, i) => `
+          <div class="node-card" onclick='openNodeModal(${JSON.stringify(n).replace(/'/g, "&#39;")})'>
+            <div class="node-rank ${i < 3 ? "top" + (i + 1) : ""}">${i + 1}</div>
+            <div class="node-main">
+              <div class="node-title"><span class="tag tag-${n.proto}">${n.proto.toUpperCase()}</span><span>${escapeHtml(n.name)}</span></div>
+              <div class="node-meta"><span>延迟 ${n.lat_avg}ms</span><span>速度 ${n.spd_avg > 0 ? n.spd_avg.toFixed(2) + " Mbps" : "仅延迟"}</span><span>均衡分 ${n.bal}</span></div>
+            </div>
+            <div class="node-metrics"><div class="metric-spd" style="color:#34d399;">${n.spd_avg > 0 ? n.spd_avg.toFixed(2) + " Mbps" : "-"}</div><div class="metric-lat">${n.lat_avg}ms</div></div>
+          </div>`).join("");
+      }
+      document.getElementById("mergeRecProvenance").innerHTML = `
+        <div class="provenance-title" style="color:#c4b5fd;">📌 跨轮合并来源</div>
+        <div class="provenance-meta">
+          • <strong>合并批次</strong>：<code>${escapeHtml(merged.sourceBatchKey)}</code><br/>
+          • <strong>生成时间</strong>：<code>${escapeHtml(merged.date)}</code> | <strong>合并轮次</strong>：${merged.rounds} 轮<br/>
+          • <strong>参评节点</strong>：${top.total} 条 → 确认 <strong style="color:#34d399;">Top${top.confirmed.length}</strong> 条
+        </div>`;
+      document.getElementById("mergeRecKpiEligible").textContent = top.eligible.length;
+      document.getElementById("mergeRecKpiSkewed").textContent = top.skewed.length;
+      document.getElementById("mergeRecKpiConfirm").textContent = top.confirmed.length;
+      document.getElementById("mergeRecPassRate").textContent = top.passRate + "%";
+      document.getElementById("mergeRecPreviewCount").textContent = Math.min(8, top.confirmed.length);
+
+      // 顶栏横幅也同步渲染 KPI 卡（若存在）
+      renderTop500Card(merged);
+
+      // 原生系统通知推送（AndroidKeepAlive → pushMergedRecommendationNotification）
+      try {
+        if (window.AndroidKeepAlive && typeof window.AndroidKeepAlive.pushMergedRecommendationNotification === "function") {
+          const body = `合并 ${merged.rounds} 轮数据 → 双优达标 ${top.eligible.length} 条、偏科剔除 ${top.skewed.length} 条、确认 Top${top.confirmed.length} 条（${merged.poolSource}）`;
+          window.AndroidKeepAlive.pushMergedRecommendationNotification("🎯 三段式合并数据推荐", body);
+          showToast("🔔 已推送合并数据推荐（系统通知+弹窗）");
+        } else if (window.AndroidKeepAlive && typeof window.AndroidKeepAlive.pushMergedNotification === "function") {
+          const links = top.confirmed.slice(0, 8).map(n => n.raw).join("\n");
+          window.AndroidKeepAlive.pushMergedNotification("🎯 三段式合并数据推荐", `合并 ${merged.rounds} 轮数据 → 确认 Top${top.confirmed.length} 条；推荐前 8 名已写入剪贴板`, links);
+          showToast("🔔 已推送合并数据推荐（系统通知+剪贴板已备好）");
+        }
+      } catch (_) {}
+
+      // 弹窗展示
+      setTimeout(() => { if (!document.hidden) openMergeRecommendModal(); }, 600);
+    }
+
+    function openMergeRecommendModal() {
+      const m = document.getElementById("mergeRecommendModal");
+      if (m) m.classList.add("open");
+    }
+    function closeMergeRecommendModal() {
+      const m = document.getElementById("mergeRecommendModal");
+      if (m) m.classList.remove("open");
+    }
+
+    // ---- 汇总页均衡 Top500 核验确认卡渲染 ----
+    function renderTop500Card(batch) {
+      const elElig = document.getElementById("top500KpiEligible");
+      const elSkew = document.getElementById("top500KpiSkewed");
+      const elConf = document.getElementById("top500KpiConfirm");
+      const elMeta = document.getElementById("top500KpiMeta");
+      const elRate = document.getElementById("top500PassRate");
+      if (!elElig || !elConf) return;
+      const isMerged = batch && batch.batchType === "merged3stage";
+      if (isMerged && batch.balanced) {
+        elElig.querySelector(".kpi-num").textContent = batch.balanced.eligible;
+        elSkew.querySelector(".kpi-num").textContent = batch.balanced.skewed;
+        elConf.querySelector(".kpi-num").textContent = batch.balanced.confirmed;
+        elRate.textContent = batch.balanced.passRate + "%";
+        elMeta.textContent = `${batch.balanced.total} 条参评 → 双优达标 ${batch.balanced.eligible} 条 → 确认 Top${batch.balanced.confirmed} 条（${batch.date}）`;
+        return;
+      }
+      const top = computeBalancedTop500(batch);
+      elElig.querySelector(".kpi-num").textContent = top.eligible.length;
+      elSkew.querySelector(".kpi-num").textContent = top.skewed.length;
+      elConf.querySelector(".kpi-num").textContent = top.confirmed.length;
+      elRate.textContent = top.passRate + "%";
+      elMeta.textContent = batch && batch.nodes && batch.nodes.length
+        ? `${top.total} 条参评 → 双优达标 ${top.eligible.length} 条 → 确认 Top${top.confirmed.length} 条（${batch.date}）`
+        : "尚无 3 轮合并数据，跑满三段式后自动生成";
+    }
+
+    // ---- 均衡 Top500 交付：导入 v2rayNG / 复制链接 / 复制 Base64 / 导出 txt ----
+    function getBalancedTop500Nodes() {
+      const batch = BATCH_DB[state.currentBatchKey];
+      if (!batch) return [];
+      return computeBalancedTop500(batch).confirmed;
+    }
+    function copyBalancedTop500(asBase64) {
+      const confirmed = getBalancedTop500Nodes();
+      if (!confirmed.length) return showToast("当前批次暂无均衡 Top500 节点");
+      const raw = confirmed.map(n => n.raw).join("\n");
+      copyText(asBase64 ? btoa(unescape(encodeURIComponent(raw))) : raw, asBase64 ? `已复制 ${confirmed.length} 条 Base64 订阅` : `已复制 ${confirmed.length} 条 Top500 链接`);
+    }
+    function launchV2rayNGWithBalanced() {
+      const confirmed = getBalancedTop500Nodes();
+      if (!confirmed.length) return showToast("当前批次暂无均衡 Top500 节点");
+      const raw = confirmed.map(n => n.raw).join("\n");
+      if (window.AndroidKeepAlive && typeof window.AndroidKeepAlive.launchV2rayNG === "function") {
+        if (window.AndroidKeepAlive.launchV2rayNG(raw)) {
+          showToast(`已复制 ${confirmed.length} 条均衡 Top500 并打开 v2rayNG（点+号从剪贴板导入）`);
+          return;
+        }
+      }
+      copyText(raw, `已复制 ${confirmed.length} 条均衡 Top500，请打开 v2rayNG 导入`);
+    }
+    function exportBalancedTop500() {
+      const confirmed = getBalancedTop500Nodes();
+      if (!confirmed.length) return showToast("当前批次暂无均衡 Top500 节点");
+      downloadBlob(confirmed.map(n => n.raw).join("\n") + "\n", `均衡Top500_${getNowDateStr()}.txt`, "text/plain;charset=utf-8");
+    }
+
+    // =========================================================================
+    // 9.6 📅 日期+时间归类：收集/测试/汇总三级数据统一按日期分组渲染
+    // =========================================================================
+    function buildDateGroups() {
+      const dateMap = {};
+      Object.keys(BATCH_DB).forEach(k => {
+        const b = BATCH_DB[k];
+        const d = b.dateStr || (b.date ? b.date.slice(0, 10) : "");
+        if (!d) return;
+        if (!dateMap[d]) dateMap[d] = [];
+        dateMap[d].push({ key: k, type: b.batchType, dateStr: d, timeStr: b.timeStr || (b.date ? b.date.slice(11, 19) : "") });
+      });
+      const days = Object.keys(dateMap).sort((a, b) => b.localeCompare(a));
+      return { days, dateMap };
+    }
+
+    function renderAggDateGroupBar() {
+      const { days, dateMap } = buildDateGroups();
+      const bar = document.getElementById("aggDateGroupBar");
+      const cnt = document.getElementById("aggDateCount");
+      if (cnt) cnt.textContent = days.length;
+      if (!bar) return;
+      if (!days.length) {
+        bar.innerHTML = `<span style="font-size:12px;color:var(--text-secondary);">暂无批次数据</span>`;
+        return;
+      }
+      bar.innerHTML = days.map(d => {
+        const items = dateMap[d];
+        const total = items.length;
+        const active = state.currentBatchKey && items.some(x => x.key === state.currentBatchKey);
+        const detail = items.slice(0, 3).map(x => `${x.type === "standalone" ? "🧪" : (x.type === "merged3stage" ? "🎯" : "⚡")} ${x.timeStr}`).join(" · ");
+        return `<button class="date-chip ${active ? "active" : ""}" onclick="switchBatchByDate('${d}')" title="${escapeHtml(detail)}">
+          ${d} <span style="opacity:.7;">(${total})</span>
+        </button>`;
+      }).join("");
+    }
+
+    function switchBatchByDate(dateStr) {
+      const { dateMap } = buildDateGroups();
+      const items = (dateMap[dateStr] || []).slice().sort((a, b) => b.timeStr.localeCompare(a.timeStr));
+      if (!items.length) return;
+      state.currentBatchKey = items[0].key;
+      rebuildBatchSelectorOptions();
+      renderRoundStepper();
+      renderInspectRound();
+      renderAggView();
+      showToast(`📅 已切换到 ${dateStr} 的最近批次`);
+    }
+
+    function syncHarvestedBatchRecord(mode, title, sourceDesc, nodesList, dateStr, timeStr) {
+      if (!nodesList || !nodesList.length) return;
+      const recKey = `H_${dateStr}_${timeStr}`;
+      harvestedBatches[recKey] = {
+        mode, title, sourceDesc, dateStr, timeStr, count: nodesList.length,
+        fetchedAt: `${dateStr} ${timeStr}`,
+        nodes: nodesList.slice(0, 60).map(n => ({ name: n.name, proto: n.proto, host: n.host, raw: n.raw }))
+      };
+      saveHarvestedBatches();
+    }
+
     function rebuildBatchSelectorOptions() {
       const sel = document.getElementById("batchSelector");
       if (!sel) return;
-      const keys = Object.keys(BATCH_DB).filter(k => {
+      let keys = Object.keys(BATCH_DB).filter(k => {
         const b = BATCH_DB[k];
         if (state.aggCategoryFilter === "3stage") return b.batchType === "3stage";
         if (state.aggCategoryFilter === "standalone") return b.batchType === "standalone";
         return true;
+      });
+      // 按 日期 YYYY-MM-DD 分组 → 组内按 HH:MM:SS 时间倒序
+      keys = keys.sort((a, b) => {
+        const ba = BATCH_DB[a], bb = BATCH_DB[b];
+        const da = ba.dateStr || (ba.date ? ba.date.slice(0, 10) : ""), db = bb.dateStr || (bb.date ? bb.date.slice(0, 10) : "");
+        if (da !== db) return db.localeCompare(da);
+        const ta = ba.timeStr || (ba.date ? ba.date.slice(11, 19) : ""), tb = bb.timeStr || (bb.date ? bb.date.slice(11, 19) : "");
+        return tb.localeCompare(ta);
       });
 
       if (!keys.length) {
@@ -3226,8 +3714,10 @@
 
       sel.innerHTML = keys.map(k => {
         const b = BATCH_DB[k];
-        const prefix = b.batchType === "standalone" ? "🧪 [单独测试]" : `⚡ [三段式 ${b.roundsPresent.length}/3轮]`;
-        return `<option value="${escapeHtml(k)}">${prefix} ${escapeHtml(k)}</option>`;
+        const dStr = b.dateStr || (b.date ? b.date.slice(0, 10) : "");
+        const tStr = b.timeStr || (b.date ? b.date.slice(11, 19) : "");
+        const prefix = b.batchType === "standalone" ? "🧪 [单独测试]" : (b.batchType === "merged3stage" ? "🎯 [合并汇总]" : `⚡ [三段式 ${(b.roundsPresent || []).length}/3轮]`);
+        return `<option value="${escapeHtml(k)}">${prefix} ${escapeHtml(dStr)} ${escapeHtml(tStr)} | ${escapeHtml(k)}</option>`;
       }).join("");
 
       if (keys.includes(state.currentBatchKey)) sel.value = state.currentBatchKey;
@@ -3258,6 +3748,9 @@
       if (document.hidden) { taskCtrl.needsUiFlushOnWake = true; return; }
       const batch = BATCH_DB[state.currentBatchKey];
       if (!batch) return;
+
+      renderAggDateGroupBar();
+      renderTop500Card(batch);
 
       const isStandalone = batch.batchType === "standalone";
       const partialBanner = document.getElementById("partialWarningBanner");
@@ -3305,6 +3798,7 @@
       if (!batch) return;
       let list = [];
       if (state.aggRankMode === "recommend") list = getRecommendedNodes(batch);
+      else if (state.aggRankMode === "balanced") list = computeBalancedTop500(batch).confirmed;
       else if (state.aggRankMode === "speed") list = batch.nodes.filter(n => n.lat_avg >= 0 && n.spd_avg > 0).sort((a, b) => b.spd_avg - a.spd_avg).slice(0, 15);
       else if (state.aggRankMode === "lowlat") list = batch.nodes.filter(n => n.lat_avg >= 0).sort((a, b) => a.lat_avg - b.lat_avg).slice(0, 10);
       else list = batch.nodes.filter(n => n.lat_avg < 0 || n.alive < n.rounds);
@@ -3317,6 +3811,8 @@
 
       box.innerHTML = list.map((n, idx) => {
         const isDead = n.lat_avg < 0;
+        const balTag = state.aggRankMode === "balanced" && n.bal !== undefined
+          ? `<span class="tag" style="background:rgba(196,181,253,.15);color:#c4b5fd;">⚖️${n.bal}</span>` : "";
         return `
         <div class="node-card" onclick='openNodeModal(${JSON.stringify(n).replace(/'/g, "&#39;")})'>
           <div class="node-rank ${!isDead && idx < 3 && !n.inflated ? "top" + (idx + 1) : ""}">${idx + 1}</div>
@@ -3324,6 +3820,7 @@
             <div class="node-title">
               <span class="tag tag-${n.proto}">${n.proto.toUpperCase()}</span>
               <span>${escapeHtml(n.name)}</span>
+              ${balTag}
               ${isDead ? `<span class="tag tag-err">❌ 不通</span>` : (n.inflated ? `<span class="tag tag-warn">⚠️虚高后置</span>` : "")}
             </div>
             <div class="node-meta">
@@ -3344,7 +3841,7 @@
     // =========================================================================
     // 9. WEEKLY REVIEW & 90-DAY CLEANUP
     // =========================================================================
-    function daysBetween(dateStr, refDateStr = TODAY_STR) {
+    function daysBetween(dateStr, refDateStr = getNowDateStr()) {
       const d1 = new Date(dateStr + "T00:00:00");
       const d2 = new Date(refDateStr + "T00:00:00");
       return Math.max(0, Math.round((d2 - d1) / (1000 * 60 * 60 * 24)));
@@ -3449,7 +3946,7 @@
             proto: u.proto,
             host: u.host,
             source: "周检讨归档",
-            deprecatedAt: TODAY_STR,
+            deprecatedAt: getNowDateStr(),
             reason: `连通率 ${u.alive}/${u.rounds} 轮`,
             raw: u.raw
           });
@@ -3501,7 +3998,7 @@
           proto: n.proto || "vless",
           host: n.host || "unknown",
           source: "手动废弃",
-          deprecatedAt: TODAY_STR,
+          deprecatedAt: getNowDateStr(),
           reason: "手动标记不可用 (90天隔离)",
           raw: n.raw
         });
@@ -4011,6 +4508,7 @@
       renderWeeklyReview();
       initKeepAliveEngine();
       applyOrientationMode(orientMode, false);
+      renderAggDateGroupBar();
     });
   </script>
 </body>

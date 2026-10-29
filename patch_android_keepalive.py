@@ -1037,6 +1037,10 @@ public class XrayBenchEngine {
 
 MAIN_ACTIVITY_JAVA = r"""package com.winnerds.v2rayn.threestage;
 
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
@@ -1307,6 +1311,43 @@ public class MainActivity extends BridgeActivity {
             if (keepAliveEnabled) {
                 startKeepAliveService(statusText);
             }
+        }
+
+        @JavascriptInterface
+        public void pushMergedRecommendationNotification(String title, String body) {
+            try {
+                if (keepAliveEnabled && body != null && !body.isEmpty()) {
+                    startKeepAliveService(body);
+                }
+                NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+                if (nm == null) return;
+                String pushChannelId = "v2rayn_3stage_push_channel";
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    NotificationChannel ch = new NotificationChannel(
+                        pushChannelId,
+                        "三段式合并推荐推送",
+                        NotificationManager.IMPORTANCE_HIGH
+                    );
+                    ch.setDescription("三段式测试完成后的合并数据推荐与均衡Top500通知");
+                    nm.createNotificationChannel(ch);
+                }
+                Intent intent = new Intent(MainActivity.this, MainActivity.class);
+                intent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+                int flags = PendingIntent.FLAG_UPDATE_CURRENT;
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    flags |= PendingIntent.FLAG_IMMUTABLE;
+                }
+                PendingIntent pi = PendingIntent.getActivity(MainActivity.this, 2026, intent, flags);
+                Notification.Builder b = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+                    ? new Notification.Builder(MainActivity.this, pushChannelId)
+                    : new Notification.Builder(MainActivity.this);
+                b.setContentTitle(title != null && !title.isEmpty() ? title : "🎯 三段式测试合并推荐已生成")
+                 .setContentText(body != null ? body : "已确认延迟与下载速度均衡Top500，点击查看或导入v2rayNG")
+                 .setSmallIcon(android.R.drawable.stat_sys_download_done)
+                 .setContentIntent(pi)
+                 .setAutoCancel(true);
+                nm.notify(20808, b.build());
+            } catch (Exception ignored) {}
         }
 
         @JavascriptInterface
