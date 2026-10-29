@@ -453,6 +453,8 @@
     .btn-primary { background: #2563eb; color: #fff; }
     .btn-emerald { background: #059669; color: #fff; }
     .btn-amber { background: #d97706; color: #fff; }
+    .btn-violet { background: #7c3aed; color: #fff; }
+    .btn.active { outline: 2px solid #a78bfa; outline-offset: 1px; background: rgba(124,58,237,.25); }
     .btn-rose { background: #e11d48; color: #fff; }
     .btn-ghost { background: var(--bg-elevated); color: var(--text-main); border-color: var(--border); }
     .btn-sm { font-size: 13px; min-height: 38px; padding: 7px 12px; border-radius: 9px; }
@@ -473,8 +475,15 @@
       width: 100%;
     }
 
+    .btn-grid-4 {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 6px;
+      width: 100%;
+    }
+
     @media (max-width: 390px) {
-      .btn-grid-2.stack-sm, .btn-grid-3.stack-sm {
+      .btn-grid-2.stack-sm, .btn-grid-3.stack-sm, .btn-grid-4.stack-sm {
         grid-template-columns: minmax(0, 1fr);
       }
     }
@@ -1377,6 +1386,11 @@
               <button class="btn btn-emerald" onclick="copyBalancedTop500(false)">📋 复制纯链接</button>
               <button class="btn btn-amber" onclick="copyBalancedTop500(true)">📦 复制 Base64</button>
             </div>
+            <div class="btn-grid-3 stack-sm" style="margin-top:8px;">
+              <button class="btn btn-violet" onclick="convertBalancedTop500()">🔄 转换格式</button>
+              <button class="btn btn-ghost" onclick="exportBalancedTop500()">📥 导出 .txt</button>
+              <button class="btn btn-ghost" onclick="launchV2rayNGWithBalanced()">🚀 导入 v2rayNG</button>
+            </div>
             <div style="margin-top:8px;font-size:12px;color:var(--text-secondary);">
               🎯 一键导入：<button class="btn btn-ghost btn-xs" onclick="launchV2rayNGWithBalanced()">🚀 导入 v2rayNG</button>
               <span style="margin-left:6px;">达标率 <strong id="top500PassRate" style="color:#34d399;">0%</strong></span>
@@ -1745,9 +1759,42 @@
         <button class="btn btn-primary" onclick="launchV2rayNGWithBalanced()">🚀 导入 v2rayNG</button>
         <button class="btn btn-emerald" onclick="copyBalancedTop500(false)">📋 复制 Top500 链接</button>
       </div>
-      <div class="btn-grid-2" style="margin-top:8px;">
+      <div class="btn-grid-3" style="margin-top:8px;">
+        <button class="btn btn-violet" onclick="convertBalancedTop500()">🔄 转换格式</button>
         <button class="btn btn-amber" onclick="copyBalancedTop500(true)">📦 复制 Base64</button>
         <button class="btn btn-ghost" onclick="exportBalancedTop500()">📥 导出 .txt</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================================================================== -->
+  <!-- MODAL 4: NODE FORMAT CONVERTER (Clash / sing-box / v2rayN)          -->
+  <!-- ==================================================================== -->
+  <div class="modal-backdrop" id="convertModal" onclick="if(event.target===this)closeConvertModal()">
+    <div class="modal-card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <div style="font-size:15px;font-weight:800;">🔄 节点格式转换</div>
+        <button class="btn btn-ghost btn-xs" onclick="closeConvertModal()">✕ 关闭</button>
+      </div>
+      <div id="convertModalMeta" style="font-size:12.5px;color:var(--text-secondary);margin-bottom:12px;line-height:1.7;"></div>
+
+      <div style="font-size:12.5px;font-weight:700;margin-bottom:6px;">目标格式</div>
+      <div class="btn-grid-4 stack-sm" style="margin-bottom:12px;" id="convertFormatTabs">
+        <button class="btn btn-ghost btn-xs" id="convTab-uri" onclick="switchConvertFormat('uri')">🔗 URI</button>
+        <button class="btn btn-ghost btn-xs" id="convTab-v2rayn" onclick="switchConvertFormat('v2rayn')">📦 v2rayN</button>
+        <button class="btn btn-ghost btn-xs" id="convTab-clash" onclick="switchConvertFormat('clash')">🛡️ Clash</button>
+        <button class="btn btn-ghost btn-xs" id="convTab-singbox" onclick="switchConvertFormat('singbox')">📱 sing-box</button>
+      </div>
+
+      <textarea class="textarea" id="convertOutput" readonly style="min-height:220px;font-family:monospace;font-size:11.5px;margin-bottom:12px;" spellcheck="false"></textarea>
+
+      <div class="btn-grid-3 stack-sm">
+        <button class="btn btn-emerald" onclick="copyConvertOutput()">📋 复制结果</button>
+        <button class="btn btn-amber" onclick="downloadConvertOutput()">📥 下载文件</button>
+        <button class="btn btn-primary" onclick="launchV2rayNGWithConvert()">🚀 导入 v2rayNG</button>
+      </div>
+      <div style="margin-top:10px;font-size:12px;color:var(--text-secondary);" id="convertHint">
+        📌 v2rayNG / Clash Meta(Mihomo) / sing-box 均可直接导入，复制后粘贴即可。
       </div>
     </div>
   </div>
@@ -3627,6 +3674,372 @@
       const confirmed = getBalancedTop500Nodes();
       if (!confirmed.length) return showToast("当前批次暂无均衡 Top500 节点");
       downloadBlob(confirmed.map(n => n.raw).join("\n") + "\n", `均衡Top500_${getNowDateStr()}.txt`, "text/plain;charset=utf-8");
+    }
+
+    // ---- 多格式节点转换：URI / v2rayN / Clash YAML / sing-box JSON ----
+    // 解析 raw URI → 结构化参数（支持 vmess/vless/trojan/ss/hysteria2/tuic/wireguard）
+    let convertCtx = { nodes: [], format: "uri" };
+
+    function parseNodeUri(raw) {
+      const node = { raw: raw, proto: "", name: "", host: "", port: "", params: {} };
+      try {
+        const hashIdx = raw.indexOf("#");
+        if (hashIdx >= 0) node.name = decodeURIComponent(raw.slice(hashIdx + 1));
+        const body = hashIdx >= 0 ? raw.slice(0, hashIdx) : raw;
+        const schemeMatch = body.match(/^([a-zA-Z0-9]+):\/\//);
+        if (!schemeMatch) return node;
+        node.proto = schemeMatch[1].toLowerCase();
+        const rest = body.slice(schemeMatch[0].length);
+        const qIdx = rest.indexOf("?");
+        const query = qIdx >= 0 ? rest.slice(qIdx + 1) : "";
+        const main = qIdx >= 0 ? rest.slice(0, qIdx) : rest;
+        if (query) {
+          query.split("&").forEach(kv => {
+            const eq = kv.indexOf("=");
+            if (eq > 0) node.params[decodeURIComponent(kv.slice(0, eq))] = decodeURIComponent(kv.slice(eq + 1));
+          });
+        }
+        if (node.proto === "vmess") {
+          // vmess://base64(JSON)
+          try {
+            const j = JSON.parse(atob(main));
+            node.host = String(j.add || "");
+            node.port = String(j.port || 443);
+            node.params = {
+              id: j.id, security: j.scy || "auto",
+              network: j.net || "tcp", path: j.path || "", host: j.host || "",
+              alpn: j.alpn || "", tls: j.tls || "", type: j.type || "none",
+              sni: j.sni || ""
+            };
+            if (!node.name) node.name = j.ps || `${node.host}:${node.port}`;
+          } catch (_) { /* keep as-is */ }
+        } else {
+          const atIdx = main.lastIndexOf("@");
+          if (atIdx < 0) return node;
+          const idPart = main.slice(0, atIdx);
+          const addrPart = main.slice(atIdx + 1);
+          node.host = addrPart;
+          const colonIdx = addrPart.lastIndexOf(":");
+          if (colonIdx > 0) { node.host = addrPart.slice(0, colonIdx); node.port = addrPart.slice(colonIdx + 1); }
+          if (node.proto === "ss") {
+            // ss://base64(method:password)@host:port  or  ss://base64(method:password@host:port)
+            let cred = idPart;
+            if (!addrPart || addrPart.indexOf(":") < 0) {
+              try {
+                const dec = atob(cred);
+                const at2 = dec.lastIndexOf("@");
+                const mp = at2 >= 0 ? dec.slice(0, at2) : dec;
+                const hostPort = at2 >= 0 ? dec.slice(at2 + 1) : addrPart;
+                const mIdx = mp.indexOf(":");
+                if (mIdx > 0) { node.params.method = mp.slice(0, mIdx); node.params.password = mp.slice(mIdx + 1); }
+                const cIdx = hostPort.lastIndexOf(":");
+                if (cIdx > 0) { node.host = hostPort.slice(0, cIdx); node.port = hostPort.slice(cIdx + 1); }
+              } catch (_) {}
+            } else {
+              try {
+                const dec = atob(idPart);
+                const mIdx = dec.indexOf(":");
+                if (mIdx > 0) { node.params.method = dec.slice(0, mIdx); node.params.password = dec.slice(mIdx + 1); }
+              } catch (_) {}
+            }
+            node.params.plugin = node.params.plugin || "";
+          } else if (node.proto === "trojan" || node.proto === "vless" || node.proto === "hysteria2" || node.proto === "tuic") {
+            node.params.id = idPart;
+            node.params.encryption = node.params.encryption || "none";
+            if (node.proto === "hysteria2") node.params.password = idPart;
+          }
+        }
+        // fallback name
+        if (!node.name) node.name = `${node.proto.toUpperCase()}-${node.host}`;
+      } catch (_) {}
+      return node;
+    }
+
+    function yamlStr(s) {
+      return '"' + String(s || "").replace(/\\/g, "\\\\").replace(/"/g, '\\"') + '"';
+    }
+
+    function buildV2rayNText(nodes) {
+      // v2rayN 导入格式：每行一个 URI（vmess 保持 base64 JSON 形式）
+      return nodes.map(n => n.raw).join("\n");
+    }
+
+    function buildClashYaml(nodes) {
+      const lines = [];
+      lines.push("# Generated by v2rayN-3Stage-Butler at " + getNowDateStr() + " " + getNowTimeStr());
+      lines.push("# Balanced Top500 nodes (latency + download speed)");
+      lines.push("mixed-port: 7890");
+      lines.push("allow-lan: true");
+      lines.push("mode: rule");
+      lines.push("log-level: info");
+      lines.push("");
+      lines.push("proxies:");
+      nodes.forEach(n => {
+        const p = parseNodeUri(n.raw);
+        const name = (p.name || n.name || p.host || "node").slice(0, 60);
+        const host = p.host, port = p.port || "443";
+        const tls = p.params.tls || p.params.security || (p.params.sni ? "tls" : "");
+        switch (p.proto) {
+          case "vless":
+            lines.push(`  - name: ${yamlStr(name)}`);
+            lines.push(`    type: vless`);
+            lines.push(`    server: ${yamlStr(host)}`);
+            lines.push(`    port: ${port}`);
+            lines.push(`    uuid: ${yamlStr(p.params.id)}`);
+            const vlessNet = p.params.type === "raw" || p.params.type === "none" ? "tcp" : (p.params.type || p.params.network || "tcp");
+            lines.push(`    network: ${yamlStr(vlessNet)}`);
+            if (vlessNet === "ws") {
+              lines.push(`    ws-opts:`);
+              lines.push(`      path: ${yamlStr(p.params.path || "/")}`);
+              if (p.params.host) lines.push(`      headers:\n        Host: ${yamlStr(p.params.host)}`);
+            } else if (vlessNet === "grpc") {
+              lines.push(`    grpc-opts:\n      grpc-service-name: ${yamlStr(p.params.serviceName || p.params.path || "")}`);
+            }
+            lines.push(`    tls: ${tls === "reality" ? "true" : tls === "tls" ? "true" : "false"}`);
+            if (p.params.security === "reality") {
+              lines.push(`    servername: ${yamlStr(p.params.sni || p.params.host || "")}`);
+              if (p.params.flow) lines.push(`    flow: ${yamlStr(p.params.flow)}`);
+              lines.push(`    client-fingerprint: ${yamlStr(p.params.fp || "chrome")}`);
+              lines.push(`    reality-opts:`);
+              lines.push(`      public-key: ${yamlStr(p.params.pbk || "")}`);
+              if (p.params.sid) lines.push(`      short-id: ${yamlStr(p.params.sid)}`);
+            } else if (tls === "tls") {
+              if (p.params.sni) lines.push(`    servername: ${yamlStr(p.params.sni)}`);
+              if (p.params.alpn) lines.push(`    alpn:`);
+              String(p.params.alpn || "").split(",").forEach(a => { if (a) lines.push(`      - ${yamlStr(a.trim())}`); });
+            }
+            break;
+          case "trojan":
+            lines.push(`  - name: ${yamlStr(name)}`);
+            lines.push(`    type: trojan`);
+            lines.push(`    server: ${yamlStr(host)}`);
+            lines.push(`    port: ${port}`);
+            lines.push(`    password: ${yamlStr(p.params.id)}`);
+            lines.push(`    network: ${yamlStr(p.params.type || "tcp")}`);
+            if (p.params.type === "ws") {
+              lines.push(`    ws-opts:`);
+              lines.push(`      path: ${yamlStr(p.params.path || "/")}`);
+              if (p.params.host) lines.push(`      headers:\n        Host: ${yamlStr(p.params.host)}`);
+            } else if (p.params.type === "grpc") {
+              lines.push(`    grpc-opts:\n      grpc-service-name: ${yamlStr(p.params.serviceName || p.params.path || "")}`);
+            }
+            lines.push(`    tls: ${tls === "tls" || p.params.security === "tls" ? "true" : "false"}`);
+            if (p.params.sni) lines.push(`    servername: ${yamlStr(p.params.sni)}`);
+            if (p.params.alpn) {
+              lines.push(`    alpn:`);
+              String(p.params.alpn || "").split(",").forEach(a => { if (a) lines.push(`      - ${yamlStr(a.trim())}`); });
+            }
+            break;
+          case "ss":
+            lines.push(`  - name: ${yamlStr(name)}`);
+            lines.push(`    type: ss`);
+            lines.push(`    server: ${yamlStr(host)}`);
+            lines.push(`    port: ${port}`);
+            lines.push(`    cipher: ${yamlStr(p.params.method || "aes-256-gcm")}`);
+            lines.push(`    password: ${yamlStr(p.params.password || "")}`);
+            if (p.params.plugin) lines.push(`    plugin: ${yamlStr(p.params.plugin)}`);
+            break;
+          case "hysteria2":
+            lines.push(`  - name: ${yamlStr(name)}`);
+            lines.push(`    type: hysteria2`);
+            lines.push(`    server: ${yamlStr(host)}`);
+            lines.push(`    port: ${port}`);
+            lines.push(`    password: ${yamlStr(p.params.password || p.params.id || "")}`);
+            if (p.params.sni) lines.push(`    sni: ${yamlStr(p.params.sni)}`);
+            if (p.params.insecure) lines.push(`    skip-cert-verify: ${p.params.insecure === "1" || p.params.insecure === "true" ? "true" : "false"}`);
+            break;
+          case "vmess":
+            lines.push(`  - name: ${yamlStr(name)}`);
+            lines.push(`    type: vmess`);
+            lines.push(`    server: ${yamlStr(host)}`);
+            lines.push(`    port: ${port}`);
+            lines.push(`    uuid: ${yamlStr(p.params.id || "")}`);
+            lines.push(`    alterId: 0`);
+            lines.push(`    cipher: ${yamlStr(p.params.security || "auto")}`);
+            lines.push(`    network: ${yamlStr(p.params.network || "tcp")}`);
+            if (p.params.network === "ws") {
+              lines.push(`    ws-opts:`);
+              lines.push(`      path: ${yamlStr(p.params.path || "/")}`);
+              if (p.params.host) lines.push(`      headers:\n        Host: ${yamlStr(p.params.host)}`);
+            } else if (p.params.network === "grpc") {
+              lines.push(`    grpc-opts:\n      grpc-service-name: ${yamlStr(p.params.path || "")}`);
+            }
+            lines.push(`    tls: ${p.params.tls ? "true" : "false"}`);
+            if (p.params.sni) lines.push(`    servername: ${yamlStr(p.params.sni)}`);
+            if (p.params.alpn) {
+              lines.push(`    alpn:`);
+              String(p.params.alpn || "").split(",").forEach(a => { if (a) lines.push(`      - ${yamlStr(a.trim())}`); });
+            }
+            break;
+          default:
+            lines.push(`  - name: ${yamlStr(name)}`);
+            lines.push(`    type: ${yamlStr(p.proto)}`);
+            lines.push(`    server: ${yamlStr(host)}`);
+            lines.push(`    port: ${port}`);
+            if (p.params.id) lines.push(`    password: ${yamlStr(p.params.id)}`);
+        }
+        lines.push("");
+      });
+      lines.push("proxy-groups:");
+      lines.push(`  - name: ${yamlStr("🚀 均衡Top500")}`);
+      lines.push(`    type: select`);
+      lines.push(`    proxies:`);
+      nodes.forEach(n => {
+        const p = parseNodeUri(n.raw);
+        lines.push(`      - ${yamlStr((p.name || n.name || "node").slice(0, 60))}`);
+      });
+      lines.push("");
+      lines.push("rules:");
+      lines.push("  - GEOIP,CN,DIRECT");
+      lines.push("  - MATCH,🚀 均衡Top500");
+      return lines.join("\n");
+    }
+
+    function buildSingboxJson(nodes) {
+      const outs = nodes.map(n => {
+        const p = parseNodeUri(n.raw);
+        const name = (p.name || n.name || p.host || "node").slice(0, 60);
+        const host = p.host, port = Number(p.port || 443);
+        const base = { tag: name, server: host, server_port: port };
+        switch (p.proto) {
+          case "vless": {
+            const o = { ...base, type: "vless", uuid: p.params.id || "" };
+            const sec = p.params.security || p.params.tls;
+            if (sec === "reality" || p.params.reality) {
+              o.tls = { enabled: true, server_name: p.params.sni || "", utls: { enabled: true, fingerprint: p.params.fp || "chrome" } };
+              o.reality = { enabled: true, public_key: p.params.pbk || "", short_id: p.params.sid || "" };
+            } else if (sec === "tls") {
+              o.tls = { enabled: true, server_name: p.params.sni || "", insecure: false };
+              if (p.params.alpn) o.tls.alpn = String(p.params.alpn).split(",").map(a => a.trim()).filter(Boolean);
+            }
+            if (p.params.flow) o.flow = p.params.flow;
+            const nt = p.params.type || p.params.network || "tcp";
+            if (nt === "ws") {
+              o.transport = { type: "ws", path: p.params.path || "/", headers: p.params.host ? { Host: p.params.host } : {} };
+            } else if (nt === "grpc") {
+              o.transport = { type: "grpc", service_name: p.params.serviceName || p.params.path || "" };
+            } else if (nt === "xhttp") {
+              o.transport = { type: "httpupgrade", host: p.params.host || "", path: p.params.path || "" };
+            } else if (nt === "http") {
+              o.transport = { type: "http", host: p.params.host || "", path: p.params.path || "" };
+            }
+            return o;
+          }
+          case "trojan": {
+            const o = { ...base, type: "trojan", password: p.params.id || "" };
+            const sec = p.params.security || p.params.tls;
+            if (sec === "tls") {
+              o.tls = { enabled: true, server_name: p.params.sni || "", insecure: false };
+              if (p.params.alpn) o.tls.alpn = String(p.params.alpn).split(",").map(a => a.trim()).filter(Boolean);
+            }
+            const nt = p.params.type || "tcp";
+            if (nt === "ws") o.transport = { type: "ws", path: p.params.path || "/", headers: p.params.host ? { Host: p.params.host } : {} };
+            else if (nt === "grpc") o.transport = { type: "grpc", service_name: p.params.serviceName || p.params.path || "" };
+            return o;
+          }
+          case "ss": {
+            const o = { ...base, type: "shadowsocks", method: p.params.method || "aes-256-gcm", password: p.params.password || "" };
+            if (p.params.plugin) o.plugin = p.params.plugin;
+            return o;
+          }
+          case "hysteria2": {
+            const o = { ...base, type: "hysteria2", password: p.params.password || p.params.id || "" };
+            if (p.params.sni) o.tls = { enabled: true, server_name: p.params.sni };
+            if (p.params.insecure) o.tls = { ...(o.tls || {}), insecure: true };
+            return o;
+          }
+          case "vmess": {
+            const o = { ...base, type: "vmess", uuid: p.params.id || "", security: p.params.security || "auto", alter_id: 0 };
+            if (p.params.tls) {
+              o.tls = { enabled: true, server_name: p.params.sni || "", insecure: false };
+              if (p.params.alpn) o.tls.alpn = String(p.params.alpn).split(",").map(a => a.trim()).filter(Boolean);
+            }
+            const nt = p.params.network || "tcp";
+            if (nt === "ws") o.transport = { type: "ws", path: p.params.path || "/", headers: p.params.host ? { Host: p.params.host } : {} };
+            else if (nt === "grpc") o.transport = { type: "grpc", service_name: p.params.path || "" };
+            return o;
+          }
+          default:
+            return { ...base, type: p.proto, uuid: p.params.id || "" };
+        }
+      });
+      const outbound = {
+        type: "selector",
+        tag: "🚀 均衡Top500",
+        outbounds: nodes.map(n => (parseNodeUri(n.raw).name || n.name || "node").slice(0, 60))
+      };
+      const dns = { servers: ["https://1.1.1.1/dns-query", "https://8.8.8.8/dns-query"], strategy: "ipv4_only" };
+      return JSON.stringify({ dns, outbounds: [...outs, outbound] }, null, 2);
+    }
+
+    function openConvertModal(nodes, title) {
+      if (!nodes || !nodes.length) return showToast("暂无节点可转换");
+      convertCtx = { nodes, format: "uri", title: title || `Top${nodes.length}` };
+      const meta = document.getElementById("convertModalMeta");
+      // 协议构成统计
+      const counts = nodes.reduce((m, n) => { m[n.proto] = (m[n.proto] || 0) + 1; return m; }, {});
+      const protoText = Object.keys(counts).map(k => `${k.toUpperCase()} ${counts[k]}`).join(" · ") || "未知";
+      meta.innerHTML = `<strong>${escapeHtml(title || `Top${nodes.length}`)}</strong> · ${nodes.length} 条节点<br><span style="opacity:.8;">协议: ${escapeHtml(protoText)}</span>`;
+      document.getElementById("convertModal").style.display = "flex";
+      switchConvertFormat("uri");
+    }
+    function closeConvertModal() {
+      document.getElementById("convertModal").style.display = "none";
+    }
+    function switchConvertFormat(fmt) {
+      convertCtx.format = fmt;
+      const tabs = ["uri", "v2rayn", "clash", "singbox"];
+      tabs.forEach(t => {
+        const el = document.getElementById("convTab-" + t);
+        if (el) el.className = "btn btn-ghost btn-xs" + (t === fmt ? " active" : "");
+      });
+      const out = document.getElementById("convertOutput");
+      const { nodes } = convertCtx;
+      if (fmt === "uri") {
+        out.value = buildV2rayNText(nodes);
+        document.getElementById("convertHint").innerHTML = "📌 纯 URI 链接，一行一条，v2rayNG / NekoBox 剪贴板导入直接识别。";
+      } else if (fmt === "v2rayn") {
+        out.value = btoa(unescape(encodeURIComponent(buildV2rayNText(nodes))));
+        document.getElementById("convertHint").innerHTML = "📌 v2rayN 订阅 Base64（所有节点 URI 整体 Base64 编码），v2rayNG「从剪贴板导入订阅」可直接使用。";
+      } else if (fmt === "clash") {
+        out.value = buildClashYaml(nodes);
+        document.getElementById("convertHint").innerHTML = "📌 Clash / Clash Meta(Mihomo) YAML 配置，含 proxies + 均衡 Top500 选择组 + 规则。";
+      } else if (fmt === "singbox") {
+        out.value = buildSingboxJson(nodes);
+        document.getElementById("convertHint").innerHTML = "📌 sing-box JSON 配置（outbounds + selector + dns），sing-box / NekoBox 可直接导入。";
+      }
+    }
+    function copyConvertOutput() {
+      const out = document.getElementById("convertOutput");
+      if (!out.value) return;
+      copyText(out.value, `已复制 ${convertCtx.nodes.length} 条节点（${convertCtx.format} 格式）`);
+    }
+    function downloadConvertOutput() {
+      const out = document.getElementById("convertOutput");
+      if (!out.value) return;
+      const extMap = { uri: "txt", v2rayn: "txt", clash: "yaml", singbox: "json" };
+      const nameMap = { uri: "top500_uri", v2rayn: "top500_subscription", clash: "top500_clash", singbox: "top500_singbox" };
+      const fname = `${nameMap[convertCtx.format]}_${getNowDateStr()}.${extMap[convertCtx.format]}`;
+      const mimeMap = { uri: "text/plain;charset=utf-8", v2rayn: "text/plain;charset=utf-8", clash: "text/yaml;charset=utf-8", singbox: "application/json;charset=utf-8" };
+      downloadBlob(out.value + "\n", fname, mimeMap[convertCtx.format]);
+    }
+    function launchV2rayNGWithConvert() {
+      // v2rayN 导入需要 URI 行；若当前是 Base64 订阅，直接调 v2rayNG 更合适
+      const out = document.getElementById("convertOutput");
+      const fmt = convertCtx.format;
+      const payload = fmt === "uri" || fmt === "v2rayn" ? out.value : buildV2rayNText(convertCtx.nodes);
+      if (window.AndroidKeepAlive && typeof window.AndroidKeepAlive.launchV2rayNG === "function") {
+        if (window.AndroidKeepAlive.launchV2rayNG(payload)) {
+          showToast(`已复制 ${convertCtx.nodes.length} 条并打开 v2rayNG（点+号导入）`);
+          return;
+        }
+      }
+      copyText(payload, `已复制 ${convertCtx.nodes.length} 条，请打开 v2rayNG 导入`);
+    }
+    function convertBalancedTop500() {
+      const confirmed = getBalancedTop500Nodes();
+      if (!confirmed.length) return showToast("当前批次暂无均衡 Top500 节点");
+      openConvertModal(confirmed, `⚖️ 均衡 Top500（${getNowDateStr()}）`);
     }
 
     // =========================================================================
