@@ -3696,7 +3696,12 @@
         if (query) {
           query.split("&").forEach(kv => {
             const eq = kv.indexOf("=");
-            if (eq > 0) node.params[decodeURIComponent(kv.slice(0, eq))] = decodeURIComponent(kv.slice(eq + 1));
+            if (eq > 0) {
+              let v = decodeURIComponent(kv.slice(eq + 1));
+              // reality 的 pbk 保持 URL-safe base64 原样（mihomo/sing-box 均接受 - _）
+              // 不做 -→+ 转换，避免破坏合法性
+              node.params[decodeURIComponent(kv.slice(0, eq))] = v;
+            }
           });
         }
         if (node.proto === "vmess") {
@@ -3720,7 +3725,7 @@
           const addrPart = main.slice(atIdx + 1);
           node.host = addrPart;
           const colonIdx = addrPart.lastIndexOf(":");
-          if (colonIdx > 0) { node.host = addrPart.slice(0, colonIdx); node.port = addrPart.slice(colonIdx + 1); }
+          if (colonIdx > 0) { node.host = addrPart.slice(0, colonIdx); node.port = addrPart.slice(colonIdx + 1).replace(/[^0-9]/g, ""); }
           if (node.proto === "ss") {
             // ss://base64(method:password)@host:port  or  ss://base64(method:password@host:port)
             let cred = idPart;
@@ -3743,6 +3748,23 @@
               } catch (_) {}
             }
             node.params.plugin = node.params.plugin || "";
+            // ss 变体识别：v2rayNG 的 ss://UUID@host?security=&encryption=&type=ws/xhttp
+            // 这种不是标准 SS（无 method:password），而是伪装成 ss 的 VLESS/WS 或裸协议
+            // 判据：idPart 不是 base64(method:password)，且带 security/encryption/type 等查询参数
+            if (node.params.encryption === "none" || node.params.security) {
+              node.params.ssVariant = true;
+            } else if (node.params.type && node.params.type !== "tcp" && !node.params.method) {
+              node.params.ssVariant = true;
+            }
+            if (node.params.ssVariant) {
+              // 尝试从查询参数还原：v2rayNG 变体实际是 vless/ws 或 vless/xhttp
+              // security=tls + type=ws + host + path => vless+ws
+              // security=none + type=xhttp => 裸 xhttp
+              node.params.protoHint = "vless";
+              // ss 变体的 idPart 就是 vless 的 UUID（非 base64 凭据）
+              if (idPart && !node.params.id) node.params.id = idPart;
+              // type=ws 且 security=none → 可能是 vless 直连 ws（无 tls）
+            }
           } else if (node.proto === "trojan" || node.proto === "vless" || node.proto === "hysteria2" || node.proto === "tuic") {
             node.params.id = idPart;
             node.params.encryption = node.params.encryption || "none";
@@ -3756,7 +3778,11 @@
     }
 
     function yamlStr(s) {
-      return '"' + String(s || "").replace(/\\/g, "\\\\").replace(/"/g, '\\"') + '"';
+      // 转义 YAML 双引号字符串：反斜杠、双引号、所有控制字符（C0 + C1 + DEL）
+      // 真实订阅源的名字常混入 \r \n 及 C1 控制码（如波斯语文本 U+009C/U+009F），必须全部清理
+      return '"' + String(s || "").replace(/\\/g, "\\\\").replace(/"/g, '\\"')
+        .replace(/\n/g, "\\n").replace(/\r/g, "\\r").replace(/\t/g, "\\t")
+        .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]/g, c => "\\x" + c.charCodeAt(0).toString(16).padStart(2, "0")) + '"';
     }
 
     function buildV2rayNText(nodes) {
@@ -3797,12 +3823,21 @@
             }
             lines.push(`    tls: ${tls === "reality" ? "true" : tls === "tls" ? "true" : "false"}`);
             if (p.params.security === "reality") {
-              lines.push(`    servername: ${yamlStr(p.params.sni || p.params.host || "")}`);
-              if (p.params.flow) lines.push(`    flow: ${yamlStr(p.params.flow)}`);
-              lines.push(`    client-fingerprint: ${yamlStr(p.params.fp || "chrome")}`);
-              lines.push(`    reality-opts:`);
-              lines.push(`      public-key: ${yamlStr(p.params.pbk || "")}`);
-              if (p.params.sid) lines.push(`      short-id: ${yamlStr(p.params.sid)}`);
+              const pk = p.params.pbk || "";
+              // URL-safe base64 校验（含 - _ 字符，无 padding）：合法字符 + 解码后应为 32 字节
+              const b64norm = pk.replace(/-/g, "+").replace(/_/g, "/");
+              const pkValid = /^[A-Za-z0-9+/]+={0,2}$/.test(b64norm) && pk.length >= 40;
+              if (pkValid) {
+                lines.push(`    servername: ${yamlStr(p.params.sni || p.params.host || "")}`);
+                if (p.params.flow) lines.push(`    flow: ${yamlStr(p.params.flow)}`);
+                lines.push(`    client-fingerprint: ${yamlStr(p.params.fp || "chrome")}`);
+                lines.push(`    reality-opts:`);
+                lines.push(`      public-key: ${yamlStr(pk)}`);
+                if (p.params.sid) lines.push(`      short-id: ${yamlStr(p.params.sid)}`);
+              } else {
+                // 无效 pbk 的 reality → 降级普通 tls（不产出坏配置）
+                lines.push(`    servername: ${yamlStr(p.params.sni || p.params.host || "")}`);
+              }
             } else if (tls === "tls") {
               if (p.params.sni) lines.push(`    servername: ${yamlStr(p.params.sni)}`);
               if (p.params.alpn) lines.push(`    alpn:`);
@@ -3831,6 +3866,35 @@
             }
             break;
           case "ss":
+            if (p.params.ssVariant) {
+              // v2rayNG ss 变体 = 伪装成 ss 的 VLESS（UUID + security/type/ws/xhttp）
+              lines.push(`  - name: ${yamlStr(name)}`);
+              lines.push(`    type: vless`);
+              lines.push(`    server: ${yamlStr(host)}`);
+              lines.push(`    port: ${port}`);
+              lines.push(`    uuid: ${yamlStr(p.params.id || p.params.password || "")}`);
+              lines.push(`    network: ${yamlStr(p.params.type === "xhttp" ? "xhttp" : "ws")}`);
+              lines.push(`    tls: ${(p.params.security === "tls" || p.params.security === "reality") ? "true" : "false"}`);
+              if (p.params.type === "ws") {
+                lines.push(`    ws-opts:`);
+                lines.push(`      path: ${yamlStr(p.params.path || "/")}`);
+                if (p.params.host) lines.push(`      headers:\n        Host: ${yamlStr(p.params.host)}`);
+              } else if (p.params.type === "xhttp") {
+                lines.push(`    xhttp-opts:`);
+                lines.push(`      path: ${yamlStr(p.params.path || "/")}`);
+                if (p.params.host) lines.push(`      host: ${yamlStr(p.params.host)}`);
+              }
+              if (p.params.security === "tls" && p.params.sni) lines.push(`    servername: ${yamlStr(p.params.sni)}`);
+              if (p.params.security === "reality") {
+                lines.push(`    servername: ${yamlStr(p.params.sni || p.params.host || "")}`);
+                if (p.params.flow) lines.push(`    flow: ${yamlStr(p.params.flow)}`);
+                if (p.params.fp) lines.push(`    client-fingerprint: ${yamlStr(p.params.fp)}`);
+                lines.push(`    reality-opts:`);
+                lines.push(`      public-key: ${yamlStr(p.params.pbk || "")}`);
+                if (p.params.sid) lines.push(`      short-id: ${yamlStr(p.params.sid)}`);
+              }
+              break;
+            }
             lines.push(`  - name: ${yamlStr(name)}`);
             lines.push(`    type: ss`);
             lines.push(`    server: ${yamlStr(host)}`);
@@ -3896,9 +3960,12 @@
     }
 
     function buildSingboxJson(nodes) {
+      // sing-box tag 清洗：剔除控制字符(C0/C1/DEL)/换行/首尾空格，保留可读名称
+      const cleanTag = s => String(s || "node").slice(0, 60)
+        .replace(/[\x00-\x1f\x7f-\x9f]/g, "").replace(/\s+/g, " ").trim() || "node";
       const outs = nodes.map(n => {
         const p = parseNodeUri(n.raw);
-        const name = (p.name || n.name || p.host || "node").slice(0, 60);
+        const name = cleanTag(p.name || n.name || p.host || "node");
         const host = p.host, port = Number(p.port || 443);
         const base = { tag: name, server: host, server_port: port };
         switch (p.proto) {
@@ -3906,8 +3973,20 @@
             const o = { ...base, type: "vless", uuid: p.params.id || "" };
             const sec = p.params.security || p.params.tls;
             if (sec === "reality" || p.params.reality) {
-              o.tls = { enabled: true, server_name: p.params.sni || "", utls: { enabled: true, fingerprint: p.params.fp || "chrome" } };
-              o.reality = { enabled: true, public_key: p.params.pbk || "", short_id: p.params.sid || "" };
+              const pk = p.params.pbk || "";
+              const b64norm = pk.replace(/-/g, "+").replace(/_/g, "/");
+              const pkValid = /^[A-Za-z0-9+/]+={0,2}$/.test(b64norm) && pk.length >= 40;
+              if (pkValid) {
+                o.tls = {
+                  enabled: true,
+                  server_name: p.params.sni || "",
+                  utls: { enabled: true, fingerprint: p.params.fp || "chrome" },
+                  reality: { enabled: true, public_key: pk, short_id: p.params.sid || "" }
+                };
+              } else {
+                // 无有效 public_key 的 reality 节点：降级为普通 tls（避免生成不可用配置）
+                o.tls = { enabled: true, server_name: p.params.sni || "", insecure: true };
+              }
             } else if (sec === "tls") {
               o.tls = { enabled: true, server_name: p.params.sni || "", insecure: false };
               if (p.params.alpn) o.tls.alpn = String(p.params.alpn).split(",").map(a => a.trim()).filter(Boolean);
@@ -3938,6 +4017,31 @@
             return o;
           }
           case "ss": {
+            if (p.params.ssVariant) {
+              // v2rayNG ss 变体 = 伪装成 ss 的 VLESS
+              const o = { ...base, type: "vless", uuid: p.params.id || p.params.password || "" };
+              const nt = p.params.type || "ws";
+              const sec = p.params.security || p.params.tls;
+              if (sec === "reality") {
+                const pk = p.params.pbk || "";
+                if (pk && /^[A-Za-z0-9+/=]+$/.test(pk) && pk.length >= 40) {
+                  o.tls = {
+                    enabled: true,
+                    server_name: p.params.sni || p.params.host || "",
+                    utls: { enabled: true, fingerprint: p.params.fp || "chrome" },
+                    reality: { enabled: true, public_key: pk, short_id: p.params.sid || "" }
+                  };
+                } else {
+                  o.tls = { enabled: true, server_name: p.params.sni || p.params.host || "", insecure: true };
+                }
+              } else if (sec === "tls") {
+                o.tls = { enabled: true, server_name: p.params.sni || "", insecure: p.params.insecure === "1" || p.params.allowInsecure === "1" };
+              }
+              if (p.params.flow) o.flow = p.params.flow;
+              if (nt === "ws") o.transport = { type: "ws", path: p.params.path || "/", headers: p.params.host ? { Host: p.params.host } : {} };
+              else if (nt === "xhttp") o.transport = { type: "httpupgrade", host: p.params.host || "", path: p.params.path || "" };
+              return o;
+            }
             const o = { ...base, type: "shadowsocks", method: p.params.method || "aes-256-gcm", password: p.params.password || "" };
             if (p.params.plugin) o.plugin = p.params.plugin;
             return o;
@@ -3966,9 +4070,15 @@
       const outbound = {
         type: "selector",
         tag: "🚀 均衡Top500",
-        outbounds: nodes.map(n => (parseNodeUri(n.raw).name || n.name || "node").slice(0, 60))
+        outbounds: nodes.map(n => cleanTag(parseNodeUri(n.raw).name || n.name || "node"))
       };
-      const dns = { servers: ["https://1.1.1.1/dns-query", "https://8.8.8.8/dns-query"], strategy: "ipv4_only" };
+      const dns = {
+        servers: [
+          { tag: "dns1", address: "https://1.1.1.1/dns-query" },
+          { tag: "dns2", address: "https://8.8.8.8/dns-query" }
+        ],
+        strategy: "ipv4_only"
+      };
       return JSON.stringify({ dns, outbounds: [...outs, outbound] }, null, 2);
     }
 
