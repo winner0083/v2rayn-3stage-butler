@@ -1351,7 +1351,12 @@ public class MainActivity extends BridgeActivity {
                 webView.onResume();
                 webView.resumeTimers();
                 try {
-                    webView.onWindowVisibilityChanged(View.VISIBLE);
+                    webView.dispatchWindowVisibilityChanged(View.VISIBLE);
+                } catch (Exception ignored) {}
+                try {
+                    java.lang.reflect.Method m = WebView.class.getDeclaredMethod("onWindowVisibilityChanged", int.class);
+                    m.setAccessible(true);
+                    m.invoke(webView, View.VISIBLE);
                 } catch (Exception ignored) {}
             }
         } catch (Exception ignored) {}
