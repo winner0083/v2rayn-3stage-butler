@@ -23,11 +23,49 @@ Injects Full Native Android Capabilities into the Capacitor Android Project:
    - Overrides onPause()/onStop() with webView.resumeTimers()
 """
 from pathlib import Path
+import base64
+import time
 
 ANDROID_DIR = Path("android")
 MANIFEST_PATH = ANDROID_DIR / "app" / "src" / "main" / "AndroidManifest.xml"
 BUILD_GRADLE_PATH = ANDROID_DIR / "app" / "build.gradle"
 PKG_DIR = ANDROID_DIR / "app" / "src" / "main" / "java" / "com" / "winnerds" / "v2rayn" / "threestage"
+
+# Permanent deterministic signing keystore (RSA 2048, valid 30 years, alias=androiddebugkey, pass=android)
+# Ensures all builds across ephemeral GitHub Actions runners share the exact same certificate so updates install in-place without uninstalling!
+PERMANENT_KEYSTORE_B64 = (
+    "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"
+)
 
 KEEPALIVE_SERVICE_JAVA = r"""package com.winnerds.v2rayn.threestage;
 
@@ -38,6 +76,11 @@ import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.ServiceInfo;
+import android.media.AudioAttributes;
+import android.media.AudioFormat;
+import android.media.AudioManager;
+import android.media.AudioTrack;
 import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.os.IBinder;
@@ -47,15 +90,20 @@ public class KeepAliveService extends Service {
     public static final String CHANNEL_ID = "v2rayn_3stage_keepalive_channel";
     public static final int NOTIF_ID = 10808;
     public static volatile boolean isRunning = false;
+    private static volatile String lastStatusText = "Xray真核已集成 · 息屏/后台常驻守护中";
 
     private PowerManager.WakeLock wakeLock;
     private WifiManager.WifiLock wifiLock;
+    private volatile boolean audioLoopRunning = false;
+    private Thread audioThread = null;
+    private AudioTrack silentTrack = null;
 
     @Override
     public void onCreate() {
         super.onCreate();
-        createNotificationChannel();
+        createNotificationChannel(this);
         acquireLocks();
+        startSilentAudioLoop();
     }
 
     private void acquireLocks() {
@@ -71,7 +119,11 @@ public class KeepAliveService extends Service {
         try {
             WifiManager wm = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
             if (wm != null && (wifiLock == null || !wifiLock.isHeld())) {
-                wifiLock = wm.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "v2rayN3Stage::WifiWakeLock");
+                int lockType = WifiManager.WIFI_MODE_FULL_HIGH_PERF;
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    lockType = WifiManager.WIFI_MODE_FULL_LOW_LATENCY;
+                }
+                wifiLock = wm.createWifiLock(lockType, "v2rayN3Stage::WifiWakeLock");
                 wifiLock.setReferenceCounted(false);
                 wifiLock.acquire();
             }
@@ -91,39 +143,138 @@ public class KeepAliveService extends Service {
         } catch (Exception ignored) {}
     }
 
+    // Plays 0-volume zero-PCM audio stream without requesting AudioFocus:
+    // Prevents OEM ROMs (HyperOS/MIUI/ColorOS/OriginOS/HarmonyOS/OneUI) from freezing cgroup/sockets in background
+    private synchronized void startSilentAudioLoop() {
+        if (audioLoopRunning && audioThread != null && audioThread.isAlive()) return;
+        audioLoopRunning = true;
+        audioThread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    int sampleRate = 8000;
+                    int minBuf = AudioTrack.getMinBufferSize(
+                        sampleRate,
+                        AudioFormat.CHANNEL_OUT_MONO,
+                        AudioFormat.ENCODING_PCM_16BIT
+                    );
+                    if (minBuf <= 0) minBuf = 1600;
+                    AudioAttributes attrs = new AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_MEDIA)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                        .build();
+                    AudioFormat fmt = new AudioFormat.Builder()
+                        .setSampleRate(sampleRate)
+                        .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                        .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                        .build();
+                    silentTrack = new AudioTrack(
+                        attrs,
+                        fmt,
+                        minBuf * 2,
+                        AudioTrack.MODE_STREAM,
+                        AudioManager.AUDIO_SESSION_ID_GENERATE
+                    );
+                    silentTrack.setVolume(0.0f);
+                    silentTrack.play();
+                    byte[] zeroBuf = new byte[minBuf];
+                    while (audioLoopRunning) {
+                        silentTrack.write(zeroBuf, 0, zeroBuf.length);
+                        Thread.sleep(200);
+                    }
+                } catch (Exception ignored) {
+                } finally {
+                    try {
+                        if (silentTrack != null) {
+                            silentTrack.stop();
+                            silentTrack.release();
+                            silentTrack = null;
+                        }
+                    } catch (Exception ignored) {}
+                }
+            }
+        }, "KeepAliveSilentAudio");
+        audioThread.setDaemon(true);
+        audioThread.start();
+    }
+
+    private synchronized void stopSilentAudioLoop() {
+        audioLoopRunning = false;
+        if (audioThread != null) {
+            try { audioThread.interrupt(); } catch (Exception ignored) {}
+            audioThread = null;
+        }
+    }
+
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         acquireLocks();
-        String statusText = "Xray真核已集成 · 息屏后台守护中";
+        startSilentAudioLoop();
+        String statusText = lastStatusText;
         if (intent != null && intent.hasExtra("status")) {
             String custom = intent.getStringExtra("status");
             if (custom != null && !custom.trim().isEmpty()) {
                 statusText = custom;
+                lastStatusText = statusText;
             }
         }
-        Notification notification = buildNotification(statusText);
-        startForeground(NOTIF_ID, notification);
+        Notification notification = buildNotificationStatic(this, statusText);
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(
+                    NOTIF_ID,
+                    notification,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC | ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
+                );
+            } else {
+                startForeground(NOTIF_ID, notification);
+            }
+        } catch (Exception e1) {
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    startForeground(NOTIF_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC);
+                } else {
+                    startForeground(NOTIF_ID, notification);
+                }
+            } catch (Exception e2) {
+                try { startForeground(NOTIF_ID, notification); } catch (Exception ignored) {}
+            }
+        }
         isRunning = true;
         return START_STICKY;
     }
 
-    private Notification buildNotification(String contentText) {
-        Intent notificationIntent = new Intent(this, MainActivity.class);
+    public static void updateNotificationStatic(Context ctx, String contentText) {
+        if (ctx == null) return;
+        if (contentText != null && !contentText.trim().isEmpty()) {
+            lastStatusText = contentText;
+        }
+        try {
+            createNotificationChannel(ctx);
+            NotificationManager nm = (NotificationManager) ctx.getSystemService(Context.NOTIFICATION_SERVICE);
+            if (nm != null) {
+                nm.notify(NOTIF_ID, buildNotificationStatic(ctx, lastStatusText));
+            }
+        } catch (Exception ignored) {}
+    }
+
+    public static Notification buildNotificationStatic(Context ctx, String contentText) {
+        Intent notificationIntent = new Intent(ctx, MainActivity.class);
         notificationIntent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
         int flags = PendingIntent.FLAG_UPDATE_CURRENT;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             flags |= PendingIntent.FLAG_IMMUTABLE;
         }
-        PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, flags);
+        PendingIntent pendingIntent = PendingIntent.getActivity(ctx, 0, notificationIntent, flags);
 
         Notification.Builder builder;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            builder = new Notification.Builder(this, CHANNEL_ID);
+            builder = new Notification.Builder(ctx, CHANNEL_ID);
         } else {
-            builder = new Notification.Builder(this);
+            builder = new Notification.Builder(ctx);
         }
 
-        builder.setContentTitle("v2rayN 三段式管家 V2.0 (Xray真核)")
+        builder.setContentTitle("v2rayN 三段式管家 V2.1 (Xray真核)")
                .setContentText(contentText)
                .setSmallIcon(android.R.drawable.stat_notify_sync)
                .setContentIntent(pendingIntent)
@@ -132,16 +283,16 @@ public class KeepAliveService extends Service {
         return builder.build();
     }
 
-    private void createNotificationChannel() {
+    public static void createNotificationChannel(Context ctx) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel channel = new NotificationChannel(
                 CHANNEL_ID,
-                "v2rayN 息屏后台常驻服务",
+                "v2rayN 息屏与后台常驻服务",
                 NotificationManager.IMPORTANCE_LOW
             );
-            channel.setDescription("保持息屏状态下定时获取、Xray真核三段式测试与汇总不中断");
+            channel.setDescription("保持切后台与息屏状态下定时获取、Xray真核三段式测试与汇总全速运行不中断");
             channel.setShowBadge(false);
-            NotificationManager manager = getSystemService(NotificationManager.class);
+            NotificationManager manager = ctx.getSystemService(NotificationManager.class);
             if (manager != null) {
                 manager.createNotificationChannel(channel);
             }
@@ -151,6 +302,7 @@ public class KeepAliveService extends Service {
     @Override
     public void onDestroy() {
         isRunning = false;
+        stopSilentAudioLoop();
         releaseLocks();
         super.onDestroy();
     }
@@ -165,6 +317,10 @@ public class KeepAliveService extends Service {
 XRAY_BENCH_ENGINE_JAVA = r"""package com.winnerds.v2rayn.threestage;
 
 import android.content.Context;
+import android.content.Intent;
+import android.net.wifi.WifiManager;
+import android.os.Build;
+import android.os.PowerManager;
 import android.util.Base64;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -226,6 +382,65 @@ public class XrayBenchEngine {
     private static final AtomicBoolean subFetchRunning = new AtomicBoolean(false);
     private static volatile String subFetchResultJson = "";
     private static volatile Thread subFetchThread = null;
+
+    // Dedicated Benchmark WakeLock & WifiLock so CPU/WiFi never sleep mid-test
+    private static volatile PowerManager.WakeLock benchWakeLock = null;
+    private static volatile WifiManager.WifiLock benchWifiLock = null;
+    private static volatile long lastNotifUpdateMs = 0L;
+
+    public static boolean isAnyTaskRunning() {
+        return batchRunning.get() || subFetchRunning.get();
+    }
+
+    private static synchronized void acquireBenchLocks(Context ctx) {
+        if (ctx == null) return;
+        Context appCtx = ctx.getApplicationContext();
+        try {
+            if (!KeepAliveService.isRunning) {
+                Intent svc = new Intent(appCtx, KeepAliveService.class);
+                svc.putExtra("status", "⚡ 正在后台执行节点实测任务...");
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    appCtx.startForegroundService(svc);
+                } else {
+                    appCtx.startService(svc);
+                }
+            }
+        } catch (Exception ignored) {}
+        try {
+            PowerManager pm = (PowerManager) appCtx.getSystemService(Context.POWER_SERVICE);
+            if (pm != null && (benchWakeLock == null || !benchWakeLock.isHeld())) {
+                benchWakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "v2rayN3Stage::BenchWorkerWakeLock");
+                benchWakeLock.setReferenceCounted(false);
+                benchWakeLock.acquire(60 * 60 * 1000L);
+            }
+        } catch (Exception ignored) {}
+        try {
+            WifiManager wm = (WifiManager) appCtx.getSystemService(Context.WIFI_SERVICE);
+            if (wm != null && (benchWifiLock == null || !benchWifiLock.isHeld())) {
+                int lockType = WifiManager.WIFI_MODE_FULL_HIGH_PERF;
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    lockType = WifiManager.WIFI_MODE_FULL_LOW_LATENCY;
+                }
+                benchWifiLock = wm.createWifiLock(lockType, "v2rayN3Stage::BenchWorkerWifiLock");
+                benchWifiLock.setReferenceCounted(false);
+                benchWifiLock.acquire();
+            }
+        } catch (Exception ignored) {}
+    }
+
+    private static synchronized void releaseBenchLocksIfIdle() {
+        if (batchRunning.get() || subFetchRunning.get()) return;
+        try {
+            if (benchWakeLock != null && benchWakeLock.isHeld()) {
+                benchWakeLock.release();
+            }
+        } catch (Exception ignored) {}
+        try {
+            if (benchWifiLock != null && benchWifiLock.isHeld()) {
+                benchWifiLock.release();
+            }
+        } catch (Exception ignored) {}
+    }
 
     public static File getXrayBinary(Context ctx) {
         String nativeDir = ctx.getApplicationInfo().nativeLibraryDir;
@@ -755,6 +970,8 @@ public class XrayBenchEngine {
     public static synchronized String startBatchBench(final Context ctx, String urisJsonArrayStr, final boolean doSpeed, int workers) {
         stopBatchBench();
         try {
+            final Context appCtx = ctx != null ? ctx.getApplicationContext() : null;
+            acquireBenchLocks(appCtx);
             final JSONArray arr = new JSONArray(urisJsonArrayStr);
             final int total = arr.length();
             batchTotal.set(total);
@@ -765,6 +982,10 @@ public class XrayBenchEngine {
             batchCancel.set(false);
             batchPaused.set(false);
             batchRunning.set(true);
+            lastNotifUpdateMs = System.currentTimeMillis();
+            if (appCtx != null) {
+                KeepAliveService.updateNotificationStatic(appCtx, "⚡ 正在实测节点 (0/" + total + ") · 切后台全速运行中");
+            }
 
             final int nWorkers = Math.max(1, Math.min(6, workers));
             batchExecutor = Executors.newFixedThreadPool(nWorkers);
@@ -778,14 +999,20 @@ public class XrayBenchEngine {
                     }
                     if (batchCancel.get() || uri.isEmpty()) {
                         int dNow = batchDone.incrementAndGet();
-                        if (dNow >= total) batchRunning.set(false);
+                        if (dNow >= total) {
+                            batchRunning.set(false);
+                            releaseBenchLocksIfIdle();
+                        }
                         return;
                     }
                     int port = 32200 + (idx % (nWorkers * 3)) * 2 + (int) (Thread.currentThread().getId() % 2);
-                    JSONObject res = benchOneNodeObj(ctx, uri, port, doSpeed);
+                    JSONObject res = benchOneNodeObj(appCtx != null ? appCtx : ctx, uri, port, doSpeed);
                     if (batchCancel.get()) {
                         int dNow = batchDone.incrementAndGet();
-                        if (dNow >= total) batchRunning.set(false);
+                        if (dNow >= total) {
+                            batchRunning.set(false);
+                            releaseBenchLocksIfIdle();
+                        }
                         return;
                     }
                     batchResults.add(res);
@@ -801,14 +1028,24 @@ public class XrayBenchEngine {
                     } else {
                         batchLogs.add("DEAD|[" + doneNow + "/" + total + "] " + name + " (" + host + ") -> -1ms (" + res.optString("error", "ping_fail") + ")");
                     }
+                    long nowMs = System.currentTimeMillis();
+                    if (appCtx != null && (doneNow >= total || nowMs - lastNotifUpdateMs >= 600)) {
+                        lastNotifUpdateMs = nowMs;
+                        String st = doneNow >= total
+                            ? ("✅ 本轮实测完成: 连通 " + batchAlive.get() + "/" + total + " 条")
+                            : ("⚡ 后台实测中: " + doneNow + "/" + total + " (连通 " + batchAlive.get() + ") · 全速运行");
+                        KeepAliveService.updateNotificationStatic(appCtx, st);
+                    }
                     if (doneNow >= total) {
                         batchRunning.set(false);
+                        releaseBenchLocksIfIdle();
                     }
                 });
             }
             return new JSONObject().put("ok", true).put("total", total).toString();
         } catch (Exception e) {
             batchRunning.set(false);
+            releaseBenchLocksIfIdle();
             return "{\"ok\":false,\"error\":\"" + e.getMessage() + "\"}";
         }
     }
@@ -830,11 +1067,10 @@ public class XrayBenchEngine {
             for (String l : drained) logsArr.put(l);
             obj.put("newLogs", logsArr);
 
-            if (!batchRunning.get() || batchPaused.get() || batchCancel.get() || done >= total) {
-                JSONArray resArr = new JSONArray();
-                for (JSONObject r : batchResults) resArr.put(r);
-                obj.put("results", resArr);
-            }
+            // Always return incremental results so partial progress is saved in real-time (even in background)
+            JSONArray resArr = new JSONArray();
+            for (JSONObject r : batchResults) resArr.put(r);
+            obj.put("results", resArr);
             return obj.toString();
         } catch (Exception e) {
             return "{\"running\":false}";
@@ -853,20 +1089,24 @@ public class XrayBenchEngine {
             try { batchExecutor.shutdownNow(); } catch (Exception ignored) {}
             batchExecutor = null;
         }
+        releaseBenchLocksIfIdle();
     }
 
     public static synchronized void startAsyncSubFetch(final Context ctx, final String targetUrl, final String proxyNodeRaw) {
         stopAsyncSubFetch();
+        final Context appCtx = ctx != null ? ctx.getApplicationContext() : null;
+        acquireBenchLocks(appCtx);
         subFetchResultJson = "";
         subFetchRunning.set(true);
         subFetchThread = new Thread(() -> {
             try {
-                String res = probeAndFetchSubJson(ctx, targetUrl, proxyNodeRaw);
+                String res = probeAndFetchSubJson(appCtx != null ? appCtx : ctx, targetUrl, proxyNodeRaw);
                 subFetchResultJson = res;
             } catch (Exception e) {
                 subFetchResultJson = "{\"ok\":false,\"directOk\":false,\"proxyOk\":false,\"body\":\"\"}";
             } finally {
                 subFetchRunning.set(false);
+                releaseBenchLocksIfIdle();
             }
         });
         subFetchThread.setDaemon(true);
@@ -1046,13 +1286,17 @@ import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
+import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.PowerManager;
 import android.provider.Settings;
+import android.view.View;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
@@ -1060,14 +1304,28 @@ import com.getcapacitor.BridgeActivity;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 public class MainActivity extends BridgeActivity {
     private volatile boolean keepAliveEnabled = true;
+    private volatile boolean isActivityInBackground = false;
+    private ScheduledExecutorService bgPulseExecutor = null;
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        startKeepAliveService("Xray真核已加载 · 息屏守护运行中");
+        startKeepAliveService("Xray真核已加载 · 息屏与后台常驻守护中");
+
+        if (Build.VERSION.SDK_INT >= 33) {
+            try {
+                if (checkSelfPermission("android.permission.POST_NOTIFICATIONS") != PackageManager.PERMISSION_GRANTED) {
+                    requestPermissions(new String[]{"android.permission.POST_NOTIFICATIONS"}, 10808);
+                }
+            } catch (Exception ignored) {}
+        }
 
         if (getBridge() != null && getBridge().getWebView() != null) {
             WebView webView = getBridge().getWebView();
@@ -1082,6 +1340,61 @@ public class MainActivity extends BridgeActivity {
             webView.setInitialScale(0);
             webView.addJavascriptInterface(new KeepAliveJsBridge(), "AndroidKeepAlive");
         }
+
+        startNativeBackgroundHeartbeat();
+    }
+
+    private void keepWebViewAwake() {
+        try {
+            if (getBridge() != null && getBridge().getWebView() != null) {
+                final WebView webView = getBridge().getWebView();
+                webView.onResume();
+                webView.resumeTimers();
+                try {
+                    webView.onWindowVisibilityChanged(View.VISIBLE);
+                } catch (Exception ignored) {}
+            }
+        } catch (Exception ignored) {}
+    }
+
+    private void scheduleBackgroundWebViewWakeups() {
+        int[] delays = new int[]{30, 120, 320, 750, 1500};
+        for (int d : delays) {
+            mainHandler.postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    if (isActivityInBackground && (keepAliveEnabled || XrayBenchEngine.isAnyTaskRunning())) {
+                        keepWebViewAwake();
+                    }
+                }
+            }, d);
+        }
+    }
+
+    private synchronized void startNativeBackgroundHeartbeat() {
+        if (bgPulseExecutor != null) return;
+        bgPulseExecutor = Executors.newSingleThreadScheduledExecutor();
+        bgPulseExecutor.scheduleAtFixedRate(new Runnable() {
+            @Override
+            public void run() {
+                if (!keepAliveEnabled && !XrayBenchEngine.isAnyTaskRunning()) return;
+                mainHandler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        try {
+                            if (isActivityInBackground || XrayBenchEngine.isAnyTaskRunning()) {
+                                keepWebViewAwake();
+                            }
+                            if (getBridge() != null && getBridge().getWebView() != null) {
+                                getBridge().getWebView().evaluateJavascript(
+                                    "if(window.__nativeBgPulse) window.__nativeBgPulse();", null
+                                );
+                            }
+                        } catch (Exception ignored) {}
+                    }
+                });
+            }
+        }, 250, 250, TimeUnit.MILLISECONDS);
     }
 
     @Override
@@ -1109,10 +1422,10 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onResume() {
         super.onResume();
+        isActivityInBackground = false;
         if (getBridge() != null && getBridge().getWebView() != null) {
             final WebView webView = getBridge().getWebView();
-            webView.onResume();
-            webView.resumeTimers();
+            keepWebViewAwake();
             final Runnable wakeRecover = new Runnable() {
                 @Override
                 public void run() {
@@ -1134,7 +1447,7 @@ public class MainActivity extends BridgeActivity {
         super.onWindowFocusChanged(hasFocus);
         if (hasFocus && getBridge() != null && getBridge().getWebView() != null) {
             final WebView webView = getBridge().getWebView();
-            webView.resumeTimers();
+            keepWebViewAwake();
             webView.postDelayed(new Runnable() {
                 @Override
                 public void run() {
@@ -1145,27 +1458,47 @@ public class MainActivity extends BridgeActivity {
                     } catch (Exception ignored) {}
                 }
             }, 80);
+        } else if (!hasFocus && (keepAliveEnabled || XrayBenchEngine.isAnyTaskRunning())) {
+            keepWebViewAwake();
+            scheduleBackgroundWebViewWakeups();
         }
     }
 
     @Override
     public void onPause() {
         super.onPause();
-        if (keepAliveEnabled && getBridge() != null && getBridge().getWebView() != null) {
-            getBridge().getWebView().resumeTimers();
+        isActivityInBackground = true;
+        if (keepAliveEnabled || XrayBenchEngine.isAnyTaskRunning()) {
+            keepWebViewAwake();
+            scheduleBackgroundWebViewWakeups();
         }
     }
 
     @Override
     public void onStop() {
         super.onStop();
-        if (keepAliveEnabled && getBridge() != null && getBridge().getWebView() != null) {
-            getBridge().getWebView().resumeTimers();
+        isActivityInBackground = true;
+        if (keepAliveEnabled || XrayBenchEngine.isAnyTaskRunning()) {
+            keepWebViewAwake();
+            scheduleBackgroundWebViewWakeups();
         }
+    }
+
+    @Override
+    public void onDestroy() {
+        if (bgPulseExecutor != null) {
+            try { bgPulseExecutor.shutdownNow(); } catch (Exception ignored) {}
+            bgPulseExecutor = null;
+        }
+        super.onDestroy();
     }
 
     private void startKeepAliveService(String statusText) {
         try {
+            if (KeepAliveService.isRunning && isActivityInBackground) {
+                KeepAliveService.updateNotificationStatic(this, statusText);
+                return;
+            }
             Intent serviceIntent = new Intent(this, KeepAliveService.class);
             serviceIntent.putExtra("status", statusText);
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -1173,7 +1506,9 @@ public class MainActivity extends BridgeActivity {
             } else {
                 startService(serviceIntent);
             }
-        } catch (Exception ignored) {}
+        } catch (Exception e) {
+            KeepAliveService.updateNotificationStatic(this, statusText);
+        }
     }
 
     private void stopKeepAliveService() {
@@ -1410,10 +1745,13 @@ def patch_manifest():
         '            android:name=".KeepAliveService"\n'
         '            android:enabled="true"\n'
         '            android:exported="false"\n'
-        '            android:foregroundServiceType="dataSync" />\n'
+        '            android:stopWithTask="false"\n'
+        '            android:foregroundServiceType="dataSync|mediaPlayback" />\n'
     )
     if "KeepAliveService" not in xml:
         xml = xml.replace("</application>", service_decl + "    </application>")
+    else:
+        xml = xml.replace('android:foregroundServiceType="dataSync"', 'android:stopWithTask="false"\n            android:foregroundServiceType="dataSync|mediaPlayback"')
 
     queries_decl = (
         '    <queries>\n'
@@ -1432,6 +1770,7 @@ def patch_manifest():
         '<uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />',
         '<uses-permission android:name="android.permission.FOREGROUND_SERVICE" />',
         '<uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />',
+        '<uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />',
         '<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />',
         '<uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />',
     ]
@@ -1440,14 +1779,49 @@ def patch_manifest():
         xml = xml.replace("</manifest>", perm_block + "\n</manifest>")
 
     MANIFEST_PATH.write_text(xml, encoding="utf-8")
-    print("[KeepAlivePatch] Patched AndroidManifest.xml (with extractNativeLibs=true & queries).")
+    print("[KeepAlivePatch] Patched AndroidManifest.xml (with extractNativeLibs=true, dataSync|mediaPlayback & queries).")
+
+
+def install_permanent_keystore():
+    ks_bytes = base64.b64decode(PERMANENT_KEYSTORE_B64)
+    app_ks = ANDROID_DIR / "app" / "v2rayn-permanent.keystore"
+    app_ks.parent.mkdir(parents=True, exist_ok=True)
+    app_ks.write_bytes(ks_bytes)
+
+    try:
+        user_android_dir = Path.home() / ".android"
+        user_android_dir.mkdir(parents=True, exist_ok=True)
+        (user_android_dir / "debug.keystore").write_bytes(ks_bytes)
+        print("[KeepAlivePatch] Installed permanent debug.keystore to ~/.android/debug.keystore")
+    except Exception as e:
+        print("[KeepAlivePatch] Warning writing ~/.android/debug.keystore:", e)
+
+    print(f"[KeepAlivePatch] Installed permanent keystore to {app_ks} ({len(ks_bytes)} bytes).")
 
 
 def patch_build_gradle():
     if not BUILD_GRADLE_PATH.exists():
         return
+    install_permanent_keystore()
     txt = BUILD_GRADLE_PATH.read_text(encoding="utf-8")
-    packaging_snippet = """
+
+    # Monotonically increasing versionCode (minutes since epoch offset -> strictly increases on every build)
+    version_code = max(200, int(time.time() // 60) - 29000000)
+    version_name = f"2.1.{version_code}"
+    txt = txt.replace("versionCode 1", f"versionCode {version_code}", 1)
+    txt = txt.replace('versionName "1.0"', f'versionName "{version_name}"', 1)
+
+    signing_and_packaging = """
+    signingConfigs {
+        fixedSign {
+            storeFile file('v2rayn-permanent.keystore')
+            storePassword 'android'
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+            v1SigningEnabled true
+            v2SigningEnabled true
+        }
+    }
     packagingOptions {
         jniLibs {
             useLegacyPackaging true
@@ -1455,9 +1829,16 @@ def patch_build_gradle():
     }
 """
     if "useLegacyPackaging" not in txt:
-        txt = txt.replace("android {", "android {" + packaging_snippet, 1)
-        BUILD_GRADLE_PATH.write_text(txt, encoding="utf-8")
-        print("[KeepAlivePatch] Patched app/build.gradle with useLegacyPackaging=true.")
+        txt = txt.replace("android {", "android {" + signing_and_packaging, 1)
+
+    if "signingConfig signingConfigs.fixedSign" not in txt:
+        txt = txt.replace(
+            "buildTypes {\n        release {",
+            "buildTypes {\n        debug {\n            signingConfig signingConfigs.fixedSign\n        }\n        release {\n            signingConfig signingConfigs.fixedSign"
+        )
+
+    BUILD_GRADLE_PATH.write_text(txt, encoding="utf-8")
+    print(f"[KeepAlivePatch] Patched app/build.gradle with fixedSign keystore & versionCode={version_code} ({version_name}).")
 
 
 def write_java_classes():

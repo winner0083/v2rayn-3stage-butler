@@ -1969,12 +1969,23 @@
       taskCtrl.cancelled = false;
       taskCtrl.title = title;
       taskCtrl.pct = 0;
+      if (window.AndroidKeepAlive && typeof window.AndroidKeepAlive.setKeepAlive === "function") {
+        try { window.AndroidKeepAlive.setKeepAlive(true, "⏳ " + title); } catch (_) {}
+      }
       syncTaskCtrlUi();
     }
 
+    let __lastStatusPushMs = 0;
     function updateGlobalTaskProgress(title, pct) {
       taskCtrl.title = title;
       taskCtrl.pct = Math.max(0, Math.min(100, Math.round(pct)));
+      const nowMs = Date.now();
+      if (nowMs - __lastStatusPushMs >= 900 || taskCtrl.pct >= 100) {
+        __lastStatusPushMs = nowMs;
+        if (window.AndroidKeepAlive && typeof window.AndroidKeepAlive.updateStatus === "function") {
+          try { window.AndroidKeepAlive.updateStatus(`⏳ ${title} (${taskCtrl.pct}%)`); } catch (_) {}
+        }
+      }
       if (document.hidden) {
         taskCtrl.needsUiFlushOnWake = true;
         return;
@@ -1986,6 +1997,9 @@
       taskCtrl.running = false;
       taskCtrl.paused = false;
       taskCtrl.cancelled = false;
+      if (window.AndroidKeepAlive && typeof window.AndroidKeepAlive.updateStatus === "function") {
+        try { window.AndroidKeepAlive.updateStatus("✅ 后台任务已完成 · 息屏常驻守护中"); } catch (_) {}
+      }
       syncTaskCtrlUi();
     }
 
@@ -2574,6 +2588,7 @@
         const uris = nodeList.map(n => n.raw);
         window.AndroidKeepAlive.startBatchBench(JSON.stringify(uris), doSpeed, 4);
         let latestMapped = [];
+        let lastPartialSaveMs = 0;
 
         while (!taskCtrl.cancelled) {
           await sleep(300);
@@ -2596,10 +2611,15 @@
 
           if (Array.isArray(prog.results) && prog.results.length) {
             latestMapped = mapRawResults(prog.results);
-            if (onPartialResults) onPartialResults(latestMapped);
+            const nowMs = Date.now();
+            if (onPartialResults && (!prog.running || done >= totalN || prog.paused || nowMs - lastPartialSaveMs >= 1500)) {
+              lastPartialSaveMs = nowMs;
+              onPartialResults(latestMapped);
+            }
           }
 
           if (!prog.running || done >= totalN) {
+            if (onPartialResults && latestMapped.length) onPartialResults(latestMapped);
             finishGlobalTask();
             return latestMapped;
           }
@@ -4556,14 +4576,40 @@
       window.scrollTo(0, 0);
     }
 
+    const bgLogQueue = [];
+    function flushBgLogsToDom() {
+      if (!bgLogQueue.length) return;
+      const box = document.getElementById("testTerminalLog");
+      if (!box) return;
+      const frag = document.createDocumentFragment();
+      while (bgLogQueue.length > 0) {
+        const item = bgLogQueue.shift();
+        const line = document.createElement("div");
+        line.className = "log-line " + (item.cls || "");
+        line.innerHTML = `<span class="log-time">[${item.time}]</span> ${escapeHtml(item.msg)}`;
+        frag.appendChild(line);
+      }
+      box.appendChild(frag);
+      while (box.childElementCount > 80) {
+        box.removeChild(box.firstElementChild);
+      }
+      box.scrollTop = box.scrollHeight;
+    }
+
     function appendLog(msg, cls = "") {
-      if (document.hidden) return;
+      const now = new Date().toTimeString().slice(0, 8);
+      if (document.hidden) {
+        bgLogQueue.push({ time: now, msg, cls });
+        while (bgLogQueue.length > 80) bgLogQueue.shift();
+        taskCtrl.needsUiFlushOnWake = true;
+        return;
+      }
+      flushBgLogsToDom();
       const box = document.getElementById("testTerminalLog");
       if (!box) return;
       while (box.childElementCount >= 80) {
         box.removeChild(box.firstElementChild);
       }
-      const now = new Date().toTimeString().slice(0, 8);
       const line = document.createElement("div");
       line.className = "log-line " + cls;
       line.innerHTML = `<span class="log-time">[${now}]</span> ${escapeHtml(msg)}`;
@@ -4745,7 +4791,37 @@
       setTimeout(() => el.remove(), 2600);
     }
 
-    function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+    // Triple-redundant background-safe sleep queue (setTimeout + WebWorker + Native Java __nativeBgPulse)
+    const __pendingSleeps = [];
+    function __flushPendingSleeps() {
+      const now = Date.now();
+      for (let i = __pendingSleeps.length - 1; i >= 0; i--) {
+        if (now >= __pendingSleeps[i].wakeAt) {
+          const item = __pendingSleeps.splice(i, 1)[0];
+          try { item.resolve(); } catch (_) {}
+        }
+      }
+    }
+    window.__nativeBgPulse = function() {
+      __flushPendingSleeps();
+    };
+    function sleep(ms) {
+      return new Promise(resolve => {
+        const delay = Math.max(0, Number(ms) || 0);
+        const wakeAt = Date.now() + delay;
+        let settled = false;
+        const done = () => {
+          if (settled) return;
+          settled = true;
+          resolve();
+        };
+        __pendingSleeps.push({ wakeAt, resolve: done });
+        setTimeout(() => {
+          done();
+          __flushPendingSleeps();
+        }, delay);
+      });
+    }
     function escapeHtml(s) { return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
 
     // =========================================================================
@@ -4841,7 +4917,7 @@
           self.onmessage = function(e) {
             if (e.data === 'start') {
               if (timer) clearInterval(timer);
-              timer = setInterval(() => self.postMessage('tick'), 1000);
+              timer = setInterval(() => self.postMessage('tick'), 250);
             } else if (e.data === 'stop') {
               if (timer) clearInterval(timer);
               timer = null;
@@ -4851,8 +4927,9 @@
         const blob = new Blob([workerCode], { type: "application/javascript" });
         cronWorker = new Worker(URL.createObjectURL(blob));
         cronWorker.onmessage = () => {
+          __flushPendingSleeps();
           keepAliveState.ticks++;
-          if (keepAliveState.ticks % 15 === 0) checkBackgroundCronSchedules();
+          if (keepAliveState.ticks % 60 === 0) checkBackgroundCronSchedules();
         };
         cronWorker.postMessage("start");
       } catch (_) {}
@@ -4891,9 +4968,11 @@
     }
 
     function flushUiAfterScreenWake() {
+      __flushPendingSleeps();
+      flushBgLogsToDom();
       forceViewportReflow();
       syncTaskCtrlUi();
-      if (taskCtrl.needsUiFlushOnWake) {
+      if (taskCtrl.needsUiFlushOnWake || taskCtrl.running) {
         taskCtrl.needsUiFlushOnWake = false;
         updateDataProvenanceSelectors();
         rebuildBatchSelectorOptions();
