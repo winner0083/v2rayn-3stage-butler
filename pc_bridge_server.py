@@ -26,7 +26,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 APP_DIR = Path(__file__).resolve().parent
-AUTO_DIR = Path(r"C:\Users\Administrator\WorkBuddy\2026-09-06-20-04-30\outputs\v2rayn-auto")
+AUTO_DIR = Path(r"D:\workbuddy\WorkSpaces\2026-09-06-20-04-30\outputs\v2rayn-auto")
 TESTS_DIR = AUTO_DIR / "tests"
 SOURCES_TXT = AUTO_DIR / "订阅源.txt"
 TOMBSTONE_JSON = APP_DIR / "deprecated_tombstone.json"

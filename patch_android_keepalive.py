@@ -345,6 +345,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -378,10 +379,13 @@ public class XrayBenchEngine {
     private static final CopyOnWriteArrayList<JSONObject> batchResults = new CopyOnWriteArrayList<>();
     private static final CopyOnWriteArrayList<String> batchLogs = new CopyOnWriteArrayList<>();
 
-    // Async Subscription Fetcher State (Non-blocking UI bridge)
+    // Async Subscription Fetcher State (Non-blocking UI bridge + 6-thread concurrent pool)
     private static final AtomicBoolean subFetchRunning = new AtomicBoolean(false);
+    private static final AtomicInteger activeSubFetchCount = new AtomicInteger(0);
     private static volatile String subFetchResultJson = "";
     private static volatile Thread subFetchThread = null;
+    private static volatile ExecutorService subFetchPool = Executors.newFixedThreadPool(6);
+    private static final ConcurrentHashMap<String, String> subFetchMap = new ConcurrentHashMap<>();
 
     // Dedicated Benchmark WakeLock & WifiLock so CPU/WiFi never sleep mid-test
     private static volatile PowerManager.WakeLock benchWakeLock = null;
@@ -389,7 +393,7 @@ public class XrayBenchEngine {
     private static volatile long lastNotifUpdateMs = 0L;
 
     public static boolean isAnyTaskRunning() {
-        return batchRunning.get() || subFetchRunning.get();
+        return batchRunning.get() || subFetchRunning.get() || activeSubFetchCount.get() > 0;
     }
 
     private static synchronized void acquireBenchLocks(Context ctx) {
@@ -491,17 +495,20 @@ public class XrayBenchEngine {
 
         JSONObject node = new JSONObject();
         node.put("raw", link);
+        if ("hy2".equals(proto)) proto = "hysteria2";
         node.put("protocol", proto);
 
         if ("vmess".equals(proto)) {
             String b64 = rest.split("#")[0].trim().replace('-', '+').replace('_', '/');
+            while (b64.length() % 4 != 0) b64 += "=";
             byte[] decoded = Base64.decode(b64, Base64.DEFAULT);
             JSONObject j = new JSONObject(new String(decoded, StandardCharsets.UTF_8));
             String host = j.optString("add", "").trim();
-            int port = Integer.parseInt(j.optString("port", "443").split("/")[0].replaceAll("[^0-9]", "").trim());
+            String pStr = j.optString("port", "443").split("/")[0].replaceAll("[^0-9]", "").trim();
+            int port = Integer.parseInt(pStr.isEmpty() ? "443" : pStr);
             node.put("host", host);
             node.put("port", port);
-            node.put("uuid", j.optString("id", ""));
+            node.put("uuid", j.optString("id", "").trim());
             node.put("name", j.optString("ps", host + ":" + port));
             JSONObject params = new JSONObject();
             params.put("net", j.optString("net", "tcp"));
@@ -509,6 +516,9 @@ public class XrayBenchEngine {
             params.put("sni", j.optString("sni", host));
             params.put("host", j.optString("host", host));
             params.put("path", j.optString("path", "/"));
+            params.put("serviceName", j.optString("path", ""));
+            params.put("alpn", j.optString("alpn", ""));
+            params.put("fp", j.optString("fp", "chrome"));
             params.put("aid", j.optString("aid", "0"));
             node.put("params", params);
             return node;
@@ -598,8 +608,8 @@ public class XrayBenchEngine {
         int colonIdx = hostPortPart.lastIndexOf(':');
         if (colonIdx <= 0) throw new IllegalArgumentException("Missing port");
         String host = hostPortPart.substring(0, colonIdx).trim();
-        String portStr = hostPortPart.substring(colonIdx + 1).split("/")[0].trim();
-        int port = Integer.parseInt(portStr);
+        String portStr = hostPortPart.substring(colonIdx + 1).split("/")[0].replaceAll("[^0-9]", "").trim();
+        int port = Integer.parseInt(portStr.isEmpty() ? "443" : portStr);
         if (host.isEmpty()) throw new IllegalArgumentException("Empty host");
 
         node.put("host", host);
@@ -609,7 +619,7 @@ public class XrayBenchEngine {
     }
 
     public static JSONObject buildXrayConfig(JSONObject node, int listenPort) throws Exception {
-        String proto = node.getString("protocol");
+        String proto = node.getString("protocol").toLowerCase();
         String host = node.getString("host");
         int port = node.getInt("port");
         String idOrPass = node.optString("uuid", node.optString("password", ""));
@@ -633,20 +643,36 @@ public class XrayBenchEngine {
         outbound.put("mux", new JSONObject().put("enabled", false).put("concurrency", -1));
 
         JSONObject stream = new JSONObject();
-        String net = params.optString("type", params.optString("net", "tcp")).toLowerCase();
-        if ("raw".equals(net)) net = "tcp";
-        String sec = params.optString("security", params.optString("tls", "none")).toLowerCase();
-        if (sec.isEmpty()) sec = "trojan".equals(proto) ? "tls" : "none";
+        String net = params.optString("type", params.optString("net", "tcp")).toLowerCase().trim();
+        if ("splithttp".equals(net)) net = "xhttp";
+        if (!("tcp".equals(net) || "ws".equals(net) || "grpc".equals(net) || "xhttp".equals(net) || "httpupgrade".equals(net) || "kcp".equals(net))) {
+            net = "tcp";
+        }
+
+        String rawSec = params.optString("security", params.optString("tls", "none")).toLowerCase().trim();
+        String sec;
+        if ("tls".equals(rawSec) || "true".equals(rawSec) || "1".equals(rawSec)) {
+            sec = "tls";
+        } else if ("reality".equals(rawSec)) {
+            sec = "reality";
+        } else {
+            sec = "trojan".equals(proto) ? "tls" : "none";
+        }
+
+        String rawFp = params.optString("fp", "chrome").toLowerCase().trim();
+        String fp = ("chrome".equals(rawFp) || "firefox".equals(rawFp) || "safari".equals(rawFp) || "ios".equals(rawFp)
+            || "android".equals(rawFp) || "edge".equals(rawFp) || "360".equals(rawFp) || "qq".equals(rawFp)
+            || "random".equals(rawFp) || "randomized".equals(rawFp)) ? rawFp : "chrome";
 
         if ("vless".equals(proto)) {
             outbound.put("protocol", "vless");
             JSONObject user = new JSONObject()
                 .put("id", idOrPass)
-                .put("alterId", 0)
-                .put("encryption", "none")
-                .put("security", "auto");
-            String flow = params.optString("flow", "");
-            if (!flow.isEmpty()) user.put("flow", flow);
+                .put("encryption", "none");
+            String flow = params.optString("flow", "").trim();
+            if (!flow.isEmpty() && ("tls".equals(sec) || "reality".equals(sec)) && ("tcp".equals(net) || "kcp".equals(net))) {
+                user.put("flow", flow);
+            }
             JSONObject vnext = new JSONObject()
                 .put("address", host)
                 .put("port", port)
@@ -672,33 +698,66 @@ public class XrayBenchEngine {
             outbound.put("settings", new JSONObject().put("vnext", new JSONArray().put(vnext)));
         } else if ("ss".equals(proto)) {
             outbound.put("protocol", "shadowsocks");
+            String mth = node.optString("method", "aes-256-gcm").toLowerCase().trim();
+            if (!("aes-256-gcm".equals(mth) || "aes-128-gcm".equals(mth) || "chacha20-ietf-poly1305".equals(mth)
+                || "xchacha20-ietf-poly1305".equals(mth) || "none".equals(mth) || "plain".equals(mth))) {
+                mth = "aes-256-gcm";
+            }
             JSONObject srv = new JSONObject()
                 .put("address", host)
                 .put("port", port)
-                .put("method", node.optString("method", "chacha20-ietf-poly1305"))
-                .put("password", idOrPass);
+                .put("method", mth)
+                .put("password", idOrPass.isEmpty() ? "password" : idOrPass);
             outbound.put("settings", new JSONObject().put("servers", new JSONArray().put(srv)));
+        } else {
+            outbound.put("protocol", "trojan");
+            JSONObject srv = new JSONObject()
+                .put("address", host)
+                .put("port", port)
+                .put("password", idOrPass.isEmpty() ? "password" : idOrPass);
+            outbound.put("settings", new JSONObject().put("servers", new JSONArray().put(srv)));
+            sec = "tls";
+        }
+
+        String sni = params.optString("sni", params.optString("host", host)).trim();
+        if (sni.isEmpty()) sni = host;
+
+        if ("reality".equals(sec)) {
+            String pk = params.optString("pbk", "").trim();
+            String pkNorm = pk.replace('-', '+').replace('_', '/');
+            if (pk.length() < 40 || !pkNorm.matches("^[A-Za-z0-9+/]+={0,2}$")) {
+                sec = "tls";
+            }
         }
 
         stream.put("network", net);
         stream.put("security", sec);
-        String sni = params.optString("sni", params.optString("host", host));
-        if (sni.isEmpty()) sni = host;
 
         if ("tls".equals(sec)) {
-            boolean allowIns = "1".equals(params.optString("allowInsecure", "0"))
-                            || "true".equalsIgnoreCase(params.optString("allowInsecure", "false"))
-                            || "1".equals(params.optString("insecure", "0"));
-            stream.put("tlsSettings", new JSONObject()
+            // Note: Xray v25/v26+ removed allowInsecure from tlsSettings; omitting it ensures 100% startup compatibility
+            JSONObject tlsObj = new JSONObject()
                 .put("serverName", sni)
-                .put("allowInsecure", allowIns)
-                .put("fingerprint", params.optString("fp", "chrome")));
+                .put("fingerprint", fp);
+            String alpnStr = params.optString("alpn", "").trim();
+            if (!alpnStr.isEmpty()) {
+                JSONArray alpnArr = new JSONArray();
+                for (String a : alpnStr.split(",")) {
+                    String cleanA = a.trim();
+                    if (!cleanA.isEmpty()) alpnArr.put(cleanA);
+                }
+                if (alpnArr.length() > 0) tlsObj.put("alpn", alpnArr);
+            } else if ("ws".equals(net) || "httpupgrade".equals(net)) {
+                tlsObj.put("alpn", new JSONArray().put("http/1.1"));
+            }
+            stream.put("tlsSettings", tlsObj);
         } else if ("reality".equals(sec)) {
+            String sidClean = params.optString("sid", "").replaceAll("[^0-9a-fA-F]", "");
+            if (sidClean.length() > 16) sidClean = sidClean.substring(0, 16);
             stream.put("realitySettings", new JSONObject()
                 .put("serverName", sni)
-                .put("fingerprint", params.optString("fp", "chrome"))
-                .put("publicKey", params.optString("pbk", ""))
-                .put("shortId", params.optString("sid", "")));
+                .put("fingerprint", fp)
+                .put("publicKey", params.optString("pbk", "").trim())
+                .put("shortId", sidClean));
         }
 
         if ("ws".equals(net)) {
@@ -708,12 +767,16 @@ public class XrayBenchEngine {
                 .put("headers", new JSONObject().put("Host", wsHost)));
         } else if ("grpc".equals(net)) {
             stream.put("grpcSettings", new JSONObject()
-                .put("serviceName", params.optString("serviceName", "")));
-        } else if ("xhttp".equals(net) || "splithttp".equals(net)) {
+                .put("serviceName", params.optString("serviceName", params.optString("path", ""))));
+        } else if ("xhttp".equals(net)) {
             stream.put("xhttpSettings", new JSONObject()
                 .put("path", params.optString("path", "/"))
                 .put("host", params.optString("host", sni))
                 .put("mode", params.optString("mode", "auto")));
+        } else if ("httpupgrade".equals(net)) {
+            stream.put("httpupgradeSettings", new JSONObject()
+                .put("path", params.optString("path", "/"))
+                .put("host", params.optString("host", sni)));
         }
 
         outbound.put("streamSettings", stream);
@@ -806,17 +869,17 @@ public class XrayBenchEngine {
         }
     }
 
-    private static double httpSpeedThroughSocks(int socksPort, int timeoutMs) {
+    private static double httpSpeedSingleEndpoint(int socksPort, String targetHost, String targetPath, int timeoutMs) {
         Socket rawSock = null;
         SSLSocket sslSock = null;
         try {
-            rawSock = socks5Connect(socksPort, SPEED_HOST, 443, timeoutMs);
+            rawSock = socks5Connect(socksPort, targetHost, 443, timeoutMs);
             SSLSocketFactory factory = getTrustAllSslFactory();
-            sslSock = (SSLSocket) factory.createSocket(rawSock, SPEED_HOST, 443, true);
+            sslSock = (SSLSocket) factory.createSocket(rawSock, targetHost, 443, true);
             sslSock.setSoTimeout(timeoutMs);
             sslSock.startHandshake();
 
-            String req = "GET " + SPEED_PATH + " HTTP/1.1\r\nHost: " + SPEED_HOST + "\r\nUser-Agent: Mozilla/5.0\r\nConnection: close\r\n\r\n";
+            String req = "GET " + targetPath + " HTTP/1.1\r\nHost: " + targetHost + "\r\nUser-Agent: Mozilla/5.0\r\nConnection: close\r\n\r\n";
             OutputStream out = sslSock.getOutputStream();
             out.write(req.getBytes(StandardCharsets.UTF_8));
             out.flush();
@@ -825,6 +888,7 @@ public class XrayBenchEngine {
             byte[] buf = new byte[16384];
             long totalBytes = 0;
             long tStart = System.currentTimeMillis();
+            long tTransferStart = tStart;
             boolean headerChecked = false;
 
             while (System.currentTimeMillis() - tStart < timeoutMs) {
@@ -832,6 +896,7 @@ public class XrayBenchEngine {
                 if (n <= 0) break;
                 if (!headerChecked) {
                     headerChecked = true;
+                    tTransferStart = System.currentTimeMillis();
                     String firstChunk = new String(buf, 0, Math.min(n, 128), StandardCharsets.UTF_8);
                     if (!firstChunk.contains(" 200")) return -1.0;
                 }
@@ -839,7 +904,7 @@ public class XrayBenchEngine {
                 if (totalBytes >= 5 * 1024 * 1024) break;
             }
 
-            long elapsedMs = System.currentTimeMillis() - tStart;
+            long elapsedMs = Math.max(40L, System.currentTimeMillis() - tTransferStart);
             if (totalBytes < SPEED_MIN_BYTES || elapsedMs <= 0) {
                 return -1.0;
             }
@@ -851,6 +916,12 @@ public class XrayBenchEngine {
             try { if (sslSock != null) sslSock.close(); } catch (Exception ignored) {}
             try { if (rawSock != null) rawSock.close(); } catch (Exception ignored) {}
         }
+    }
+
+    private static double httpSpeedThroughSocks(int socksPort, int timeoutMs) {
+        double spd = httpSpeedSingleEndpoint(socksPort, SPEED_HOST, SPEED_PATH, timeoutMs);
+        if (spd > 0) return spd;
+        return httpSpeedSingleEndpoint(socksPort, "cachefly.cachefly.net", "/10mb.test", timeoutMs);
     }
 
     public static JSONObject benchOneNodeObj(Context ctx, String rawUri, int listenPort, boolean doSpeed) {
@@ -866,9 +937,9 @@ public class XrayBenchEngine {
             result.put("host", host + ":" + port);
             result.put("raw", rawUri);
 
-            // Stage 0: Real TCP Probe (1.5s timeout)
+            // Stage 0: Real TCP Probe (1.3s fast timeout)
             try (Socket tcpProbe = new Socket()) {
-                tcpProbe.connect(new InetSocketAddress(host, port), 1500);
+                tcpProbe.connect(new InetSocketAddress(host, port), 1300);
                 result.put("tcp_alive", true);
             } catch (Exception tcpErr) {
                 result.put("tcp_alive", false);
@@ -901,10 +972,10 @@ public class XrayBenchEngine {
             xrayProc = pb.start();
 
             boolean socksReady = false;
-            for (int i = 0; i < 15; i++) {
-                Thread.sleep(80);
+            for (int i = 0; i < 30; i++) {
+                Thread.sleep(25);
                 try (Socket s = new Socket()) {
-                    s.connect(new InetSocketAddress("127.0.0.1", listenPort), 100);
+                    s.connect(new InetSocketAddress("127.0.0.1", listenPort), 60);
                     socksReady = true;
                     break;
                 } catch (Exception ignored) {}
@@ -921,9 +992,17 @@ public class XrayBenchEngine {
             List<Integer> lats = new ArrayList<>();
             for (int r = 0; r < LATENCY_ROUNDS; r++) {
                 try {
-                    int ms = httpPingThroughSocks(listenPort, 5500);
-                    if (ms > 0) lats.add(ms);
-                } catch (Exception ignored) {}
+                    // Round 0 uses fast 2800ms probe; if round 0 fails, fast-fail immediately without stalling 16.5s
+                    int roundTimeout = (r == 0) ? 2800 : 3800;
+                    int ms = httpPingThroughSocks(listenPort, roundTimeout);
+                    if (ms > 0) {
+                        lats.add(ms);
+                    } else if (r == 0) {
+                        break;
+                    }
+                } catch (Exception e) {
+                    if (r == 0) break;
+                }
             }
 
             if (lats.isEmpty()) {
@@ -1008,7 +1087,7 @@ public class XrayBenchEngine {
                 KeepAliveService.updateNotificationStatic(appCtx, "⚡ 正在实测节点 (0/" + total + ") · 切后台全速运行中");
             }
 
-            final int nWorkers = Math.max(1, Math.min(6, workers));
+            final int nWorkers = Math.max(1, Math.min(10, workers));
             batchExecutor = Executors.newFixedThreadPool(nWorkers);
 
             for (int i = 0; i < total; i++) {
@@ -1026,7 +1105,7 @@ public class XrayBenchEngine {
                         }
                         return;
                     }
-                    int port = 32200 + (idx % (nWorkers * 3)) * 2 + (int) (Thread.currentThread().getId() % 2);
+                    int port = 32200 + (idx % (nWorkers * 6)) * 2 + (int) (Thread.currentThread().getId() % 2);
                     JSONObject res = benchOneNodeObj(appCtx != null ? appCtx : ctx, uri, port, doSpeed);
                     if (batchCancel.get()) {
                         int dNow = batchDone.incrementAndGet();
@@ -1143,8 +1222,42 @@ public class XrayBenchEngine {
             : "{\"running\":false,\"ok\":false}";
     }
 
+    public static void startAsyncSubFetchById(final Context ctx, final String reqId, final String targetUrl, final String proxyNodeRaw) {
+        final Context appCtx = ctx != null ? ctx.getApplicationContext() : null;
+        acquireBenchLocks(appCtx);
+        subFetchMap.put(reqId, "{\"running\":true}");
+        activeSubFetchCount.incrementAndGet();
+        if (subFetchPool == null || subFetchPool.isShutdown()) {
+            subFetchPool = Executors.newFixedThreadPool(6);
+        }
+        subFetchPool.submit(() -> {
+            try {
+                String res = probeAndFetchSubJson(appCtx != null ? appCtx : ctx, targetUrl, proxyNodeRaw);
+                subFetchMap.put(reqId, res);
+            } catch (Exception e) {
+                subFetchMap.put(reqId, "{\"ok\":false,\"directOk\":false,\"proxyOk\":false,\"body\":\"\"}");
+            } finally {
+                if (activeSubFetchCount.decrementAndGet() <= 0) {
+                    activeSubFetchCount.set(0);
+                    releaseBenchLocksIfIdle();
+                }
+            }
+        });
+    }
+
+    public static String getAsyncSubFetchByIdJson(String reqId) {
+        String val = subFetchMap.get(reqId);
+        if (val == null) return "{\"running\":false,\"ok\":false}";
+        if (!val.contains("\"running\":true")) {
+            subFetchMap.remove(reqId);
+        }
+        return val;
+    }
+
     public static synchronized void stopAsyncSubFetch() {
         subFetchRunning.set(false);
+        activeSubFetchCount.set(0);
+        subFetchMap.clear();
         if (subFetchThread != null) {
             try { subFetchThread.interrupt(); } catch (Exception ignored) {}
             subFetchThread = null;
@@ -1359,11 +1472,11 @@ public class XrayBenchEngine {
             } catch (Exception ignored) {}
         }
 
-        // 1B. If URL is GitHub raw/blob and body is still empty, try high-speed mainland mirrors (ghfast.top / gh-proxy.com)
+        // 1B. If URL is GitHub raw/blob and body is still empty, try high-speed mainland mirrors (gh-proxy.com FIRST — 780ms fast direct!)
         if (!directOk && !isHard404 && targetUrl != null && targetUrl.contains("raw.githubusercontent.com/")) {
             String[] mirrors = new String[]{
-                "https://ghfast.top/" + targetUrl,
-                "https://gh-proxy.com/" + targetUrl
+                "https://gh-proxy.com/" + targetUrl,
+                "https://ghfast.top/" + targetUrl
             };
             for (String mUrl : mirrors) {
                 long tm = System.currentTimeMillis();
@@ -1423,27 +1536,28 @@ public class XrayBenchEngine {
                         for (int cIdx = 0; cIdx < maxTries && !proxyOk; cIdx++) {
                             String singleRaw = candidateRaws[cIdx].trim();
                             if (singleRaw.isEmpty()) continue;
+                            int dynamicPort = 32070 + (int) ((Thread.currentThread().getId() * 3 + cIdx) % 28);
                             try {
                                 long tNodeStart = System.currentTimeMillis();
                                 JSONObject node = parseNodeLink(singleRaw);
-                                JSONObject cfg = buildXrayConfig(node, 32091);
-                                tempCfg = new File(ctx.getCacheDir(), "xray_sub_32091.json");
+                                JSONObject cfg = buildXrayConfig(node, dynamicPort);
+                                tempCfg = new File(ctx.getCacheDir(), "xray_sub_" + dynamicPort + ".json");
                                 try (FileOutputStream fos = new FileOutputStream(tempCfg)) {
                                     fos.write(cfg.toString().getBytes(StandardCharsets.UTF_8));
                                 }
                                 tempXray = new ProcessBuilder(xrayBin.getAbsolutePath(), "run", "-c", tempCfg.getAbsolutePath())
                                     .directory(ctx.getCacheDir()).start();
                                 boolean portReady = false;
-                                for (int i = 0; i < 12; i++) {
-                                    Thread.sleep(75);
+                                for (int i = 0; i < 20; i++) {
+                                    Thread.sleep(30);
                                     try (Socket s = new Socket()) {
-                                        s.connect(new InetSocketAddress("127.0.0.1", 32091), 100);
+                                        s.connect(new InetSocketAddress("127.0.0.1", dynamicPort), 80);
                                         portReady = true;
                                         break;
                                     } catch (Exception ignored) {}
                                 }
                                 if (portReady) {
-                                    String pTxt = fetchOverSocks(32091, targetUrl, 5500);
+                                    String pTxt = fetchOverSocks(dynamicPort, targetUrl, 5500);
                                     if (pTxt != null && pTxt.trim().length() > 10) {
                                         proxyOk = true;
                                         proxyMs = System.currentTimeMillis() - tNodeStart;
@@ -1795,6 +1909,16 @@ public class MainActivity extends BridgeActivity {
         @JavascriptInterface
         public String getAsyncSubFetchJson() {
             return XrayBenchEngine.getAsyncSubFetchJson();
+        }
+
+        @JavascriptInterface
+        public void startAsyncSubFetchById(String reqId, String targetUrl, String proxyNodeRaw) {
+            XrayBenchEngine.startAsyncSubFetchById(MainActivity.this, reqId, targetUrl, proxyNodeRaw);
+        }
+
+        @JavascriptInterface
+        public String getAsyncSubFetchByIdJson(String reqId) {
+            return XrayBenchEngine.getAsyncSubFetchByIdJson(reqId);
         }
 
         @JavascriptInterface
