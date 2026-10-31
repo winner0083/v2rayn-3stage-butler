@@ -669,10 +669,40 @@
       text-align: center;
     }
 
-    .mode-tab-btn .mode-main { font-size: 14px; font-weight: 800; }
+    .mode-tab-btn .mode-main { font-size: 13.5px; font-weight: 800; }
     .mode-tab-btn .mode-sub { font-size: 11px; opacity: 0.85; }
     .mode-tab-btn.active-3stage { background: #1d4ed8; color: #fff; border-color: #60a5fa; }
     .mode-tab-btn.active-standalone { background: #047857; color: #fff; border-color: #34d399; }
+    .mode-tab-btn.active-paste { background: #b45309; color: #fff; border-color: #fbbf24; }
+    .mode-tab-btn.active-hunter { background: #6d28d9; color: #fff; border-color: #c4b5fd; }
+
+    .mode-switcher-3 {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 6px;
+      width: 100%;
+      background: var(--bg-card);
+      padding: 6px;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+    }
+    .mode-switcher-3 .mode-tab-btn {
+      padding: 7px 4px;
+      min-height: 52px;
+    }
+    .mode-switcher-3 .mode-main { font-size: 12.5px; }
+    .mode-switcher-3 .mode-sub { font-size: 10.5px; }
+
+    .rank-action-bar {
+      background: rgba(59, 130, 246, 0.08);
+      border: 1px solid rgba(59, 130, 246, 0.35);
+      border-radius: 12px;
+      padding: 10px;
+      margin-bottom: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
 
     /* Segmented Control */
     .seg-bar {
@@ -835,7 +865,7 @@
       border-radius: 99px; transition: width 0.2s ease;
     }
 
-    /* Bottom Navigation (4 Core Project Categories — Solid Background, Zero Blur Glitch) */
+    /* Bottom Navigation (5 Core Project Categories — Solid Background, Zero Blur Glitch) */
     .bottom-nav {
       position: fixed;
       bottom: 0;
@@ -847,19 +877,19 @@
       background-color: var(--bg-header);
       border-top: 1px solid var(--border);
       display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      padding: 6px 6px calc(8px + var(--safe-bottom));
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      padding: 6px 4px calc(8px + var(--safe-bottom));
       z-index: 50;
     }
     .nav-item {
       display: flex; flex-direction: column; align-items: center; justify-content: center;
-      gap: 4px; min-height: 54px; padding: 4px 2px; color: var(--text-muted); cursor: pointer;
+      gap: 3px; min-height: 52px; padding: 4px 1px; color: var(--text-muted); cursor: pointer;
       border-radius: 10px; border: none; background: none; font-family: inherit;
       min-width: 0; overflow: hidden;
     }
     .nav-item.active { color: #60a5fa; background: rgba(59, 130, 246, 0.14); }
-    .nav-item svg { width: 22px; height: 22px; flex-shrink: 0; }
-    .nav-lbl { font-size: 12px; font-weight: 800; white-space: nowrap; }
+    .nav-item svg { width: 20px; height: 20px; flex-shrink: 0; }
+    .nav-lbl { font-size: 11px; font-weight: 800; white-space: nowrap; }
 
     /* Modals (Solid Backdrop — No Blur Glitch) */
     .modal-backdrop {
@@ -1005,18 +1035,32 @@
 
       <!-- Group 2: Standalone Operations -->
       <div class="sidebar-group">
-        <div class="sidebar-group-title">🧪 二、单独分类功能 (不混入3遍历史)</div>
-        <button class="sidebar-nav-btn" onclick="navFromSidebar('tab-test', 'standalone_pulled')">
+        <div class="sidebar-group-title">🧪 二、独立工作台 (猎源 / 粘贴实测 / 转换)</div>
+        <button class="sidebar-nav-btn" onclick="navFromSidebar('tab-harvest', 'hunter')">
           <div>
-            <div>📡 单独测试：测刚拉取的订阅源</div>
-            <div class="sidebar-nav-sub">针对单源刚抓取的数据批次立即单遍实测</div>
+            <div>🌐 全网猎源扫描 (GitHub / YouTube / 网络)</div>
+            <div class="sidebar-nav-sub">扫描 GitHub/YouTube/网页提取新源或散装节点入库</div>
           </div>
           <span>➔</span>
         </button>
         <button class="sidebar-nav-btn" onclick="navFromSidebar('tab-test', 'standalone_paste')">
           <div>
-            <div>📋 单独测试：粘贴节点链接即测</div>
-            <div class="sidebar-nav-sub">粘贴 vless/trojan/ss/vmess 或群消息立测</div>
+            <div>📋 粘贴非收集节点测试 (三段式 / 单遍)</div>
+            <div class="sidebar-nav-sub">粘贴外部链接/Base64/Clash配置直接实测</div>
+          </div>
+          <span>➔</span>
+        </button>
+        <button class="sidebar-nav-btn" onclick="navFromSidebar('tab-convert')">
+          <div>
+            <div>🔄 独立节点转换模块 (Clash / sing-box / v2rayN)</div>
+            <div class="sidebar-nav-sub">支持复制出的节点与外部非导入节点自由粘贴转换</div>
+          </div>
+          <span>➔</span>
+        </button>
+        <button class="sidebar-nav-btn" onclick="navFromSidebar('tab-test', 'standalone_pulled')">
+          <div>
+            <div>📡 单独测试：测刚拉取的订阅源</div>
+            <div class="sidebar-nav-sub">针对单源刚抓取的数据批次立即单遍实测</div>
           </div>
           <span>➔</span>
         </button>
@@ -1118,88 +1162,178 @@
       </div>
 
       <!-- ======================================================== -->
-      <!-- TAB 1: 📡 源获取 (Foreground: Pull & Manage Sources)     -->
+      <!-- TAB 1: 📡 源获取 (Foreground: Pull & Manage + Source Hunter) -->
       <!-- ======================================================== -->
       <section class="tab-pane active" id="tab-harvest">
 
-        <!-- Latest Pulled Data Snapshot Banner -->
-        <div class="provenance-box" id="latestPullBanner">
-          <div class="provenance-title">
-            <span id="latestPullTitle">📌 当前最新数据批次：主收集池就绪</span>
-            <span class="tag tag-ok" id="latestPullTimeBadge">待命</span>
-          </div>
-          <div class="provenance-meta" id="latestPullDesc">
-            点击任意源的 <strong>「📥 单独拉取」</strong> 或下方 <strong>「⚡ 全量拉取勾选源」</strong> 后，此处会生成带时间戳的独立批次，可直接送去【单独测试】或【三段式测试】。
-          </div>
-          <div class="btn-grid-2" style="margin-top:10px;">
-            <button class="btn btn-emerald btn-sm" onclick="jumpToTestWithLatestPull('standalone')">
-              🧪 送去【单独测试】立测
-            </button>
-            <button class="btn btn-primary btn-sm" onclick="jumpToTestWithLatestPull('3stage')">
-              ⚡ 送去【三段式测试】(3遍)
-            </button>
-          </div>
+        <!-- Top Mode Switcher: Existing Sources vs Network Source Hunter -->
+        <div class="mode-switcher" style="margin-bottom:4px;">
+          <button class="mode-tab-btn active-3stage" id="harvestModeBtn-sources" onclick="switchHarvestSubMode('sources')">
+            <span class="mode-main">📡 已配订阅源池</span>
+            <span class="mode-sub">拉取 / 测源 / 管理已入库源</span>
+          </button>
+          <button class="mode-tab-btn" id="harvestModeBtn-hunter" onclick="switchHarvestSubMode('hunter')">
+            <span class="mode-main">🌐 全网猎源扫描</span>
+            <span class="mode-sub">扫 GitHub / YouTube / 网络转新源</span>
+          </button>
         </div>
 
-        <!-- Clean Primary Action Card for Sources -->
-        <div class="card">
-          <div class="card-header">
-            <div>
-              <div class="card-title">📡 订阅源收集池 (启用 <span id="kpiSourceCount">31</span> 源)</div>
-              <div class="card-sub">直连可抓 <strong id="kpiDirectOk" style="color:#34d399;">14</strong> · 需走代理 <strong id="kpiProxyOnly" style="color:#60a5fa;">17</strong> · 异常 <strong id="kpiDeadSources" style="color:#fb7185;">1</strong> · 总池 <strong id="kpiSampledCount" style="color:#fbbf24;">17</strong> 条</div>
+        <div id="harvestSubPane-sources" style="display:flex;flex-direction:column;gap:12px;">
+          <!-- Latest Pulled Data Snapshot Banner -->
+          <div class="provenance-box" id="latestPullBanner">
+            <div class="provenance-title">
+              <span id="latestPullTitle">📌 当前最新数据批次：主收集池就绪</span>
+              <span class="tag tag-ok" id="latestPullTimeBadge">待命</span>
+            </div>
+            <div class="provenance-meta" id="latestPullDesc">
+              点击任意源的 <strong>「📥 单独拉取」</strong> 或下方 <strong>「⚡ 全量拉取勾选源」</strong> 后，此处会生成带时间戳的独立批次，可直接送去【单独测试】或【三段式测试】。
+            </div>
+            <div class="btn-grid-2" style="margin-top:10px;">
+              <button class="btn btn-emerald btn-sm" onclick="jumpToTestWithLatestPull('standalone')">
+                🧪 送去【单独测试】立测
+              </button>
+              <button class="btn btn-primary btn-sm" onclick="jumpToTestWithLatestPull('3stage')">
+                ⚡ 送去【三段式测试】(3遍)
+              </button>
             </div>
           </div>
 
-          <!-- Top 2 Primary Foreground Actions -->
-          <div class="btn-grid-2" style="margin-bottom:10px;">
-            <button class="btn btn-primary" onclick="runLiveHarvest()">
-              ⚡ 全量拉取勾选源
-            </button>
-            <button class="btn btn-emerald" onclick="openAddSourceModal()">
-              ➕ 添加 / 导入新源
-            </button>
+          <!-- Clean Primary Action Card for Sources -->
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <div class="card-title">📡 订阅源收集池 (启用 <span id="kpiSourceCount">31</span> 源)</div>
+                <div class="card-sub">直连可抓 <strong id="kpiDirectOk" style="color:#34d399;">14</strong> · 需走代理 <strong id="kpiProxyOnly" style="color:#60a5fa;">17</strong> · 异常 <strong id="kpiDeadSources" style="color:#fb7185;">1</strong> · 总池 <strong id="kpiSampledCount" style="color:#fbbf24;">17</strong> 条</div>
+              </div>
+              <button class="btn btn-violet btn-xs" onclick="switchHarvestSubMode('hunter')">🌐 扫新源</button>
+            </div>
+
+            <!-- Top 2 Primary Foreground Actions -->
+            <div class="btn-grid-2" style="margin-bottom:10px;">
+              <button class="btn btn-primary" onclick="runLiveHarvest()">
+                ⚡ 全量拉取勾选源
+              </button>
+              <button class="btn btn-emerald" onclick="openAddSourceModal()">
+                ➕ 添加 / 导入新源
+              </button>
+            </div>
+
+            <!-- Filter bar for sources -->
+            <div class="seg-bar" style="margin-bottom:10px;">
+              <button class="seg-btn active" onclick="filterSources('all', this)">全部 (<span id="srcCnt-all">32</span>)</button>
+              <button class="seg-btn" onclick="filterSources('direct_ok', this)">🟢 直连 (<span id="srcCnt-direct">14</span>)</button>
+              <button class="seg-btn" onclick="filterSources('proxy_only', this)">🔵 代理 (<span id="srcCnt-proxy">17</span>)</button>
+              <button class="seg-btn" onclick="filterSources('dead', this)">🔴 异常 (<span id="srcCnt-dead">1</span>)</button>
+            </div>
+
+            <!-- Source List -->
+            <div class="sub-list" id="subSourceList"></div>
+
+            <div style="margin-top:10px;">
+              <button class="btn btn-ghost btn-block" id="btnToggleShowAllSources" onclick="toggleShowAllSources()">
+                ▼ 展开查看全部订阅源
+              </button>
+            </div>
+
+            <!-- Secondary Batch Actions -->
+            <div class="btn-grid-3" style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border-subtle);">
+              <button class="btn btn-amber btn-xs" onclick="probeAllSourcesDualChannel()">🩺 批量测源</button>
+              <button class="btn btn-rose btn-xs" onclick="deleteSelectedSources()">🗑️ 删勾选源</button>
+              <button class="btn btn-ghost btn-xs" onclick="openOptionsModal('params')">⚙️ 抽样/导出选项</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- SUB-PANE B: 🌐 全网猎源扫描器 (GitHub / YouTube / 网络) -->
+        <div id="harvestSubPane-hunter" style="display:none;flex-direction:column;gap:12px;">
+          <div class="card" style="border-color:rgba(139,92,246,0.6);">
+            <div class="card-header">
+              <div>
+                <div class="card-title" style="color:#c4b5fd;">🌐 全网智能猎源扫描器 (GitHub / YouTube / 网络)</div>
+                <div class="card-sub">自动从 GitHub 仓库、YouTube 视频简介、公开聚合网提取订阅链接或散装节点，并转换成 App 可用源一键入库</div>
+              </div>
+              <button class="btn btn-ghost btn-xs" onclick="switchHarvestSubMode('sources')">返回源列表</button>
+            </div>
+
+            <!-- Search Keyword Input -->
+            <div style="display:flex;gap:8px;margin-bottom:10px;">
+              <input type="text" class="input" id="hunterKeywordInput" value="v2ray free sub vless clash" placeholder="输入猎源搜索词 (如: v2ray free sub / 免费节点 / clash)" style="flex:1;" />
+              <button class="btn btn-violet btn-sm" onclick="runSourceHunter('all')" style="flex-shrink:0;">🚀 全网联扫</button>
+            </div>
+
+            <!-- 4 Channel Scan Buttons -->
+            <div class="btn-grid-3 stack-sm" style="margin-bottom:10px;">
+              <button class="btn btn-primary btn-sm" onclick="runSourceHunter('github')">🐙 扫 GitHub 仓库/API</button>
+              <button class="btn btn-rose btn-sm" onclick="runSourceHunter('youtube')">▶️ 扫 YouTube 频道/简介</button>
+              <button class="btn btn-emerald btn-sm" onclick="runSourceHunter('web')">🌐 扫全网聚合/TG网页</button>
+            </div>
+
+            <!-- Custom URL / Webpage / Video Link Deep Sniffer -->
+            <div style="border-top:1px solid var(--border-subtle);padding-top:10px;margin-top:4px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;flex-wrap:wrap;gap:6px;">
+                <span style="font-size:12.5px;font-weight:800;color:#93c5fd;">🔗 任意网页 URL / YouTube 链接 / 文本深度嗅探转源：</span>
+                <div style="display:flex;gap:6px;">
+                  <button class="btn btn-emerald btn-xs" onclick="pasteToHunterCustomInput()">📥 粘贴剪贴板</button>
+                  <button class="btn btn-ghost btn-xs" onclick="document.getElementById('hunterCustomInput').value=''">🧹 清空</button>
+                </div>
+              </div>
+              <textarea
+                class="textarea"
+                id="hunterCustomInput"
+                placeholder="输入任意 GitHub 仓库地址、YouTube 视频链接 (https://www.youtube.com/watch?v=... 或 youtu.be/...)、TG 频道预览页 (https://t.me/s/...)、博客网址，或直接粘贴含节点/链接的任意文字..."
+                style="min-height:76px;margin-bottom:8px;"
+              ></textarea>
+              <button class="btn btn-amber btn-block btn-sm" onclick="runCustomUrlOrTextSniffer()">
+                🔍 深度嗅探该地址/文本 → 自动提取订阅与节点并转成 App 源
+              </button>
+            </div>
           </div>
 
-          <!-- Filter bar for sources -->
-          <div class="seg-bar" style="margin-bottom:10px;">
-            <button class="seg-btn active" onclick="filterSources('all', this)">全部 (<span id="srcCnt-all">32</span>)</button>
-            <button class="seg-btn" onclick="filterSources('direct_ok', this)">🟢 直连 (<span id="srcCnt-direct">14</span>)</button>
-            <button class="seg-btn" onclick="filterSources('proxy_only', this)">🔵 代理 (<span id="srcCnt-proxy">17</span>)</button>
-            <button class="seg-btn" onclick="filterSources('dead', this)">🔴 异常 (<span id="srcCnt-dead">1</span>)</button>
-          </div>
+          <!-- Discovered Sources Results Card -->
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <div class="card-title">🎯 扫描发现的可用源 (<span id="hunterFoundCount">0</span> 个)</div>
+                <div class="card-sub" id="hunterStatusSub">点击上方按钮开始扫描；散装节点会自动打包为 App 内联订阅源</div>
+              </div>
+            </div>
 
-          <!-- Source List -->
-          <div class="sub-list" id="subSourceList"></div>
+            <div class="btn-grid-2 stack-sm" style="margin-bottom:10px;">
+              <button class="btn btn-emerald btn-sm" onclick="addAllHuntedSourcesToApp()">
+                ➕ 一键将全部新源加入 App 源 (<span id="hunterNewCountBadge">0</span>)
+              </button>
+              <button class="btn btn-primary btn-sm" onclick="pullAndTestAllHuntedSources()">
+                ⚡ 全部转入收集池并送去实测
+              </button>
+            </div>
 
-          <div style="margin-top:10px;">
-            <button class="btn btn-ghost btn-block" id="btnToggleShowAllSources" onclick="toggleShowAllSources()">
-              ▼ 展开查看全部订阅源
-            </button>
-          </div>
-
-          <!-- Secondary Batch Actions -->
-          <div class="btn-grid-3" style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border-subtle);">
-            <button class="btn btn-amber btn-xs" onclick="probeAllSourcesDualChannel()">🩺 批量测源</button>
-            <button class="btn btn-rose btn-xs" onclick="deleteSelectedSources()">🗑️ 删勾选源</button>
-            <button class="btn btn-ghost btn-xs" onclick="openOptionsModal('params')">⚙️ 抽样/导出选项</button>
+            <div class="sub-list" id="hunterResultsList">
+              <div style="text-align:center;padding:18px;color:var(--text-secondary);font-size:12.5px;">
+                尚未执行扫描，点击上方「🚀 全网联扫」或「🐙 扫 GitHub / ▶️ 扫 YouTube / 🌐 扫全网」即可自动发现新源
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
       <!-- ======================================================== -->
-      <!-- TAB 2: ⚡ 测试中心 (Foreground: 3-Stage vs Standalone)    -->
+      <!-- TAB 2: ⚡ 测试中心 (3-Stage / Standalone / Paste Non-Collected) -->
       <!-- ======================================================== -->
       <section class="tab-pane" id="tab-test">
 
-        <!-- Top Mode Switcher: 3-Stage Test vs Standalone Test -->
-        <div class="mode-switcher">
+        <!-- Top 3-Mode Switcher: 3-Stage vs Standalone vs Paste Non-Collected Nodes -->
+        <div class="mode-switcher-3">
           <button class="mode-tab-btn active-3stage" id="modeBtn-3stage" onclick="switchTestSubMode('3stage')">
-            <span class="mode-main">⚡ 三段式定时测试</span>
-            <span class="mode-sub">3遍跨时段 · 筛全勤稳定节点</span>
+            <span class="mode-main">⚡ 三段式测试</span>
+            <span class="mode-sub">3遍跨时段筛稳定</span>
           </button>
           <button class="mode-tab-btn" id="modeBtn-standalone" onclick="switchTestSubMode('standalone')">
-            <span class="mode-main">🧪 单独测试 (单遍快测)</span>
-            <span class="mode-sub">测刚拉取的单源 / 粘贴节点</span>
+            <span class="mode-main">🧪 单独快测</span>
+            <span class="mode-sub">测已拉取的订阅批次</span>
+          </button>
+          <button class="mode-tab-btn" id="modeBtn-paste" onclick="switchTestSubMode('paste')">
+            <span class="mode-main">📋 粘贴节点测试</span>
+            <span class="mode-sub">非收集外部节点即测</span>
           </button>
         </div>
 
@@ -1209,9 +1343,12 @@
             <div class="card-header">
               <div>
                 <div class="card-title">⚡ 三段式测试 (3遍×三阶段)</div>
-                <div class="card-sub">确认下方待测数据源后点击开始；执行过程可随时暂停或停止</div>
+                <div class="card-sub">确认下方待测数据源后点击开始；支持直接切换去「📋 粘贴节点测试」</div>
               </div>
-              <button class="btn btn-ghost btn-xs" onclick="openOptionsModal('params')">⚖️ 权重选项</button>
+              <div style="display:flex;gap:6px;">
+                <button class="btn btn-amber btn-xs" onclick="switchTestSubMode('paste')">📋 粘贴外部节点测</button>
+                <button class="btn btn-ghost btn-xs" onclick="openOptionsModal('params')">⚖️ 权重</button>
+              </div>
             </div>
 
             <div class="provenance-box" style="border-color:rgba(59,130,246,0.55);">
@@ -1241,26 +1378,17 @@
           </div>
         </div>
 
-        <!-- SUB-PANEL B: 🧪 单独测试 -->
+        <!-- SUB-PANEL B: 🧪 单独测试 (已拉取批次) -->
         <div id="subPane-standalone" style="display:none;flex-direction:column;gap:12px;">
           <div class="card" style="border-color:rgba(16,185,129,0.6);">
             <div class="card-header">
               <div>
-                <div class="card-title">🧪 单独测试工作台 (不混入3遍历史)</div>
-                <div class="card-sub">专门测试刚拉取的某个订阅源批次，或直接粘贴节点链接立测</div>
+                <div class="card-title">🧪 单独测试工作台 (测已拉取的订阅源批次)</div>
+                <div class="card-sub">专门测试刚拉取的某个订阅源批次；如需测外部非收集节点请点右侧按钮</div>
               </div>
+              <button class="btn btn-amber btn-xs" onclick="switchTestSubMode('paste')">📋 粘贴节点测</button>
             </div>
 
-            <div class="seg-bar" style="margin-bottom:10px;">
-              <button class="seg-btn active" id="standaloneSrcBtn-pulled" onclick="switchStandaloneInputType('pulled')">
-                📡 测刚拉取的订阅源数据
-              </button>
-              <button class="seg-btn" id="standaloneSrcBtn-paste" onclick="switchStandaloneInputType('paste')">
-                📋 测复制粘贴的节点链接
-              </button>
-            </div>
-
-            <!-- Option 1: Test Newly Pulled Subscription Source Batch -->
             <div id="standaloneInput-pulled" style="display:block;">
               <div class="provenance-box">
                 <div class="provenance-title">
@@ -1275,34 +1403,54 @@
                 🧪 立即对所选【拉取批次】执行单独测试
               </button>
             </div>
+          </div>
+        </div>
 
-            <!-- Option 2: Test Pasted Links -->
-            <div id="standaloneInput-paste" style="display:none;">
-              <div class="btn-grid-3" style="margin-bottom:8px;">
+        <!-- SUB-PANEL C: 📋 粘贴非收集节点测试 (独立一等公民模块) -->
+        <div id="subPane-paste" style="display:none;flex-direction:column;gap:12px;">
+          <div class="card" style="border-color:rgba(245,158,11,0.65);">
+            <div class="card-header">
+              <div>
+                <div class="card-title" style="color:#fbbf24;">📋 粘贴非收集节点直接实测 (支持单轮 & 三段式)</div>
+                <div class="card-sub">支持粘贴 vless/vmess/trojan/ss/hy2 链接、Base64 订阅、Clash YAML、sing-box JSON 或群消息文本</div>
+              </div>
+            </div>
+
+            <div id="standaloneInput-paste" style="display:block;">
+              <div class="btn-grid-4 stack-sm" style="margin-bottom:8px;">
                 <button class="btn btn-emerald btn-xs" onclick="pasteFromClipboardToTest()">📥 粘贴剪贴板</button>
                 <button class="btn btn-ghost btn-xs" onclick="fillSamplePasteNodes()">🧪 填入示例</button>
+                <button class="btn btn-violet btn-xs" onclick="sendPastedTestNodesToConverter()">🔄 送去转换</button>
                 <button class="btn btn-ghost btn-xs" onclick="clearPasteTestInput()">🧹 清空</button>
               </div>
 
               <textarea
                 class="textarea"
                 id="pasteTestTextarea"
-                placeholder="在此长按粘贴 vless/trojan/ss/vmess 链接、Base64 订阅或带文字的群消息..."
-                style="margin-bottom:8px;"
+                placeholder="在此长按粘贴非收集节点：支持 vless:// vmess:// trojan:// ss:// hysteria2:// 链接、Base64 订阅、Clash proxies 配置或带文字的群消息..."
+                style="margin-bottom:8px;min-height:115px;"
                 oninput="previewPastedNodes()"
               ></textarea>
 
               <div id="pasteParsePreviewBar" style="font-size:12.5px;color:var(--text-secondary);background:var(--bg-surface);padding:9px 12px;border-radius:10px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
-                <span>等待粘贴节点...</span>
+                <span>等待粘贴非收集节点...</span>
                 <span class="tag tag-vless" id="pasteCountBadge">0 条有效节点</span>
               </div>
 
-              <div class="btn-grid-2 stack-sm">
+              <div class="btn-grid-2 stack-sm" style="margin-bottom:8px;">
                 <button class="btn btn-emerald" onclick="runThreeStageOnPastedNodes('exclusive')">
-                  🧪 立即单独测试粘贴节点
+                  🧪 单轮快速实测粘贴节点 (独立出榜)
                 </button>
-                <button class="btn btn-primary" onclick="runThreeStageOnPastedNodes('merge')">
-                  ➕ 并入总池转三段式
+                <button class="btn btn-primary" onclick="runThreeStageOnPastedNodes('3stage_exclusive')">
+                  ⚡ 三段式 3 遍实测粘贴节点 (独立出榜)
+                </button>
+              </div>
+              <div class="btn-grid-2 stack-sm">
+                <button class="btn btn-amber btn-sm" onclick="runThreeStageOnPastedNodes('merge')">
+                  ➕ 并入主收集池并跑三段式
+                </button>
+                <button class="btn btn-ghost btn-sm" onclick="savePastedNodesAsAppSource()">
+                  📡 将粘贴节点转成 App 订阅源入库
                 </button>
               </div>
             </div>
@@ -1418,19 +1566,138 @@
         <!-- Deliverable Node Ranking List -->
         <div class="card">
           <div class="seg-bar" style="margin-bottom:10px;">
-            <button class="seg-btn active" onclick="switchAggRankTab('recommend', this)">⭐ 最终推荐 (<span id="tabCntRec">0</span>)</button>
-            <button class="seg-btn" onclick="switchAggRankTab('balanced', this)" id="aggRankBtn-balanced">⚖️ 均衡Top500</button>
-            <button class="seg-btn" onclick="switchAggRankTab('speed', this)">🚀 速度榜</button>
-            <button class="seg-btn" onclick="switchAggRankTab('lowlat', this)">⚡ 低延迟</button>
-            <button class="seg-btn" onclick="switchAggRankTab('unstable', this)">⚠️ 淘汰 (<span id="tabCntUnstable">0</span>)</button>
+            <button class="seg-btn active" id="aggRankBtn-recommend" onclick="switchAggRankTab('recommend', this)">⭐ 最终推荐 (<span id="tabCntRec">0</span>)</button>
+            <button class="seg-btn" onclick="switchAggRankTab('balanced', this)" id="aggRankBtn-balanced">⚖️ 均衡Top500 (<span id="tabCntBal">0</span>)</button>
+            <button class="seg-btn" id="aggRankBtn-speed" onclick="switchAggRankTab('speed', this)">🚀 速度榜 (<span id="tabCntSpd">0</span>)</button>
+            <button class="seg-btn" id="aggRankBtn-lowlat" onclick="switchAggRankTab('lowlat', this)">⚡ 低延迟 (<span id="tabCntLat">0</span>)</button>
+            <button class="seg-btn" id="aggRankBtn-unstable" onclick="switchAggRankTab('unstable', this)">⚠️ 淘汰 (<span id="tabCntUnstable">0</span>)</button>
+          </div>
+
+          <!-- Active Ranking Leaderboard Universal Action Bar (Copy / Convert / Export ANY Leaderboard!) -->
+          <div class="rank-action-bar">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
+              <div style="font-size:12.5px;font-weight:800;color:#93c5fd;">
+                🎯 当前操作榜单：<span id="activeRankTitleLabel" style="color:#34d399;">⭐ 最终推荐</span>
+                （共 <span id="activeRankCountLabel">0</span> 条）
+              </div>
+              <div style="display:flex;align-items:center;gap:6px;">
+                <span style="font-size:11.5px;color:var(--text-secondary);">提取条数:</span>
+                <select class="select" id="activeRankLimitSel" style="width:auto;min-height:30px;padding:3px 8px;font-size:12px;">
+                  <option value="0" selected>全部节点</option>
+                  <option value="10">前 10 名</option>
+                  <option value="30">前 30 名</option>
+                  <option value="50">前 50 名</option>
+                  <option value="100">前 100 名</option>
+                  <option value="500">前 500 名</option>
+                </select>
+              </div>
+            </div>
+            <div class="btn-grid-4 stack-sm">
+              <button class="btn btn-emerald btn-xs" onclick="copyActiveRankNodes(false)">📋 复制此榜链接</button>
+              <button class="btn btn-amber btn-xs" onclick="copyActiveRankNodes(true)">📦 复制此榜Base64</button>
+              <button class="btn btn-violet btn-xs" onclick="sendActiveRankToConverter()">🔄 转换此榜格式</button>
+              <button class="btn btn-primary btn-xs" onclick="launchV2rayNGWithActiveRank()">🚀 导入客户端</button>
+            </div>
           </div>
 
           <div class="node-list" id="aggNodeList"></div>
 
           <div class="btn-grid-3" style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border-subtle);">
-            <button class="btn btn-ghost btn-xs" onclick="downloadRecommendedTxt()">📥 导出.txt</button>
-            <button class="btn btn-ghost btn-xs" onclick="downloadMarkdownReport()">📥 导出.md</button>
-            <button class="btn btn-ghost btn-xs" onclick="downloadJsonSummary()">📥 导出.json</button>
+            <button class="btn btn-ghost btn-xs" onclick="exportActiveRankTxt()">📥 导出此榜.txt</button>
+            <button class="btn btn-ghost btn-xs" onclick="downloadMarkdownReport()">📥 导出报告.md</button>
+            <button class="btn btn-ghost btn-xs" onclick="downloadJsonSummary()">📥 导出全量.json</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ======================================================== -->
+      <!-- TAB 3.5: 🔄 节点转换 (Standalone Multi-Format Converter)   -->
+      <!-- ======================================================== -->
+      <section class="tab-pane" id="tab-convert">
+        <div class="card" style="border-color:rgba(139,92,246,0.6);">
+          <div class="card-header">
+            <div>
+              <div class="card-title" style="color:#c4b5fd;">🔄 独立节点多格式转换中心</div>
+              <div class="card-sub">支持复制出来的节点、外部非导入节点、Base64订阅、Clash YAML、sing-box JSON 自由粘贴互转</div>
+            </div>
+          </div>
+
+          <!-- Quick Fill / Load From Leaderboard Toolbar -->
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">
+            <select class="select" id="convImportSourceSel" style="flex:1;min-width:170px;min-height:36px;padding:6px 10px;font-size:12.5px;">
+              <option value="recommend">📊 从汇总载入：⭐ 最终推荐榜</option>
+              <option value="balanced">📊 从汇总载入：⚖️ 均衡 Top500</option>
+              <option value="speed">📊 从汇总载入：🚀 速度排行</option>
+              <option value="lowlat">📊 从汇总载入：⚡ 低延迟排行</option>
+              <option value="all_alive">📊 从汇总载入：🌐 当前批次全部连通</option>
+              <option value="pool">📡 从收集池载入：主收集池全部节点</option>
+            </select>
+            <button class="btn btn-primary btn-xs" onclick="loadLeaderboardIntoConverter()">📥 载入所选榜单</button>
+          </div>
+
+          <div class="btn-grid-4 stack-sm" style="margin-bottom:8px;">
+            <button class="btn btn-emerald btn-xs" onclick="pasteClipboardIntoConverter()">📋 粘贴剪贴板</button>
+            <button class="btn btn-ghost btn-xs" onclick="fillConverterSampleNodes()">🧪 填入示例</button>
+            <button class="btn btn-amber btn-xs" onclick="sendConverterNodesToTest('standalone')">⚡ 送去实测</button>
+            <button class="btn btn-ghost btn-xs" onclick="clearStandaloneConverter()">🧹 清空</button>
+          </div>
+
+          <!-- Input Textarea -->
+          <textarea
+            class="textarea"
+            id="standaloneConvertInput"
+            placeholder="在此粘贴任意节点或配置：&#10;1. 复制出来的 vless:// vmess:// trojan:// ss:// hysteria2:// 链接（含群消息杂文自动提取）&#10;2. Base64 编码订阅全文&#10;3. Clash / Mihomo YAML (proxies:) 配置&#10;4. sing-box JSON (outbounds:) 配置"
+            style="min-height:125px;margin-bottom:8px;font-family:Consolas,monospace;font-size:12px;"
+            oninput="runStandaloneConvertLive()"
+          ></textarea>
+
+          <!-- Parse Status & Options Bar -->
+          <div style="background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:10px;padding:9px 12px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+            <div style="font-size:12px;color:var(--text-secondary);" id="standaloneConvParseStat">
+              等待粘贴或载入节点...
+            </div>
+            <div style="display:flex;gap:10px;align-items:center;font-size:12px;">
+              <label style="display:flex;align-items:center;gap:4px;cursor:pointer;">
+                <input type="checkbox" id="convOptDedup" checked onchange="runStandaloneConvertLive()" /> 去重
+              </label>
+              <label style="display:flex;align-items:center;gap:4px;cursor:pointer;">
+                <input type="checkbox" id="convOptRename" onchange="runStandaloneConvertLive()" /> 序号重命名
+              </label>
+            </div>
+          </div>
+
+          <!-- Target Format Selector -->
+          <div style="font-size:12.5px;font-weight:800;margin-bottom:6px;color:#93c5fd;">🎯 选择转换目标格式（真核客户端实测兼容）：</div>
+          <div class="btn-grid-4 stack-sm" style="margin-bottom:10px;">
+            <button class="btn btn-primary btn-sm" id="stConvBtn-clash" onclick="switchStandaloneConvertFormat('clash')">🛡️ Clash YAML</button>
+            <button class="btn btn-ghost btn-sm" id="stConvBtn-singbox" onclick="switchStandaloneConvertFormat('singbox')">📱 sing-box JSON</button>
+            <button class="btn btn-ghost btn-sm" id="stConvBtn-uri" onclick="switchStandaloneConvertFormat('uri')">🔗 v2rayN 链接</button>
+            <button class="btn btn-ghost btn-sm" id="stConvBtn-v2rayn" onclick="switchStandaloneConvertFormat('v2rayn')">📦 Base64 订阅</button>
+          </div>
+
+          <!-- Output Preview -->
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;font-size:11.5px;color:var(--text-secondary);">
+            <span id="standaloneConvOutMeta">输出预览 (Clash Meta / Mihomo .yaml)</span>
+            <span id="standaloneConvOutSize">0 字节</span>
+          </div>
+          <textarea
+            class="textarea"
+            id="standaloneConvertOutput"
+            readonly
+            placeholder="转换后的可导入配置文件内容将实时显示在此处..."
+            style="min-height:200px;font-family:Consolas,monospace;font-size:11.5px;margin-bottom:10px;"
+            spellcheck="false"
+          ></textarea>
+
+          <!-- Output Delivery Buttons -->
+          <div class="btn-grid-3 stack-sm" style="margin-bottom:8px;">
+            <button class="btn btn-emerald" onclick="copyStandaloneConvertOutput()">📋 复制转换结果</button>
+            <button class="btn btn-amber" onclick="downloadStandaloneConvertOutput()">💾 导出/分享文件</button>
+            <button class="btn btn-primary" onclick="launchClientWithStandaloneConvert()">🚀 导入客户端</button>
+          </div>
+          <div class="btn-grid-2 stack-sm">
+            <button class="btn btn-ghost btn-sm" onclick="saveConvertedNodesAsAppSource()">📡 转存为 App 订阅源入库</button>
+            <button class="btn btn-ghost btn-sm" onclick="sendConverterNodesToTest('3stage')">⚡ 送去三段式 3 遍测试</button>
           </div>
         </div>
       </section>
@@ -1527,6 +1794,15 @@
           <line x1="6" y1="20" x2="6" y2="14" />
         </svg>
         <span class="nav-lbl">汇总榜单</span>
+      </button>
+      <button class="nav-item" id="nav-tab-convert" onclick="switchTab('tab-convert')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <polyline points="17 1 21 5 17 9" />
+          <path d="M3 11V9a4 4 0 0 1 4-4h14" />
+          <polyline points="7 23 3 19 7 15" />
+          <path d="M21 13v2a4 4 0 0 1-4 4H3" />
+        </svg>
+        <span class="nav-lbl">节点转换</span>
       </button>
       <button class="nav-item" id="nav-tab-review" onclick="switchTab('tab-review')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
@@ -2070,15 +2346,27 @@
     function navFromSidebar(tabId, subAction) {
       closeSidebar();
       switchTab(tabId);
-      if (subAction === "3stage" && tabId === "tab-test") {
+      if (subAction === "hunter" && tabId === "tab-harvest") {
+        switchHarvestSubMode("hunter");
+      } else if (subAction === "3stage" && tabId === "tab-test") {
         switchTestSubMode("3stage");
       } else if (subAction === "standalone_pulled") {
         switchTestSubMode("standalone");
-        switchStandaloneInputType("pulled");
       } else if (subAction === "standalone_paste") {
-        switchTestSubMode("standalone");
-        switchStandaloneInputType("paste");
+        switchTestSubMode("paste");
       }
+    }
+
+    function switchHarvestSubMode(mode) {
+      state.harvestSubMode = mode;
+      const btnSrc = document.getElementById("harvestModeBtn-sources");
+      const btnHunt = document.getElementById("harvestModeBtn-hunter");
+      const paneSrc = document.getElementById("harvestSubPane-sources");
+      const paneHunt = document.getElementById("harvestSubPane-hunter");
+      if (btnSrc) btnSrc.className = mode === "sources" ? "mode-tab-btn active-3stage" : "mode-tab-btn";
+      if (btnHunt) btnHunt.className = mode === "hunter" ? "mode-tab-btn active-hunter" : "mode-tab-btn";
+      if (paneSrc) paneSrc.style.display = mode === "sources" ? "flex" : "none";
+      if (paneHunt) paneHunt.style.display = mode === "hunter" ? "flex" : "none";
     }
 
     function openAddSourceModal() {
@@ -2316,7 +2604,43 @@
       return "";
     }
 
-    async function probeUrlDualChannel(url) {
+    function normalizeSubscriptionUrl(rawUrl) {
+      let u = String(rawUrl || "").trim();
+      const ghBlob = u.match(/^https?:\/\/github\.com\/([^\/]+)\/([^\/]+)\/blob\/([^\/]+)\/(.+)$/i);
+      if (ghBlob) {
+        return `https://raw.githubusercontent.com/${ghBlob[1]}/${ghBlob[2]}/${ghBlob[3]}/${ghBlob[4]}`;
+      }
+      return u;
+    }
+
+    async function probeUrlDualChannel(rawUrl) {
+      const url = normalizeSubscriptionUrl(rawUrl);
+      if (url.startsWith("data:text/plain")) {
+        try {
+          const commaIdx = url.indexOf(",");
+          const b64 = commaIdx >= 0 ? url.slice(commaIdx + 1) : "";
+          let decoded = "";
+          try {
+            decoded = decodeURIComponent(escape(atob(b64.replace(/\s+/g, ""))));
+          } catch (_) {
+            decoded = atob(b64.replace(/\s+/g, ""));
+          }
+          const parsed = parseSubscriptionContent(decoded, 5000);
+          const cnt = parsed.rawTotal || parsed.valid.length;
+          return {
+            ok: true,
+            directOk: cnt > 0,
+            directMs: 5,
+            directNodes: cnt,
+            proxyOk: cnt > 0,
+            proxyMs: 5,
+            proxyNodes: cnt,
+            body: decoded
+          };
+        } catch (_) {
+          return { ok: false, directOk: false, proxyOk: false, body: "" };
+        }
+      }
       if (window.AndroidKeepAlive && typeof window.AndroidKeepAlive.startAsyncSubFetch === "function") {
         try {
           const bestNode = getBestProxyNodeUri();
@@ -2710,24 +3034,35 @@
     }
 
     // =========================================================================
-    // 7. THREE-STAGE TEST VS STANDALONE TEST RUNNERS
+    // 7. THREE-STAGE TEST VS STANDALONE VS PASTE TEST RUNNERS
     // =========================================================================
     function switchTestSubMode(mode) {
       state.testSubMode = mode;
-      document.getElementById("modeBtn-3stage").className = mode === "3stage" ? "mode-tab-btn active-3stage" : "mode-tab-btn";
-      document.getElementById("modeBtn-standalone").className = mode === "standalone" ? "mode-tab-btn active-standalone" : "mode-tab-btn";
-      document.getElementById("subPane-3stage").style.display = mode === "3stage" ? "flex" : "none";
-      document.getElementById("subPane-standalone").style.display = mode === "standalone" ? "flex" : "none";
-      document.getElementById("inspectRoundSegBar").style.display = mode === "3stage" ? "flex" : "none";
+      const b3 = document.getElementById("modeBtn-3stage");
+      const b1 = document.getElementById("modeBtn-standalone");
+      const bp = document.getElementById("modeBtn-paste");
+      if (b3) b3.className = mode === "3stage" ? "mode-tab-btn active-3stage" : "mode-tab-btn";
+      if (b1) b1.className = mode === "standalone" ? "mode-tab-btn active-standalone" : "mode-tab-btn";
+      if (bp) bp.className = mode === "paste" ? "mode-tab-btn active-paste" : "mode-tab-btn";
+      const p3 = document.getElementById("subPane-3stage");
+      const p1 = document.getElementById("subPane-standalone");
+      const pp = document.getElementById("subPane-paste");
+      if (p3) p3.style.display = mode === "3stage" ? "flex" : "none";
+      if (p1) p1.style.display = mode === "standalone" ? "flex" : "none";
+      if (pp) pp.style.display = mode === "paste" ? "flex" : "none";
+      const curBatch = BATCH_DB[state.currentBatchKey];
+      const showRoundSeg = mode === "3stage" || (curBatch && curBatch.batchType === "3stage");
+      document.getElementById("inspectRoundSegBar").style.display = showRoundSeg ? "flex" : "none";
       renderInspectRound();
     }
 
     function switchStandaloneInputType(type) {
       state.standaloneInputType = type;
-      document.getElementById("standaloneSrcBtn-pulled").classList.toggle("active", type === "pulled");
-      document.getElementById("standaloneSrcBtn-paste").classList.toggle("active", type === "paste");
-      document.getElementById("standaloneInput-pulled").style.display = type === "pulled" ? "block" : "none";
-      document.getElementById("standaloneInput-paste").style.display = type === "paste" ? "block" : "none";
+      if (type === "paste") {
+        switchTestSubMode("paste");
+        return;
+      }
+      switchTestSubMode("standalone");
     }
 
     async function runStandaloneOnSelectedPull() {
@@ -2750,7 +3085,14 @@
     async function executeStandaloneTestBatch(nodesToTest, batchTitle, sourceDesc, fetchedAtStr) {
       const now = new Date();
       const timeTag = now.toTimeString().slice(0, 8);
-      const totalN = nodesToTest.length;
+      const seenRaw = new Set();
+      const dedupList = nodesToTest.filter(n => {
+        if (!n || !n.raw || seenRaw.has(n.raw)) return false;
+        seenRaw.add(n.raw);
+        return true;
+      });
+      const totalN = dedupList.length;
+      if (!totalN) return showToast("没有有效的待测节点");
       const batchKey = `${batchTitle} (${totalN}条·${timeTag.slice(0, 5)})`;
 
       document.getElementById("testTerminalLog").innerHTML = "";
@@ -2773,7 +3115,7 @@
       state.currentBatchKey = batchKey;
       state.inspectRound = 1;
 
-      const testedNodes = await executeNodesBatchWithRealXray(nodesToTest, true, "单独测试", (partialList) => {
+      const testedNodes = await executeNodesBatchWithRealXray(dedupList, true, "单独测试", (partialList) => {
         BATCH_DB[batchKey].nodes = partialList;
         saveState();
         if (!document.hidden && taskCtrl.paused) {
@@ -2819,21 +3161,27 @@
       showToast(`🧪 单独测试完成：连通 ${aliveCount}/${testedNodes.length} 条`);
     }
 
-    async function startThreeStageRun(mode) {
-      const chosenSnap = state.fetchSnapshots.find(s => s.id === state.selectedThreeStageSnapId) || state.fetchSnapshots[0];
-      const targetPool = (chosenSnap && chosenSnap.nodes && chosenSnap.nodes.length) ? chosenSnap.nodes : state.harvestedPool;
+    async function startThreeStageRun(mode, customSnapObj = null) {
+      const chosenSnap = customSnapObj || state.fetchSnapshots.find(s => s.id === state.selectedThreeStageSnapId) || state.fetchSnapshots[0];
+      const rawPool = (chosenSnap && chosenSnap.nodes && chosenSnap.nodes.length) ? chosenSnap.nodes : state.harvestedPool;
+
+      const seenRaw = new Set();
+      const targetPool = rawPool.filter(n => {
+        if (!n || !n.raw || seenRaw.has(n.raw)) return false;
+        seenRaw.add(n.raw);
+        return true;
+      });
 
       if (!targetPool.length) {
-        return showToast("当前绑定的数据源为空，请先去「源获取」拉取订阅源");
+        return showToast("当前绑定的数据源为空，请先去「源获取」拉取订阅源或「粘贴节点测试」");
       }
 
       const now = new Date();
       const dateStr = getNowDateStr();
       const timeStr = getNowTimeStr();
-      const timeTag = now.toTimeString().slice(0, 5);
       let batchKey = state.currentBatchKey;
 
-      if (mode === "all" || !BATCH_DB[batchKey] || BATCH_DB[batchKey].batchType !== "3stage" || BATCH_DB[batchKey]._snapId !== chosenSnap.id) {
+      if (mode === "all" || customSnapObj || !BATCH_DB[batchKey] || BATCH_DB[batchKey].batchType !== "3stage" || BATCH_DB[batchKey]._snapId !== chosenSnap.id) {
         batchKey = `【三段式】${chosenSnap.title} (${dateStr} ${timeStr})`;
         BATCH_DB[batchKey] = {
           batchType: "3stage",
@@ -2841,9 +3189,9 @@
           date: `${dateStr} ${timeStr}`,
           dateStr: dateStr,
           timeStr: timeStr,
-          fetchedAt: chosenSnap.fetchedAt,
+          fetchedAt: chosenSnap.fetchedAt || `${dateStr} ${timeStr}`,
           poolSize: targetPool.length,
-          poolSource: `${chosenSnap.title} — ${chosenSnap.sourceDesc}`,
+          poolSource: `${chosenSnap.title} — ${chosenSnap.sourceDesc || "三段式实测"}`,
           roundsPresent: [],
           roundsMissing: [1, 2, 3],
           incomplete: true,
@@ -2871,7 +3219,7 @@
 
         const roundRes = await executeNodesBatchWithRealXray(targetPool, true, `run${r}`, (partialList) => {
           batch.nodes = partialList;
-          if (! batch.roundsPresent.includes(r)) batch.roundsPresent.push(r);
+          if (!batch.roundsPresent.includes(r)) batch.roundsPresent.push(r);
           saveState();
           if (!document.hidden && taskCtrl.paused) {
             renderInspectRound();
@@ -2968,15 +3316,16 @@
 
       finishGlobalTask();
 
-      // === 跑满 3 轮 → 自动跨轮合并 → 汇总库 SUMMARY_DB → 弹窗/横幅/原生通知 ===
+      // === 只要跑了至少 1 轮即生成/更新合并汇总（跑满 3 轮额外自动推送推荐通知） ===
       const roundKeys = Object.keys(batch._roundHistory || {}).filter(k => batch._roundHistory[k] && batch._roundHistory[k].length);
-      if (roundKeys.length >= 3) {
+      if (roundKeys.length >= 1) {
         try {
           const merged = buildMergedSummary(batchKey, batch);
-          if (merged && merged.nodes.length) {
+          if (merged && merged.nodes.length && roundKeys.length >= 3) {
             autoPushMergedRecommendation(merged);
             if (document.hidden) taskCtrl.needsUiFlushOnWake = true;
           }
+          if (!document.hidden) renderAggView();
         } catch (e) { console.error("merge3stage error", e); }
       }
 
@@ -2984,60 +3333,217 @@
     }
 
     // =========================================================================
-    // 8. PARSING, RENDERING & UI HELPERS
+    // 8. UNIVERSAL PARSING (URI / Base64 / Clash YAML / sing-box JSON)
     // =========================================================================
-    function parseSubscriptionContent(rawText, limitPerSource = 60, sourceLabel = "订阅源") {
+    function convertProxyObjToUriNode(p, sourceLabel = "订阅源") {
+      if (!p || !p.server || !p.port) return null;
+      const type = String(p.type || "vless").toLowerCase();
+      const host = String(p.server || "").trim();
+      const port = String(p.port || "").replace(/[^0-9]/g, "");
+      if (!host || !port) return null;
+      const name = String(p.name || p.tag || `${type.toUpperCase()}-${host}:${port}`).trim();
+      const id = String(p.uuid || p.password || "uuid").trim();
+      const net = String(p.network || (p.transport && p.transport.type) || "tcp").toLowerCase();
+      const tlsOn = Boolean(p.tls === true || p.tls === "tls" || (p.tls && p.tls.enabled));
+      const sni = String(p.servername || p.sni || (p.tls && p.tls.server_name) || "").trim();
+      const pbk = String((p["reality-opts"] && p["reality-opts"]["public-key"]) || (p.tls && p.tls.reality && p.tls.reality.public_key) || p.pbk || "").trim();
+      const sid = String((p["reality-opts"] && p["reality-opts"]["short-id"]) || (p.tls && p.tls.reality && p.tls.reality.short_id) || p.sid || "").trim();
+      const path = String((p["ws-opts"] && p["ws-opts"].path) || (p.transport && p.transport.path) || p.path || "").trim();
+      const wsHost = String((p["ws-opts"] && p["ws-opts"].headers && p["ws-opts"].headers.Host) || (p.transport && p.transport.headers && p.transport.headers.Host) || p.host || "").trim();
+      const grpcSvc = String((p["grpc-opts"] && p["grpc-opts"]["grpc-service-name"]) || (p.transport && p.transport.service_name) || "").trim();
+      const fp = String(p["client-fingerprint"] || (p.tls && p.tls.utls && p.tls.utls.fingerprint) || "chrome").trim();
+      const flow = String(p.flow || "").trim();
+
+      if (type === "vmess") {
+        const vmessJson = {
+          v: "2", ps: name, add: host, port: Number(port), id: id, aid: "0",
+          scy: p.cipher || "auto", net: net, type: "none", host: wsHost || sni, path: path,
+          tls: tlsOn ? "tls" : "", sni: sni, alpn: ""
+        };
+        const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(vmessJson))));
+        return { name, proto: "vmess", host: `${host}:${port}`, sourceName: sourceLabel, raw: `vmess://${b64}` };
+      }
+      if (type === "ss" || type === "shadowsocks") {
+        const method = String(p.cipher || p.method || "aes-256-gcm").trim();
+        const credB64 = btoa(unescape(encodeURIComponent(`${method}:${id}`))).replace(/=+$/, "");
+        return { name, proto: "ss", host: `${host}:${port}`, sourceName: sourceLabel, raw: `ss://${credB64}@${host}:${port}#${encodeURIComponent(name)}` };
+      }
+      if (type === "hysteria2" || type === "hy2") {
+        const q = [];
+        if (sni) q.push(`sni=${encodeURIComponent(sni)}`);
+        q.push("insecure=1");
+        return { name, proto: "hysteria2", host: `${host}:${port}`, sourceName: sourceLabel, raw: `hysteria2://${encodeURIComponent(id)}@${host}:${port}?${q.join("&")}#${encodeURIComponent(name)}` };
+      }
+      const proto = type === "trojan" ? "trojan" : "vless";
+      const q = [];
+      if (proto === "vless") q.push("encryption=none");
+      q.push(`type=${encodeURIComponent(net)}`);
+      if (pbk) {
+        q.push("security=reality");
+        q.push(`pbk=${encodeURIComponent(pbk)}`);
+        if (sid) q.push(`sid=${encodeURIComponent(sid)}`);
+        if (fp) q.push(`fp=${encodeURIComponent(fp)}`);
+        if (flow) q.push(`flow=${encodeURIComponent(flow)}`);
+      } else if (tlsOn || proto === "trojan") {
+        q.push("security=tls");
+      } else {
+        q.push("security=none");
+      }
+      if (sni) q.push(`sni=${encodeURIComponent(sni)}`);
+      if (path) q.push(`path=${encodeURIComponent(path)}`);
+      if (wsHost) q.push(`host=${encodeURIComponent(wsHost)}`);
+      if (grpcSvc) q.push(`serviceName=${encodeURIComponent(grpcSvc)}`);
+      return { name, proto, host: `${host}:${port}`, sourceName: sourceLabel, raw: `${proto}://${encodeURIComponent(id)}@${host}:${port}?${q.join("&")}#${encodeURIComponent(name)}` };
+    }
+
+    function parseSubscriptionContent(rawText, limitPerSource = 60, sourceLabel = "订阅源", skipDeprecatedFilter = false) {
       let text = (rawText || "").trim();
       if (!text) return { valid: [], rawTotal: 0, trash: 0 };
 
-      if (!text.includes("://") && !text.includes("proxies:")) {
+      if (!text.includes("://") && !text.includes("proxies:") && !text.includes('"outbounds"')) {
+        const compact = text.replace(/\s+/g, "").replace(/-/g, "+").replace(/_/g, "/");
         try {
-          const decoded = decodeURIComponent(escape(atob(text.replace(/\s+/g, ""))));
-          if (decoded.includes("://") || decoded.includes("proxies:")) text = decoded;
+          const decoded = decodeURIComponent(escape(atob(compact)));
+          if (decoded.includes("://") || decoded.includes("proxies:") || decoded.includes('"outbounds"')) text = decoded;
         } catch (e) {
-          try { text = atob(text.replace(/\s+/g, "")); } catch (_) {}
+          try {
+            const dec2 = atob(compact);
+            if (dec2.includes("://") || dec2.includes("proxies:")) text = dec2;
+          } catch (_) {}
         }
       }
 
       const validNodes = [];
       let trashCount = 0;
-      const depHosts = new Set(state.deprecatedNodes.map(d => d.host));
+      const depHosts = skipDeprecatedFilter ? new Set() : new Set(state.deprecatedNodes.map(d => d.host));
 
-      if (text.includes("proxies:")) {
+      // 1. Support sing-box JSON ("outbounds": [...])
+      if (text.includes('"outbounds"') && text.trim().startsWith("{")) {
+        try {
+          const j = JSON.parse(text);
+          if (Array.isArray(j.outbounds)) {
+            j.outbounds.forEach(o => {
+              if (!o || !o.server || !o.server_port) return;
+              const mapped = convertProxyObjToUriNode({
+                name: o.tag,
+                type: o.type,
+                server: o.server,
+                port: o.server_port,
+                uuid: o.uuid,
+                password: o.password,
+                method: o.method,
+                flow: o.flow,
+                tls: o.tls,
+                transport: o.transport
+              }, sourceLabel);
+              if (mapped && !depHosts.has(mapped.host)) validNodes.push(mapped);
+            });
+          }
+        } catch (_) {}
+      }
+
+      // 2. Support Clash / Mihomo YAML (both single-line "- { ... }" and multi-line "- name: ...")
+      if (!validNodes.length && text.includes("proxies:")) {
         const lines = text.split(/\r?\n/);
+        let curBlock = null;
+        let subSection = "";
+        const flushBlock = () => {
+          if (curBlock && curBlock.server && curBlock.port) {
+            const mapped = convertProxyObjToUriNode(curBlock, sourceLabel);
+            if (mapped && !depHosts.has(mapped.host)) validNodes.push(mapped);
+            else trashCount++;
+          }
+          curBlock = null;
+          subSection = "";
+        };
+
         for (const ln of lines) {
           const t = ln.trim();
+          if (!t || t.startsWith("#")) continue;
+          if (/^(proxy-groups|rules|rule-providers|dns):/.test(t)) {
+            flushBlock();
+            break;
+          }
           if (t.startsWith("- {") && t.includes("server:") && t.includes("port:")) {
-            const nameM = t.match(/name:\s*([^,}]+)/);
-            const srvM = t.match(/server:\s*([^,}]+)/);
-            const portM = t.match(/port:\s*([^,}]+)/);
-            const typeM = t.match(/type:\s*([^,}]+)/);
-            const uuidM = t.match(/(?:uuid|password):\s*([^,}]+)/);
-            const proto = (typeM ? typeM[1].trim().replace(/['"]/g, "") : "vless").toLowerCase();
-            const host = srvM ? srvM[1].trim().replace(/['"]/g, "") : "";
-            const port = portM ? portM[1].trim().split("/")[0].replace(/\D/g, "") : "443";
-            const id = uuidM ? uuidM[1].trim().replace(/['"]/g, "") : "uuid";
-            const name = nameM ? nameM[1].trim().replace(/['"]/g, "") : `${host}:${port}`;
-            if (!host || !port || depHosts.has(`${host}:${port}`)) { trashCount++; continue; }
-            if (["vless", "trojan", "ss", "vmess"].includes(proto)) {
-              validNodes.push({ name, proto, host: `${host}:${port}`, sourceName: sourceLabel, raw: `${proto}://${id}@${host}:${port}#${encodeURIComponent(name)}` });
+            flushBlock();
+            const getField = (k) => {
+              const m = t.match(new RegExp(k + ":\\s*([^,}]+)"));
+              return m ? m[1].trim().replace(/^['"]|['"]$/g, "") : "";
+            };
+            const obj = {
+              name: getField("name"),
+              type: getField("type") || "vless",
+              server: getField("server"),
+              port: getField("port"),
+              uuid: getField("uuid"),
+              password: getField("password"),
+              cipher: getField("cipher"),
+              network: getField("network") || "tcp",
+              tls: getField("tls") === "true",
+              servername: getField("servername") || getField("sni"),
+              "client-fingerprint": getField("client-fingerprint"),
+              flow: getField("flow"),
+              pbk: getField("public-key"),
+              sid: getField("short-id"),
+              path: getField("path"),
+              host: getField("Host")
+            };
+            const mapped = convertProxyObjToUriNode(obj, sourceLabel);
+            if (mapped && !depHosts.has(mapped.host)) validNodes.push(mapped);
+            else trashCount++;
+            continue;
+          }
+          if (t.startsWith("- name:") || t.startsWith("- type:") || t.startsWith("- server:")) {
+            flushBlock();
+            curBlock = { "reality-opts": {}, "ws-opts": { headers: {} }, "grpc-opts": {} };
+            const kv = t.slice(1).trim();
+            const cIdx = kv.indexOf(":");
+            if (cIdx > 0) {
+              const k = kv.slice(0, cIdx).trim();
+              const v = kv.slice(cIdx + 1).trim().replace(/^['"]|['"]$/g, "");
+              curBlock[k] = v;
+            }
+            continue;
+          }
+          if (curBlock) {
+            if (t === "reality-opts:" || t === "ws-opts:" || t === "grpc-opts:" || t === "headers:") {
+              subSection = t.replace(":", "");
+              continue;
+            }
+            const cIdx = t.indexOf(":");
+            if (cIdx > 0) {
+              const k = t.slice(0, cIdx).trim();
+              const v = t.slice(cIdx + 1).trim().replace(/^['"]|['"]$/g, "");
+              if (subSection === "reality-opts") curBlock["reality-opts"][k] = v;
+              else if (subSection === "ws-opts") curBlock["ws-opts"][k] = v;
+              else if (subSection === "headers") curBlock["ws-opts"].headers[k] = v;
+              else if (subSection === "grpc-opts") curBlock["grpc-opts"][k] = v;
+              else curBlock[k] = v === "true" ? true : (v === "false" ? false : v);
             }
           }
         }
-      } else {
+        flushBlock();
+      }
+
+      // 3. Standard & Extended URI lines (vless/trojan/ss/vmess/hysteria2/hy2/tuic)
+      if (!validNodes.length) {
         const lines = text.split(/\r?\n/);
         for (let ln of lines) {
           ln = ln.trim();
           if (!ln || ln.startsWith("#")) continue;
-          const m = ln.match(/^(vless|trojan|ss|vmess):\/\/(.+)$/i);
+          const m = ln.match(/^(vless|trojan|ss|vmess|hysteria2|hy2|tuic):\/\/(.+)$/i);
           if (!m) continue;
-          const proto = m[1].toLowerCase();
+          let proto = m[1].toLowerCase();
+          if (proto === "hy2") proto = "hysteria2";
 
           if (proto === "vmess") {
             try {
-              const j = JSON.parse(atob(m[2].split("#")[0].trim()));
+              const b64Part = m[2].split("#")[0].trim().replace(/-/g, "+").replace(/_/g, "/");
+              let decStr = "";
+              try { decStr = decodeURIComponent(escape(atob(b64Part))); } catch (_) { decStr = atob(b64Part); }
+              const j = JSON.parse(decStr);
               const host = (j.add || "").trim();
-              const port = String(j.port || "").split("/")[0].trim();
+              const port = String(j.port || "").split("/")[0].replace(/[^0-9]/g, "");
               if (!host || !port || isNaN(Number(port)) || depHosts.has(`${host}:${port}`)) { trashCount++; continue; }
               validNodes.push({ name: j.ps || `${host}:${port}`, proto: "vmess", host: `${host}:${port}`, sourceName: sourceLabel, raw: ln });
             } catch (_) { trashCount++; }
@@ -3048,17 +3554,39 @@
           let remark = "";
           try { remark = bodyAndHash[1] ? decodeURIComponent(bodyAndHash[1]) : ""; } catch (_) { remark = bodyAndHash[1] || ""; }
           const beforeQuery = bodyAndHash[0].split("?")[0];
-          const atParts = beforeQuery.split("@");
-          const hostPortStr = atParts.length > 1 ? atParts[atParts.length - 1] : "";
-          const hp = hostPortStr.split(":");
-          const host = (hp[0] || "").trim();
-          const rawPort = hp[1] ? hp[1].split("/")[0].trim() : "";
+          let host = "";
+          let rawPort = "";
+          if (beforeQuery.includes("@")) {
+            const atParts = beforeQuery.split("@");
+            const hostPortStr = atParts[atParts.length - 1];
+            const colonIdx = hostPortStr.lastIndexOf(":");
+            if (colonIdx > 0) {
+              host = hostPortStr.slice(0, colonIdx).trim();
+              rawPort = hostPortStr.slice(colonIdx + 1).replace(/[^0-9]/g, "");
+            }
+          } else if (proto === "ss") {
+            try {
+              const dec = atob(beforeQuery.replace(/-/g, "+").replace(/_/g, "/"));
+              const atIdx = dec.lastIndexOf("@");
+              if (atIdx > 0) {
+                const hp = dec.slice(atIdx + 1);
+                const cIdx = hp.lastIndexOf(":");
+                if (cIdx > 0) {
+                  host = hp.slice(0, cIdx).trim();
+                  rawPort = hp.slice(cIdx + 1).replace(/[^0-9]/g, "");
+                }
+              }
+            } catch (_) {}
+          }
 
           if (!host || !rawPort || isNaN(Number(rawPort)) || depHosts.has(`${host}:${rawPort}`)) {
             trashCount++;
             continue;
           }
-          validNodes.push({ name: remark || `${proto.toUpperCase()}-${host}:${rawPort}`, proto, host: `${host}:${rawPort}`, sourceName: sourceLabel, raw: ln });
+          const normalizedRaw = proto === "hysteria2" && ln.toLowerCase().startsWith("hy2://")
+            ? "hysteria2://" + ln.slice(6)
+            : ln;
+          validNodes.push({ name: remark || `${proto.toUpperCase()}-${host}:${rawPort}`, proto, host: `${host}:${rawPort}`, sourceName: sourceLabel, raw: normalizedRaw });
         }
       }
 
@@ -3311,44 +3839,92 @@
       showToast(`✅ 导入完成：新增 ${addedSources} 个源`);
     }
 
-    function smartExtractNodesFromText(rawText) {
+    async function readClipboardUnified() {
+      if (window.AndroidKeepAlive && typeof window.AndroidKeepAlive.readFromClipboard === "function") {
+        try {
+          const nativeClip = window.AndroidKeepAlive.readFromClipboard();
+          if (nativeClip && String(nativeClip).trim()) return String(nativeClip).trim();
+        } catch (_) {}
+      }
+      try {
+        if (navigator.clipboard && navigator.clipboard.readText) {
+          const webClip = await navigator.clipboard.readText();
+          if (webClip && webClip.trim()) return webClip.trim();
+        }
+      } catch (_) {}
+      return "";
+    }
+
+    function smartExtractNodesFromText(rawText, skipDeprecatedFilter = true) {
       let text = (rawText || "").trim();
-      if (!text) return { valid: [], trash: 0, counts: { vless: 0, trojan: 0, ss: 0, vmess: 0 } };
-      const inlineMatches = text.match(/(?:vless|trojan|ss|vmess):\/\/[^\s"'<>]+/gi);
-      const normalizedInput = (inlineMatches && inlineMatches.length > 0 && !text.includes("proxies:")) ? inlineMatches.join("\n") : text;
-      const parsed = parseSubscriptionContent(normalizedInput, 5000, "剪贴板粘贴");
-      const counts = { vless: 0, trojan: 0, ss: 0, vmess: 0 };
+      const counts = { vless: 0, trojan: 0, ss: 0, vmess: 0, hysteria2: 0 };
+      if (!text) return { valid: [], trash: 0, counts };
+
+      // If text is Clash YAML or sing-box JSON, parse directly
+      if (text.includes("proxies:") || (text.includes('"outbounds"') && text.includes("{"))) {
+        const parsedCfg = parseSubscriptionContent(text, 5000, "外部配置提取", skipDeprecatedFilter);
+        if (parsedCfg.valid.length > 0) {
+          parsedCfg.valid.forEach(n => { if (counts[n.proto] !== undefined) counts[n.proto]++; });
+          return { valid: parsedCfg.valid, trash: parsedCfg.trash, counts };
+        }
+      }
+
+      // Extract inline URI links if mixed with chat/HTML text
+      const inlineMatches = text.match(/(?:vless|trojan|ss|vmess|hysteria2|hy2|tuic):\/\/[^\s"'<>`|\\]+/gi);
+      let normalizedInput = text;
+      if (inlineMatches && inlineMatches.length > 0) {
+        normalizedInput = inlineMatches.join("\n");
+      } else {
+        // Also try extracting embedded Base64 blocks (e.g., from web pages or video descriptions)
+        const b64Blocks = text.match(/[A-Za-z0-9+/=_-]{64,}/g) || [];
+        const decodedLines = [];
+        for (const blk of b64Blocks) {
+          try {
+            const norm = blk.replace(/-/g, "+").replace(/_/g, "/");
+            const dec = decodeURIComponent(escape(atob(norm)));
+            const m = dec.match(/(?:vless|trojan|ss|vmess|hysteria2|hy2|tuic):\/\/[^\s"'<>]+/gi);
+            if (m && m.length) decodedLines.push(...m);
+          } catch (_) {
+            try {
+              const dec2 = atob(blk.replace(/-/g, "+").replace(/_/g, "/"));
+              const m2 = dec2.match(/(?:vless|trojan|ss|vmess|hysteria2|hy2|tuic):\/\/[^\s"'<>]+/gi);
+              if (m2 && m2.length) decodedLines.push(...m2);
+            } catch (_2) {}
+          }
+        }
+        if (decodedLines.length > 0) normalizedInput = decodedLines.join("\n");
+      }
+
+      const parsed = parseSubscriptionContent(normalizedInput, 5000, "手动粘贴", skipDeprecatedFilter);
       parsed.valid.forEach(n => { if (counts[n.proto] !== undefined) counts[n.proto]++; });
       return { valid: parsed.valid, trash: parsed.trash, counts };
     }
 
     function previewPastedNodes() {
-      const raw = document.getElementById("pasteTestTextarea").value;
-      const info = smartExtractNodesFromText(raw);
+      const el = document.getElementById("pasteTestTextarea");
+      const raw = el ? el.value : "";
+      const info = smartExtractNodesFromText(raw, true);
       const bar = document.getElementById("pasteParsePreviewBar");
+      if (!bar) return info;
       if (!raw.trim()) {
-        bar.innerHTML = `<span>等待粘贴节点...</span><span class="tag tag-vless" id="pasteCountBadge">0 条有效节点</span>`;
+        bar.innerHTML = `<span>等待粘贴非收集节点...</span><span class="tag tag-vless" id="pasteCountBadge">0 条有效节点</span>`;
         return info;
       }
       bar.innerHTML = `
-        <span>VLESS <strong>${info.counts.vless}</strong> · Trojan <strong>${info.counts.trojan}</strong> · SS <strong>${info.counts.ss}</strong> · VMess <strong>${info.counts.vmess}</strong></span>
+        <span>VLESS <strong>${info.counts.vless}</strong> · Trojan <strong>${info.counts.trojan}</strong> · SS <strong>${info.counts.ss}</strong> · VMess <strong>${info.counts.vmess}</strong>${info.counts.hysteria2 ? ` · Hy2 <strong>${info.counts.hysteria2}</strong>` : ""}</span>
         <span class="tag ${info.valid.length > 0 ? "tag-ok" : "tag-err"}">${info.valid.length} 条可测</span>
       `;
       return info;
     }
 
     async function pasteFromClipboardToTest() {
-      try {
-        if (navigator.clipboard && navigator.clipboard.readText) {
-          const clipText = await navigator.clipboard.readText();
-          if (clipText && clipText.trim()) {
-            document.getElementById("pasteTestTextarea").value = clipText.trim();
-            const info = previewPastedNodes();
-            showToast(`已粘贴并识别出 ${info.valid.length} 条有效节点`);
-            return;
-          }
-        }
-      } catch (_) {}
+      const clipText = await readClipboardUnified();
+      if (clipText) {
+        document.getElementById("pasteTestTextarea").value = clipText;
+        const info = previewPastedNodes();
+        showToast(`📥 已粘贴并识别出 ${info.valid.length} 条有效节点`);
+        return;
+      }
       document.getElementById("pasteTestTextarea").focus();
       showToast("请直接在输入框长按选择「粘贴」");
     }
@@ -3358,11 +3934,11 @@
         "vless://a3054186-5e1d-4c95-a849-a79ee1e447b2@45.62.106.145:8443?security=none&type=ws&path=%2Fvless-ws&host=45.62.106.145&packetEncoding=xudp&sni=45.62.106.145#US_420",
         "ss://YWVzLTI1Ni1nY206WlJwZ2FCZUd4dEVOSVhndmhwa1pCS3o5R25XUlMyZFljeDlPK2EyaXdOND0@202.50.253.63:19999#EPODONIOS_63",
         "trojan://d2dINbhQ1N@74.82.196.93:443?security=tls&sni=www.ugly-xu.top&type=tcp#zhuhai.uk_JP",
-        "vless://dfd5274f-1d81-404e-b72d-c324fe3f928d@104.18.22.45:443?encryption=none&security=tls&type=ws#US_459_CF(死节点对比)"
+        "vless://5d7e07ba-f460-4638-af79-bbcde67fcb6b@rus1.justnable.xyz:8443?encryption=none&security=reality&sni=www.asus.com&fp=chrome&pbk=xlXuN8KDdbqGEsaj1m2D8NUnR5d2oeo5TT71RSMmfxY&type=xhttp&path=/xh&mode=auto#rus1_justnable"
       ].join("\n");
       document.getElementById("pasteTestTextarea").value = sample;
       previewPastedNodes();
-      showToast("已填入 4 条示例节点，点击下方按钮立测");
+      showToast("已填入 4 条示例节点，可选择单轮实测、三段式 3 遍实测或送去转换");
     }
 
     function clearPasteTestInput() {
@@ -3370,9 +3946,48 @@
       previewPastedNodes();
     }
 
+    function sendPastedTestNodesToConverter() {
+      const raw = document.getElementById("pasteTestTextarea").value;
+      const info = smartExtractNodesFromText(raw, true);
+      if (!info.valid.length) return showToast("请先粘贴至少 1 条有效节点");
+      openStandaloneConverterWithNodes(info.valid, `粘贴测试节点 (${info.valid.length}条)`);
+    }
+
+    function buildInlineDataSourceUrl(nodesList) {
+      const rawLines = nodesList.map(n => n.raw || String(n)).join("\n");
+      const b64 = btoa(unescape(encodeURIComponent(rawLines)));
+      return `data:text/plain;charset=utf-8;base64,${b64}`;
+    }
+
+    function savePastedNodesAsAppSource() {
+      const raw = document.getElementById("pasteTestTextarea").value;
+      const info = smartExtractNodesFromText(raw, true);
+      if (!info.valid.length) return showToast("请先粘贴至少 1 条有效节点");
+      const dataUrl = buildInlineDataSourceUrl(info.valid);
+      const srcName = `粘贴转源-${getNowDateStr().slice(5)}_${getNowTimeStr().slice(0, 5)} (${info.valid.length}条)`;
+      state.sources.unshift({
+        id: Date.now(),
+        name: srcName,
+        group: "自定义扩展",
+        url: dataUrl,
+        enabled: true,
+        lastCount: info.valid.length,
+        directOk: true,
+        directMs: 5,
+        proxyOk: true,
+        proxyMs: 5
+      });
+      mergeNodesIntoPool(info.valid);
+      recordPullSnapshot("single", srcName, `手动粘贴节点转为 App 内联订阅源 (${info.valid.length}条)`, info.valid);
+      saveState();
+      renderSources();
+      renderWeeklyReview();
+      showToast(`✅ 已将 ${info.valid.length} 条粘贴节点转为 App 订阅源「${srcName}」并入库！`);
+    }
+
     async function runThreeStageOnPastedNodes(mode) {
       const raw = document.getElementById("pasteTestTextarea").value;
-      const info = smartExtractNodesFromText(raw);
+      const info = smartExtractNodesFromText(raw, true);
       if (!info.valid.length) return showToast("请先粘贴至少 1 条有效节点链接");
 
       if (mode === "merge") {
@@ -3382,7 +3997,20 @@
         await startThreeStageRun("all");
         return;
       }
-      await executeStandaloneTestBatch(info.valid, `【单独测试】剪贴板粘贴`, `手动复制粘贴 (${info.valid.length}条)`, nowTimeStr());
+      if (mode === "3stage_exclusive") {
+        const customSnap = {
+          id: "paste_3stage_" + Date.now(),
+          mode: "paste",
+          title: `非收集粘贴 (${info.valid.length}条)`,
+          sourceDesc: `手动粘贴非收集节点 (${info.valid.length}条 · 独立三段式3遍)`,
+          fetchedAt: nowTimeStr(),
+          nodes: info.valid
+        };
+        document.getElementById("inspectRoundSegBar").style.display = "flex";
+        await startThreeStageRun("all", customSnap);
+        return;
+      }
+      await executeStandaloneTestBatch(info.valid, `【单独测试】非收集粘贴`, `手动粘贴非收集节点 (${info.valid.length}条)`, nowTimeStr());
     }
 
     function renderRoundStepper() {
@@ -3479,53 +4107,89 @@
     }
 
     // =========================================================================
-    // 9.5 ⚖️ 均衡 Top500：延迟+下载速度双优核验（跨轮合并专用）
-    // -------------------------------------------------------------------------
-    // 得分公式（参考 aggregate3.py / export_top500.py）：
-    //   均衡分 = 35% × 延迟得分 + 35% × 跨轮稳定性/低抖动 + 30% × 下载速度得分
-    // 偏科剔除（均衡度检验）：
-    //   - 高延迟虚快：lat_avg ≥ 350ms 且 spd_avg ≥ 25Mbps（速度虚高但延迟不可用）
-    //   - 低延迟零速度：lat_avg < 150ms 且 spd_avg ≤ 0.5Mbps（延迟好看但跑不动）
-    // 阈值：lat_avg < 800ms、spd_avg > 0.5Mbps、alive === rounds、非废弃节点
+    // 9.5 ⚖️ 均衡 Top500：延迟+下载速度双优核验（支持 3轮汇总 / 单轮 / 部分轮次自适应兜底）
     // =========================================================================
     function computeBalancedTop500(batch) {
-      if (!batch || !batch.nodes || !batch.nodes.length) return { eligible: [], skewed: [], confirmed: [], passRate: 0, meta: "" };
+      if (!batch || !batch.nodes || !batch.nodes.length) {
+        return { eligible: [], skewed: [], confirmed: [], passRate: 0, meta: "尚无测试数据", total: 0 };
+      }
       const depHosts = new Set(state.deprecatedNodes.map(d => d.host));
 
-      const latScore = lat => lat <= 0 ? 0 : Math.max(0, 100 - (lat / 800) * 100);       // 0ms→100分, 800ms→0分
-      const spdScore = spd => spd <= 0 ? 0 : Math.min(100, (spd / 30) * 100);           // 0→0分, 30Mbps→满分
-      const stabScore = std => std <= 0 ? 100 : Math.max(0, 100 - std * 4);             // jitter越小越好
+      // Deduplicate connected nodes by raw URI
+      const dedupMap = new Map();
+      batch.nodes.forEach(n => {
+        if (!n || n.lat_avg === undefined || n.lat_avg < 0 || depHosts.has(n.host)) return;
+        const key = n.raw || `${n.proto}://${n.host}#${n.name}`;
+        const prev = dedupMap.get(key);
+        if (!prev || (n.spd_avg || -1) > (prev.spd_avg || -1) || (n.alive || 1) > (prev.alive || 1)) {
+          dedupMap.set(key, n);
+        }
+      });
 
-      const raw = batch.nodes
-        .filter(n => !depHosts.has(n.host) && n.lat_avg >= 0 && n.alive === n.rounds && n.lat_avg < 800)
-        .map(n => {
-          const latS = latScore(n.lat_avg);
-          const spdS = spdScore(n.spd_avg);
-          const stbS = stabScore(n.lat_std);
-          const bal = Number((latS * 0.35 + stbS * 0.35 + spdS * 0.30).toFixed(1));
-          const skewed = (n.lat_avg >= 350 && n.spd_avg >= 25) || (n.lat_avg < 150 && n.spd_avg <= 0.5);
-          return Object.assign({}, n, { latS, spdS, stbS, bal, skewed });
-        });
+      const connectedList = Array.from(dedupMap.values());
+      if (!connectedList.length) {
+        return { eligible: [], skewed: [], confirmed: [], passRate: 0, meta: "当前批次暂无连通节点", total: 0 };
+      }
 
-      const eligible = raw.filter(x => !x.skewed && x.spd_avg > 0.5)
-        .sort((a, b) => {
-          // L044: 出口虚高(CF自家测速虚高)节点整体后置，防踩坑
-          if (Boolean(a.inflated) !== Boolean(b.inflated)) return a.inflated ? 1 : -1;
-          return b.bal - a.bal || b.spd_avg - a.spd_avg || a.lat_avg - b.lat_avg;
-        });
-      const skewed = raw.filter(x => x.skewed || x.spd_avg <= 0.5)
-        .sort((a, b) => b.bal - a.bal);
-      const confirmed = eligible.slice(0, 500);
+      const hasAnySpeed = connectedList.some(n => (n.spd_avg || 0) > 0);
+
+      // Smooth scoring curves (never hard-zeroes connected nodes with >800ms multi-RTT latency)
+      const latScore = lat => {
+        if (lat <= 0) return 0;
+        if (lat <= 800) return 100 - (lat / 800) * 55; // 0ms->100, 800ms->45
+        return Math.max(8, 45 - ((lat - 800) / 2200) * 37); // 800ms->45, 3000ms->8
+      };
+      const spdScore = spd => spd <= 0 ? 0 : Math.min(100, (spd / 25) * 100);
+
+      const raw = connectedList.map(n => {
+        const rounds = Math.max(1, Number(n.rounds) || 1);
+        const alive = Math.min(rounds, Math.max(1, Number(n.alive) || 1));
+        const attRatio = alive / rounds;
+        const latS = latScore(n.lat_avg);
+        const spdS = spdScore(n.spd_avg);
+        const jitterPenalty = n.lat_std > 0 ? Math.min(25, n.lat_std * 0.5) : 0;
+        const stbS = Math.round(attRatio * 75 + (25 - jitterPenalty));
+        const bal = hasAnySpeed
+          ? Number((latS * 0.35 + stbS * 0.35 + spdS * 0.30).toFixed(1))
+          : Number((latS * 0.55 + stbS * 0.45).toFixed(1));
+
+        // 偏科判定：有测速数据的批次中速度<=0、或超高延迟且极慢、或3轮测试仅通1轮
+        const zeroSpdSkew = hasAnySpeed && (n.spd_avg === undefined || n.spd_avg <= 0);
+        const extremeSlowSkew = n.lat_avg >= 2200 && (n.spd_avg === undefined || n.spd_avg < 0.5);
+        const lowAttendSkew = rounds >= 3 && alive < 2;
+        const skewed = zeroSpdSkew || extremeSlowSkew || lowAttendSkew;
+
+        return Object.assign({}, n, { alive, rounds, attRatio, latS, spdS, stbS, bal, skewed });
+      });
+
+      const sortFn = (a, b) => {
+        if (Boolean(a.inflated) !== Boolean(b.inflated)) return a.inflated ? 1 : -1;
+        if (b.attRatio !== a.attRatio) return b.attRatio - a.attRatio;
+        return b.bal - a.bal || (b.spd_avg || 0) - (a.spd_avg || 0) || a.lat_avg - b.lat_avg;
+      };
+
+      const eligible = raw.filter(x => !x.skewed).sort(sortFn);
+      const skewed = raw.filter(x => x.skewed).sort(sortFn);
+
+      // 保底机制：若严格双优达标较少，优先放全部双优达标节点，不足部分按均衡分补齐，确保只要有连通节点就绝不为空！
+      let confirmed = eligible.slice(0, 500);
+      if (confirmed.length === 0 && raw.length > 0) {
+        confirmed = raw.slice().sort(sortFn).slice(0, 500);
+      } else if (confirmed.length < Math.min(500, raw.length) && skewed.length > 0 && confirmed.length < 20) {
+        const needed = Math.min(500 - confirmed.length, skewed.length);
+        confirmed = [...confirmed, ...skewed.slice(0, needed)];
+      }
+
       const total = raw.length;
       const passRate = total ? Number((confirmed.length / total * 100).toFixed(1)) : 0;
-      const meta = `参评 ${total} 条（3轮全勤+延迟<800ms）→ 双优达标 ${eligible.length} 条 → 确认 Top${Math.min(500, eligible.length)} 条`;
+      const meta = `连通参评 ${total} 条 → 双优达标 ${eligible.length} 条 · 偏科 ${skewed.length} 条 → 确认均衡推荐 Top${confirmed.length} 条`;
       return { eligible, skewed, confirmed, passRate, meta, total };
     }
 
-    // ---- 跨轮合并：将同一数据源的多个三段式批次按 raw 聚合为一份跨轮汇总 ----
+    // ---- 跨轮合并：将同一数据源的多个三段式轮次按 raw 聚合为一份跨轮汇总 ----
     function buildMergedSummary(batchKey, batch) {
       const rounds = Object.keys(batch._roundHistory || {}).filter(k => (batch._roundHistory[k] || []).length);
-      if (rounds.length < 3) return null;
+      if (rounds.length < 1) return null;
       const nowD = getNowDateStr(), nowT = getNowTimeStr();
       const aggMap = new Map();
       rounds.forEach(r => {
@@ -3542,7 +4206,7 @@
       });
       const nodes = Array.from(aggMap.values()).map(c => ({
         name: c.name, proto: c.proto, host: c.host, raw: c.raw,
-        alive: c.alive, rounds: c.rounds,
+        alive: c.alive, rounds: Math.max(c.rounds, rounds.length),
         lat_avg: c.lats.length ? Number((c.lats.reduce((a, b) => a + b, 0) / c.lats.length).toFixed(1)) : -1,
         lat_min: c.mins.length ? Math.min(...c.mins) : -1,
         lat_std: c.stds.length ? Number((c.stds.reduce((a, b) => a + b, 0) / c.stds.length).toFixed(1)) : -1,
@@ -4169,7 +4833,8 @@
     function convertBalancedTop500() {
       const confirmed = getBalancedTop500Nodes();
       if (!confirmed.length) return showToast("当前批次暂无均衡 Top500 节点");
-      openConvertModal(confirmed, `⚖️ 均衡 Top500（${getNowDateStr()}）`);
+      closeMergeRecommendModal();
+      openStandaloneConverterWithNodes(confirmed, `⚖️ 均衡 Top500（${getNowDateStr()}）`);
     }
 
     // =========================================================================
@@ -4276,16 +4941,51 @@
     }
 
     function getRecommendedNodes(batch) {
-      if (!batch || !batch.nodes) return [];
+      if (!batch || !batch.nodes || !batch.nodes.length) return [];
+      const top = computeBalancedTop500(batch);
+      if (top.confirmed && top.confirmed.length > 0) {
+        return top.confirmed;
+      }
       const depHosts = new Set(state.deprecatedNodes.map(d => d.host));
       return batch.nodes
-        .filter(n => !depHosts.has(n.host) && n.alive === n.rounds && n.lat_avg >= 0 && n.lat_avg < 800 && (n.spd_avg > 0 || batch.batchType === "standalone"))
+        .filter(n => !depHosts.has(n.host) && n.lat_avg >= 0)
         .sort((a, b) => {
           if (Boolean(a.inflated) !== Boolean(b.inflated)) return a.inflated ? 1 : -1;
-          if (b.spd_avg !== a.spd_avg) return b.spd_avg - a.spd_avg;
+          if ((b.spd_avg || 0) !== (a.spd_avg || 0)) return (b.spd_avg || 0) - (a.spd_avg || 0);
           return a.lat_avg - b.lat_avg;
         });
     }
+
+    function getNodesByRankMode(batch, mode) {
+      if (!batch || !batch.nodes) return [];
+      const top = computeBalancedTop500(batch);
+      const scoreMap = new Map(top.confirmed.map(n => [n.raw, n.bal]));
+      const attachBal = (arr) => arr.map(n => scoreMap.has(n.raw) && n.bal === undefined ? Object.assign({}, n, { bal: scoreMap.get(n.raw) }) : n);
+
+      if (mode === "recommend") return getRecommendedNodes(batch);
+      if (mode === "balanced") return top.confirmed;
+      if (mode === "speed") {
+        const withSpd = batch.nodes.filter(n => n.lat_avg >= 0 && n.spd_avg > 0).sort((a, b) => b.spd_avg - a.spd_avg || a.lat_avg - b.lat_avg);
+        const fallbackAlive = withSpd.length ? withSpd : batch.nodes.filter(n => n.lat_avg >= 0).sort((a, b) => a.lat_avg - b.lat_avg);
+        return attachBal(fallbackAlive.slice(0, 500));
+      }
+      if (mode === "lowlat") {
+        return attachBal(batch.nodes.filter(n => n.lat_avg >= 0).sort((a, b) => a.lat_avg - b.lat_avg || (b.spd_avg || 0) - (a.spd_avg || 0)).slice(0, 500));
+      }
+      if (mode === "all_alive") {
+        return attachBal(batch.nodes.filter(n => n.lat_avg >= 0).sort((a, b) => (b.score || 0) - (a.score || 0)));
+      }
+      return batch.nodes.filter(n => n.lat_avg < 0 || (n.rounds >= 3 && n.alive < 2));
+    }
+
+    const RANK_MODE_NAMES = {
+      recommend: "⭐ 最终推荐榜",
+      balanced: "⚖️ 均衡 Top500",
+      speed: "🚀 速度排行",
+      lowlat: "⚡ 低延迟排行",
+      unstable: "⚠️ 淘汰/不稳定节点",
+      all_alive: "🌐 全部连通节点"
+    };
 
     function renderAggView() {
       if (document.hidden) { taskCtrl.needsUiFlushOnWake = true; return; }
@@ -4299,14 +4999,17 @@
       const partialBanner = document.getElementById("partialWarningBanner");
       if (!isStandalone && batch.incomplete) {
         partialBanner.style.display = "block";
-        document.getElementById("partialPresentCnt").textContent = batch.roundsPresent.length;
+        document.getElementById("partialPresentCnt").textContent = (batch.roundsPresent || []).length;
       } else {
         partialBanner.style.display = "none";
       }
 
-      const recNodes = getRecommendedNodes(batch);
-      const aliveNodes = batch.nodes.filter(n => n.lat_avg >= 0 && n.alive === n.rounds);
-      const unstableNodes = batch.nodes.filter(n => n.lat_avg < 0 || n.alive < n.rounds);
+      const recNodes = getNodesByRankMode(batch, "recommend");
+      const balNodes = getNodesByRankMode(batch, "balanced");
+      const spdNodes = getNodesByRankMode(batch, "speed");
+      const latNodes = getNodesByRankMode(batch, "lowlat");
+      const aliveNodes = batch.nodes.filter(n => n.lat_avg >= 0);
+      const unstableNodes = getNodesByRankMode(batch, "unstable");
 
       const provCard = document.getElementById("aggProvenanceCard");
       if (provCard) {
@@ -4314,37 +5017,92 @@
         provCard.innerHTML = `
           <div class="provenance-title" style="color:${isStandalone ? "#34d399" : "#60a5fa"};">
             <span>📌 数据溯源核验</span>
-            <span class="tag ${isStandalone ? "tag-ok" : "tag-proxy"}">${isStandalone ? "🧪 单独测试报告" : `⚡ 三段式 (${batch.roundsPresent.length}/3轮)`}</span>
+            <span class="tag ${isStandalone ? "tag-ok" : "tag-proxy"}">${isStandalone ? "🧪 单独测试报告" : `⚡ 三段式 (${(batch.roundsPresent || []).length}/3轮)`}</span>
           </div>
           <div class="provenance-meta">
             • <strong>被测数据源</strong>：<strong>${escapeHtml(batch.poolSource)}</strong><br/>
             • <strong>拉取时间</strong>：<code>${escapeHtml(batch.fetchedAt || batch.date)}</code> | <strong>测试完成</strong>：<code>${escapeHtml(batch.date)}</code><br/>
-            • <strong>统计结果</strong>：参测 <strong>${batch.poolSize.toLocaleString()}</strong> 条 → 连通 <strong style="color:#34d399;">${aliveNodes.length}</strong> 条 → 推荐 <strong style="color:#60a5fa;">${recNodes.length}</strong> 条
+            • <strong>统计结果</strong>：参测 <strong>${(batch.poolSize || batch.nodes.length).toLocaleString()}</strong> 条 → 连通 <strong style="color:#34d399;">${aliveNodes.length}</strong> 条 → 最终推荐 <strong style="color:#60a5fa;">${recNodes.length}</strong> 条 · 均衡Top500 <strong style="color:#c4b5fd;">${balNodes.length}</strong> 条
           </div>
         `;
       }
 
-      document.getElementById("tabCntRec").textContent = recNodes.length;
-      document.getElementById("tabCntUnstable").textContent = unstableNodes.length;
+      const setCnt = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+      setCnt("tabCntRec", recNodes.length);
+      setCnt("tabCntBal", balNodes.length);
+      setCnt("tabCntSpd", spdNodes.length);
+      setCnt("tabCntLat", latNodes.length);
+      setCnt("tabCntUnstable", unstableNodes.length);
       renderAggNodeList();
     }
 
     function switchAggRankTab(mode, btnEl) {
       state.aggRankMode = mode;
-      btnEl.parentElement.querySelectorAll(".seg-btn").forEach(b => b.classList.remove("active"));
-      btnEl.classList.add("active");
+      if (btnEl && btnEl.parentElement) {
+        btnEl.parentElement.querySelectorAll(".seg-btn").forEach(b => b.classList.remove("active"));
+        btnEl.classList.add("active");
+      }
       renderAggNodeList();
+    }
+
+    function getActiveRankLimitedNodes() {
+      const batch = BATCH_DB[state.currentBatchKey];
+      if (!batch) return [];
+      const fullList = getNodesByRankMode(batch, state.aggRankMode || "recommend");
+      const limitVal = Number(document.getElementById("activeRankLimitSel")?.value || 0);
+      return limitVal > 0 ? fullList.slice(0, limitVal) : fullList;
+    }
+
+    function copyActiveRankNodes(asBase64 = false) {
+      const list = getActiveRankLimitedNodes();
+      const title = RANK_MODE_NAMES[state.aggRankMode] || "当前榜单";
+      if (!list.length) return showToast(`${title} 暂无可复制的节点`);
+      const rawText = list.map(n => n.raw).join("\n");
+      if (asBase64) {
+        const b64 = btoa(unescape(encodeURIComponent(rawText)));
+        copyText(b64, `📦 已复制【${title}】${list.length} 条节点的 Base64 订阅`);
+      } else {
+        copyText(rawText, `📋 已复制【${title}】${list.length} 条节点纯链接`);
+      }
+    }
+
+    function sendActiveRankToConverter() {
+      const list = getActiveRankLimitedNodes();
+      const title = RANK_MODE_NAMES[state.aggRankMode] || "当前榜单";
+      if (!list.length) return showToast(`${title} 暂无可转换的节点`);
+      openStandaloneConverterWithNodes(list, `${title} (${list.length}条)`);
+    }
+
+    function launchV2rayNGWithActiveRank() {
+      const list = getActiveRankLimitedNodes();
+      const title = RANK_MODE_NAMES[state.aggRankMode] || "当前榜单";
+      if (!list.length) return showToast(`${title} 暂无可导入的节点`);
+      const raw = list.map(n => n.raw).join("\n");
+      if (window.AndroidKeepAlive && typeof window.AndroidKeepAlive.launchV2rayNG === "function") {
+        if (window.AndroidKeepAlive.launchV2rayNG(raw)) {
+          showToast(`🚀 已复制【${title}】${list.length} 条节点并打开客户端`);
+          return;
+        }
+      }
+      copyText(raw, `📋 已复制【${title}】${list.length} 条节点，请打开客户端导入`);
+    }
+
+    function exportActiveRankTxt() {
+      const list = getActiveRankLimitedNodes();
+      const title = (RANK_MODE_NAMES[state.aggRankMode] || "榜单").replace(/[^\u4e00-\u9fa5a-zA-Z0-9_-]/g, "");
+      if (!list.length) return showToast("当前榜单暂无节点可导出");
+      downloadBlob(list.map(n => n.raw).join("\n") + "\n", `${title}_${list.length}条_${getNowDateStr()}.txt`, "text/plain;charset=utf-8");
     }
 
     function renderAggNodeList() {
       const batch = BATCH_DB[state.currentBatchKey];
       if (!batch) return;
-      let list = [];
-      if (state.aggRankMode === "recommend") list = getRecommendedNodes(batch);
-      else if (state.aggRankMode === "balanced") list = computeBalancedTop500(batch).confirmed;
-      else if (state.aggRankMode === "speed") list = batch.nodes.filter(n => n.lat_avg >= 0 && n.spd_avg > 0).sort((a, b) => b.spd_avg - a.spd_avg).slice(0, 15);
-      else if (state.aggRankMode === "lowlat") list = batch.nodes.filter(n => n.lat_avg >= 0).sort((a, b) => a.lat_avg - b.lat_avg).slice(0, 10);
-      else list = batch.nodes.filter(n => n.lat_avg < 0 || n.alive < n.rounds);
+      const list = getNodesByRankMode(batch, state.aggRankMode || "recommend");
+
+      const titleEl = document.getElementById("activeRankTitleLabel");
+      const cntEl = document.getElementById("activeRankCountLabel");
+      if (titleEl) titleEl.textContent = RANK_MODE_NAMES[state.aggRankMode] || "⭐ 最终推荐榜";
+      if (cntEl) cntEl.textContent = list.length;
 
       const box = document.getElementById("aggNodeList");
       if (!list.length) {
@@ -4354,8 +5112,9 @@
 
       box.innerHTML = list.map((n, idx) => {
         const isDead = n.lat_avg < 0;
-        const balTag = state.aggRankMode === "balanced" && n.bal !== undefined
-          ? `<span class="tag" style="background:rgba(196,181,253,.15);color:#c4b5fd;">⚖️${n.bal}</span>` : "";
+        const balVal = n.bal !== undefined ? n.bal : n.score;
+        const balTag = !isDead && balVal !== undefined
+          ? `<span class="tag" style="background:rgba(196,181,253,.15);color:#c4b5fd;">⚖️${balVal}</span>` : "";
         return `
         <div class="node-card" onclick='openNodeModal(${JSON.stringify(n).replace(/'/g, "&#39;")})'>
           <div class="node-rank ${!isDead && idx < 3 && !n.inflated ? "top" + (idx + 1) : ""}">${idx + 1}</div>
@@ -4367,18 +5126,784 @@
               ${isDead ? `<span class="tag tag-err">❌ 不通</span>` : (n.inflated ? `<span class="tag tag-warn">⚠️虚高后置</span>` : "")}
             </div>
             <div class="node-meta">
-              <span>连通: <strong>${n.alive}/${n.rounds}轮</strong></span>
+              <span>连通: <strong>${n.alive || 1}/${n.rounds || 1}轮</strong></span>
               <span>延迟: <strong>${n.lat_avg}ms</strong></span>
               <span>${escapeHtml(n.host)}</span>
             </div>
           </div>
           <div class="node-metrics">
-            <div class="metric-spd" style="color:${isDead ? "#fb7185" : "#34d399"};">${isDead ? "不通" : (n.spd_avg > 0 ? n.spd_avg.toFixed(2) + " Mbps" : "仅延迟")}</div>
-            <div class="metric-lat">扫码 / 导入</div>
+            <div class="metric-spd" style="color:${isDead ? "#fb7185" : "#34d399"};">${isDead ? "不通" : (n.spd_avg > 0 ? Number(n.spd_avg).toFixed(2) + " Mbps" : "仅延迟")}</div>
+            <div class="metric-lat">扫码 / 转换</div>
           </div>
         </div>
       `;
       }).join("");
+    }
+
+    // =========================================================================
+    // 9.7 🔄 独立「节点转换」工作台模块 (Supports Any Pasted / Non-Imported Nodes)
+    // =========================================================================
+    let standaloneConvState = {
+      format: "clash",
+      nodes: [],
+      sourceTitle: "手动粘贴/载入"
+    };
+
+    function openStandaloneConverterWithNodes(nodesList, sourceTitle = "榜单导入") {
+      if (!nodesList || !nodesList.length) return showToast("暂无可转换的节点");
+      standaloneConvState.sourceTitle = sourceTitle;
+      switchTab("tab-convert");
+      const inputEl = document.getElementById("standaloneConvertInput");
+      if (inputEl) {
+        inputEl.value = nodesList.map(n => n.raw || String(n)).join("\n");
+      }
+      runStandaloneConvertLive();
+      showToast(`🔄 已将「${sourceTitle}」(${nodesList.length}条) 载入独立节点转换中心`);
+    }
+
+    function loadLeaderboardIntoConverter() {
+      const sel = document.getElementById("convImportSourceSel");
+      const mode = sel ? sel.value : "recommend";
+      if (mode === "pool") {
+        if (!state.harvestedPool.length) return showToast("主收集池暂无节点");
+        openStandaloneConverterWithNodes(state.harvestedPool.slice(0, 500), `主收集池 (${Math.min(500, state.harvestedPool.length)}条)`);
+        return;
+      }
+      const batch = BATCH_DB[state.currentBatchKey];
+      if (!batch) return showToast("当前没有选中的汇总批次");
+      const list = getNodesByRankMode(batch, mode);
+      if (!list.length) return showToast("所选榜单暂无节点");
+      openStandaloneConverterWithNodes(list, `${RANK_MODE_NAMES[mode] || mode} (${list.length}条)`);
+    }
+
+    async function pasteClipboardIntoConverter() {
+      const clipText = await readClipboardUnified();
+      if (clipText) {
+        const inputEl = document.getElementById("standaloneConvertInput");
+        if (inputEl) inputEl.value = clipText;
+        standaloneConvState.sourceTitle = "剪贴板粘贴";
+        runStandaloneConvertLive();
+        showToast(`📋 已从剪贴板粘贴并识别 ${standaloneConvState.nodes.length} 条有效节点`);
+        return;
+      }
+      document.getElementById("standaloneConvertInput")?.focus();
+      showToast("请直接在输入框内长按选择「粘贴」");
+    }
+
+    function fillConverterSampleNodes() {
+      const sample = [
+        "vless://81a227e3-cb97-40fe-b7b6-45a60ed065cf@node.remnagecsp.ru:7443?type=raw&security=reality&flow=xtls-rprx-vision&fp=firefox&pbk=0BVxZKOt6wO0jIB1xRkAAtaFUkmyFAbVWfkkKSJBfEI&sid=570ffeb12f6e4635&sni=node.remnagecsp.ru&encryption=none#Reality_RU",
+        "trojan://d2dINbhQ1N@74.82.196.93:443?security=tls&sni=www.ugly-xu.top&type=tcp#Tokyo_JP",
+        "ss://YWVzLTI1Ni1nY206WlJwZ2FCZUd4dEVOSVhndmhwa1pCS3o5R25XUlMyZFljeDlPK2EyaXdOND0=@202.50.253.90:19999#Italy_SS",
+        "vless://495c7195-85b8-498a-bf20-2ea9ce9175b5@144.31.181.177:8443?security=tls&type=ws&path=%2F&host=snip.edgeoneai.cc.cd&sni=snip.edgeoneai.cc.cd&fp=chrome&encryption=none#Germany_WS"
+      ].join("\n");
+      const inputEl = document.getElementById("standaloneConvertInput");
+      if (inputEl) inputEl.value = sample;
+      standaloneConvState.sourceTitle = "示例节点";
+      runStandaloneConvertLive();
+      showToast("已填入 4 条多协议示例节点並生成配置");
+    }
+
+    function clearStandaloneConverter() {
+      const inputEl = document.getElementById("standaloneConvertInput");
+      const outEl = document.getElementById("standaloneConvertOutput");
+      if (inputEl) inputEl.value = "";
+      if (outEl) outEl.value = "";
+      standaloneConvState.nodes = [];
+      runStandaloneConvertLive();
+    }
+
+    function switchStandaloneConvertFormat(fmt) {
+      standaloneConvState.format = fmt;
+      ["clash", "singbox", "uri", "v2rayn"].forEach(k => {
+        const btn = document.getElementById("stConvBtn-" + k);
+        if (btn) btn.className = k === fmt ? "btn btn-primary btn-sm" : "btn btn-ghost btn-sm";
+      });
+      runStandaloneConvertLive();
+    }
+
+    function runStandaloneConvertLive() {
+      const inputEl = document.getElementById("standaloneConvertInput");
+      const outEl = document.getElementById("standaloneConvertOutput");
+      const statEl = document.getElementById("standaloneConvParseStat");
+      const metaEl = document.getElementById("standaloneConvOutMeta");
+      const sizeEl = document.getElementById("standaloneConvOutSize");
+      if (!inputEl || !outEl) return;
+
+      const rawText = inputEl.value;
+      const info = smartExtractNodesFromText(rawText, true);
+      let nodes = info.valid;
+
+      const dedupOn = document.getElementById("convOptDedup")?.checked !== false;
+      const renameOn = Boolean(document.getElementById("convOptRename")?.checked);
+
+      if (dedupOn && nodes.length > 0) {
+        const seen = new Set();
+        nodes = nodes.filter(n => {
+          const k = `${n.proto}|${n.host}`;
+          if (seen.has(k)) return false;
+          seen.add(k);
+          return true;
+        });
+      }
+
+      if (renameOn && nodes.length > 0) {
+        nodes = nodes.map((n, idx) => {
+          const idxTag = String(idx + 1).padStart(2, "0");
+          const cleanName = `${idxTag}_${n.name || n.proto.toUpperCase()}`;
+          const hashIdx = n.raw.indexOf("#");
+          const baseUri = hashIdx >= 0 ? n.raw.slice(0, hashIdx) : n.raw;
+          return Object.assign({}, n, { name: cleanName, raw: `${baseUri}#${encodeURIComponent(cleanName)}` });
+        });
+      } else {
+        // Ensure unique names for Clash / sing-box even when rename is off
+        const nameSeen = new Map();
+        nodes = nodes.map(n => {
+          const baseName = n.name || `${n.proto.toUpperCase()}-${n.host}`;
+          const count = (nameSeen.get(baseName) || 0) + 1;
+          nameSeen.set(baseName, count);
+          if (count === 1) return n;
+          const uniqName = `${baseName}_${count}`;
+          const hashIdx = n.raw.indexOf("#");
+          const baseUri = hashIdx >= 0 ? n.raw.slice(0, hashIdx) : n.raw;
+          return Object.assign({}, n, { name: uniqName, raw: `${baseUri}#${encodeURIComponent(uniqName)}` });
+        });
+      }
+
+      standaloneConvState.nodes = nodes;
+
+      if (statEl) {
+        if (!rawText.trim()) {
+          statEl.innerHTML = `等待粘贴或从榜单载入节点...`;
+        } else {
+          statEl.innerHTML = `✅ 已识别 <strong style="color:#34d399;">${nodes.length}</strong> 条有效节点（VLESS ${info.counts.vless} · VMess ${info.counts.vmess} · Trojan ${info.counts.trojan} · SS ${info.counts.ss}${info.counts.hysteria2 ? ` · Hy2 ${info.counts.hysteria2}` : ""}）`;
+        }
+      }
+
+      if (!nodes.length) {
+        outEl.value = "";
+        if (sizeEl) sizeEl.textContent = "0 字节";
+        return;
+      }
+
+      const fmt = standaloneConvState.format || "clash";
+      let outputStr = "";
+      let fmtTitle = "";
+      if (fmt === "clash") {
+        outputStr = buildClashYaml(nodes);
+        fmtTitle = `Clash / Mihomo 配置 (.yaml) · 含 ${nodes.length} 个节点与自动分流组`;
+      } else if (fmt === "singbox") {
+        outputStr = buildSingboxJson(nodes);
+        fmtTitle = `sing-box 配置 (.json) · v1.11+ 标准格式 (${nodes.length} 节点)`;
+      } else if (fmt === "uri") {
+        outputStr = buildV2rayNText(nodes);
+        fmtTitle = `v2rayN / v2rayNG 纯节点链接 (.txt) · 一行一条 (${nodes.length} 节点)`;
+      } else if (fmt === "v2rayn") {
+        outputStr = btoa(unescape(encodeURIComponent(buildV2rayNText(nodes))));
+        fmtTitle = `通用 Base64 订阅串 (.txt) · 含 ${nodes.length} 个节点`;
+      }
+
+      outEl.value = outputStr;
+      if (metaEl) metaEl.textContent = fmtTitle;
+      if (sizeEl) sizeEl.textContent = `${outputStr.length.toLocaleString()} 字符 · ${outputStr.split("\n").length} 行`;
+    }
+
+    function copyStandaloneConvertOutput() {
+      const outEl = document.getElementById("standaloneConvertOutput");
+      if (!outEl || !outEl.value) return showToast("请先粘贴或载入要转换的节点");
+      copyText(outEl.value, `📋 已复制 ${standaloneConvState.nodes.length} 条节点的 ${standaloneConvState.format.toUpperCase()} 转换结果`);
+    }
+
+    function downloadStandaloneConvertOutput() {
+      const outEl = document.getElementById("standaloneConvertOutput");
+      if (!outEl || !outEl.value) return showToast("请先粘贴或载入要转换的节点");
+      const fmt = standaloneConvState.format || "clash";
+      const extMap = { uri: "txt", v2rayn: "txt", clash: "yaml", singbox: "json" };
+      const nameMap = { uri: "nodes_uri", v2rayn: "nodes_base64_sub", clash: "clash_mihomo_config", singbox: "singbox_config" };
+      const mimeMap = { uri: "text/plain;charset=utf-8", v2rayn: "text/plain;charset=utf-8", clash: "text/yaml;charset=utf-8", singbox: "application/json;charset=utf-8" };
+      const fname = `${nameMap[fmt]}_${standaloneConvState.nodes.length}nodes_${getNowDateStr()}.${extMap[fmt]}`;
+      downloadBlob(outEl.value + "\n", fname, mimeMap[fmt]);
+    }
+
+    function launchClientWithStandaloneConvert() {
+      if (!standaloneConvState.nodes.length) return showToast("请先粘贴或载入要转换的节点");
+      const outEl = document.getElementById("standaloneConvertOutput");
+      const fmt = standaloneConvState.format;
+      const payload = (fmt === "uri" || fmt === "v2rayn") ? outEl.value : buildV2rayNText(standaloneConvState.nodes);
+      if (window.AndroidKeepAlive && typeof window.AndroidKeepAlive.launchV2rayNG === "function") {
+        if (window.AndroidKeepAlive.launchV2rayNG(payload)) {
+          showToast(`🚀 已复制 ${standaloneConvState.nodes.length} 条节点并拉起客户端`);
+          return;
+        }
+      }
+      copyText(payload, `📋 已复制 ${standaloneConvState.nodes.length} 条节点，请打开客户端导入`);
+    }
+
+    function saveConvertedNodesAsAppSource() {
+      if (!standaloneConvState.nodes.length) return showToast("请先粘贴或载入要转换的节点");
+      const nodes = standaloneConvState.nodes;
+      const dataUrl = buildInlineDataSourceUrl(nodes);
+      const srcName = `转换转源-${getNowDateStr().slice(5)}_${getNowTimeStr().slice(0, 5)} (${nodes.length}条)`;
+      state.sources.unshift({
+        id: Date.now(),
+        name: srcName,
+        group: "自定义扩展",
+        url: dataUrl,
+        enabled: true,
+        lastCount: nodes.length,
+        directOk: true,
+        directMs: 5,
+        proxyOk: true,
+        proxyMs: 5
+      });
+      mergeNodesIntoPool(nodes);
+      recordPullSnapshot("single", srcName, `从节点转换中心转存为 App 订阅源 (${nodes.length}条)`, nodes);
+      saveState();
+      renderSources();
+      renderWeeklyReview();
+      showToast(`📡 已将这 ${nodes.length} 条节点转存为 App 订阅源「${srcName}」！`);
+    }
+
+    async function sendConverterNodesToTest(testMode) {
+      if (!standaloneConvState.nodes.length) return showToast("请先粘贴或载入要测试的节点");
+      const nodes = [...standaloneConvState.nodes];
+      const pasteBox = document.getElementById("pasteTestTextarea");
+      if (pasteBox) {
+        pasteBox.value = nodes.map(n => n.raw).join("\n");
+        previewPastedNodes();
+      }
+      switchTab("tab-test");
+      switchTestSubMode("paste");
+      if (testMode === "3stage") {
+        await runThreeStageOnPastedNodes("3stage_exclusive");
+      } else {
+        await runThreeStageOnPastedNodes("exclusive");
+      }
+    }
+
+    // =========================================================================
+    // 9.8 🌐 全网智能猎源扫描器 (GitHub / YouTube / 全网聚合 -> 转换成 App 源入库)
+    // =========================================================================
+    const HUNTER_CANDIDATE_POOL = [
+      // GitHub 高活性免费节点/订阅源
+      { channel: "github", name: "GitHub-Epodonios全协议池", url: "https://raw.githubusercontent.com/Epodonios/v2ray-configs/main/All_Configs_Sub.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GitHub-Yebekhe-TG聚合", url: "https://raw.githubusercontent.com/yebekhe/TelegramV2rayCollector/main/sub/normal/mix", group: "GitHub挖掘" },
+      { channel: "github", name: "GitHub-Kwinshadow-Mix", url: "https://raw.githubusercontent.com/Kwinshadow/TelegramV2rayCollector/main/sub/mix", group: "GitHub挖掘" },
+      { channel: "github", name: "GitHub-IranianCypherpunks", url: "https://raw.githubusercontent.com/IranianCypherpunks/sub/main/config", group: "GitHub挖掘" },
+      { channel: "github", name: "GitHub-Surfboard-Eternity", url: "https://raw.githubusercontent.com/Surfboardv2ray/v2ray-worker-sub/master/Eternity.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GitHub-Soroush-VLESS专池", url: "https://raw.githubusercontent.com/soroushmirzaei/telegram-proxies-collector/main/protocols/vless", group: "GitHub挖掘" },
+      { channel: "github", name: "GitHub-NiREvil-VLESS", url: "https://raw.githubusercontent.com/NiREvil/vless/main/sub/SSTime", group: "GitHub挖掘" },
+      { channel: "github", name: "GitHub-Lagzian-Clash池", url: "https://raw.githubusercontent.com/lagzian/SS-Collector/main/mix_clash.yaml", group: "GitHub挖掘" },
+      { channel: "github", name: "GitHub-Ndsphonemy-Sub", url: "https://raw.githubusercontent.com/ndsphonemy/proxy-sub/main/default.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GitHub-AzadNet-Sub", url: "https://raw.githubusercontent.com/AzadNetCH/Clash/main/AzadNet_iOS.txt", group: "GitHub挖掘" },
+      // YouTube 免费节点博主同步日更源与频道页
+      { channel: "youtube", name: "YouTube日更-Ripaojiedian免费节点", url: "https://raw.githubusercontent.com/ripaojiedian/freenode/main/sub", group: "YouTube猎源" },
+      { channel: "youtube", name: "YouTube日更-FreeFQ节点合集", url: "https://raw.githubusercontent.com/freefq/free/master/v2", group: "YouTube猎源" },
+      { channel: "youtube", name: "YouTube日更-V2rayDY频道源", url: "https://raw.githubusercontent.com/v2raydy/v2ray/main/sub.txt", group: "YouTube猎源" },
+      { channel: "youtube", name: "YouTube日更-ChangFeng频道池", url: "https://raw.githubusercontent.com/changfengoss/pub/main/data/2026_sub.txt", group: "YouTube猎源" },
+      // 全网公开节点网页 & Telegram 公开 Web 预览页（自动从 HTML 抠散装节点转 App 内联源）
+      { channel: "web", name: "全网TG网页-v2ray_free_conf", url: "https://t.me/s/v2ray_free_conf", group: "全网猎源", isHtmlPage: true },
+      { channel: "web", name: "全网TG网页-free4allVPN", url: "https://t.me/s/free4allVPN", group: "全网猎源", isHtmlPage: true },
+      { channel: "web", name: "全网TG网页-PrivateVPNs", url: "https://t.me/s/PrivateVPNs", group: "全网猎源", isHtmlPage: true },
+      { channel: "web", name: "全网TG网页-vless_irr", url: "https://t.me/s/vless_irr", group: "全网猎源", isHtmlPage: true }
+    ];
+
+    let huntedSourcesState = [];
+
+    function extractSubscriptionUrlsAndNodesFromText(rawText, originName = "网页嗅探", channel = "web") {
+      const text = String(rawText || "");
+      const discovered = [];
+      if (!text.trim()) return discovered;
+
+      // 1. Decode YouTube redirect links (https://www.youtube.com/redirect?...&q=https%3A%2F%2F...)
+      const ytRedirs = text.match(/youtube\.com\/redirect\?[^"'\s<>]+/gi) || [];
+      const extraUrls = [];
+      ytRedirs.forEach(r => {
+        const qMatch = r.match(/[?&]q=([^&"'\s<>]+)/i);
+        if (qMatch) {
+          try { extraUrls.push(decodeURIComponent(qMatch[1])); } catch (_) {}
+        }
+      });
+
+      // 2. Unescape JSON-escaped URLs inside YouTube ytInitialPlayerResponse / HTML (e.g. https:\/\/raw.githubusercontent.com\/...)
+      const unescapedText = text.replace(/\\\//g, "/") + "\n" + extraUrls.join("\n");
+
+      // 3. Extract candidate subscription URLs
+      const urlRegex = /https?:\/\/[^\s"'<>`|\\)\]]+/gi;
+      const allUrls = unescapedText.match(urlRegex) || [];
+      const seenUrls = new Set();
+
+      for (let u of allUrls) {
+        u = u.replace(/[.,;!?'"`)\]]+$/, "");
+        u = normalizeSubscriptionUrl(u);
+        if (seenUrls.has(u)) continue;
+        // Filter out non-subscription static assets & UI links
+        if (/\.(png|jpg|jpeg|gif|svg|webp|ico|css|js|woff|woff2|ttf|mp4|mp3|apk|zip|tar|gz)(\?|$)/i.test(u)) continue;
+        if (/github\.com\/[^\/]+\/[^\/]+(\/issues|\/pulls|\/actions|\/releases|\/stargazers|\/watchers|\/network|\/ forks|$)/i.test(u)) continue;
+        if (/youtube\.com\/(watch|results|channel|c\/|@|feed|s\/|iframe|img|redirect)/i.test(u)) continue;
+        if (/^(https?:\/\/)?(www\.)?(google\.com|gstatic\.com|googleapis\.com|ytimg\.com|ggpht\.com|t\.me\/[^s]|telegram\.org|twitter\.com|x\.com|facebook\.com)/i.test(u)) continue;
+
+        const isLikelySub = (
+          u.includes("raw.githubusercontent.com/") ||
+          u.includes("gist.githubusercontent.com/") ||
+          /\.(txt|yaml|yml|sub|conf)(\?|$)/i.test(u) ||
+          /\/(sub|subscribe|v2ray|clash|vless|nodes|proxies|all|mix)(\/|\?|$)/i.test(u) ||
+          /[?&](token|sub|target)=/i.test(u)
+        );
+        if (isLikelySub) {
+          seenUrls.add(u);
+          let shortName = originName;
+          try {
+            const urlObj = new URL(u);
+            const segs = urlObj.pathname.split("/").filter(Boolean);
+            shortName = `${channel === "youtube" ? "YT" : (channel === "github" ? "GH" : "Web")}-${segs.slice(0, 2).join("-") || urlObj.hostname}`;
+          } catch (_) {}
+          discovered.push({
+            type: "sub_url",
+            channel,
+            name: shortName.slice(0, 32),
+            url: u,
+            group: channel === "youtube" ? "YouTube猎源" : (channel === "github" ? "GitHub挖掘" : "全网猎源"),
+            nodes: [],
+            nodeCount: 0,
+            verified: false
+          });
+        }
+      }
+
+      // 4. Also extract scattered raw proxy nodes (vless/vmess/trojan/ss/hysteria2/tuic) or Base64 blocks from the page
+      const htmlDecoded = unescapedText
+        .replace(/&amp;/g, "&")
+        .replace(/&#39;/g, "'")
+        .replace(/&quot;/g, '"');
+      const extractedNodes = smartExtractNodesFromText(htmlDecoded, true);
+      if (extractedNodes.valid.length > 0) {
+        const inlineUrl = buildInlineDataSourceUrl(extractedNodes.valid);
+        discovered.unshift({
+          type: "inline_nodes",
+          channel,
+          name: `${originName}-提取节点源 (${extractedNodes.valid.length}条)`,
+          url: inlineUrl,
+          group: channel === "youtube" ? "YouTube猎源" : (channel === "github" ? "GitHub挖掘" : "全网猎源"),
+          nodes: extractedNodes.valid,
+          nodeCount: extractedNodes.valid.length,
+          verified: true,
+          directOk: true,
+          proxyOk: true
+        });
+      }
+
+      return discovered;
+    }
+
+    async function runSourceHunter(channel = "all") {
+      const kw = (document.getElementById("hunterKeywordInput")?.value || "v2ray free sub").trim();
+      const statusSub = document.getElementById("hunterStatusSub");
+      const listBox = document.getElementById("hunterResultsList");
+      const existingUrls = new Set(state.sources.map(s => normalizeSubscriptionUrl(s.url)));
+
+      startGlobalTask(`全网猎源扫描 (${channel.toUpperCase()})`);
+      if (statusSub) statusSub.textContent = `⏳ 正在通过双通道扫描 ${channel.toUpperCase()} 最新订阅源与节点...`;
+      if (listBox && !huntedSourcesState.length) {
+        listBox.innerHTML = `<div style="text-align:center;padding:18px;color:#60a5fa;font-size:13px;">⏳ 正在扫描 GitHub / YouTube / 全网公开节点源，请稍候...</div>`;
+      }
+
+      const candidateTargets = [];
+
+      // 1. Live GitHub Search API discovery
+      if (channel === "all" || channel === "github") {
+        updateGlobalTaskProgress("正在搜索 GitHub 最新节点仓库 API...", 15);
+        try {
+          const ghSearchUrl = `https://api.github.com/search/repositories?q=${encodeURIComponent(kw + " v2ray")}&sort=updated&per_page=6`;
+          const ghRes = await probeUrlDualChannel(ghSearchUrl);
+          if (ghRes && ghRes.body && ghRes.body.includes('"items"')) {
+            const j = JSON.parse(ghRes.body);
+            (j.items || []).slice(0, 6).forEach(repo => {
+              if (!repo || !repo.full_name) return;
+              const branch = repo.default_branch || "main";
+              candidateTargets.push({
+                channel: "github",
+                name: `GH实时-${repo.full_name}`,
+                url: `https://raw.githubusercontent.com/${repo.full_name}/${branch}/README.md`,
+                group: "GitHub挖掘",
+                isHtmlPage: true
+              });
+            });
+          }
+        } catch (_) {}
+      }
+
+      // 2. Live YouTube Search page discovery
+      if (channel === "all" || channel === "youtube") {
+        updateGlobalTaskProgress("正在嗅探 YouTube 免费节点频道与视频简介...", 30);
+        try {
+          const ytSearchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(kw + " 免费节点 订阅")}&sp=CAI%253D`;
+          const ytRes = await probeUrlDualChannel(ytSearchUrl);
+          if (ytRes && ytRes.body && ytRes.body.length > 100) {
+            const foundFromYtSearch = extractSubscriptionUrlsAndNodesFromText(ytRes.body, "YouTube搜索", "youtube");
+            foundFromYtSearch.forEach(item => {
+              if (item.type === "inline_nodes" && item.nodeCount > 0) {
+                upsertHuntedItem(item, existingUrls);
+              } else if (item.type === "sub_url") {
+                candidateTargets.push({ channel: "youtube", name: item.name, url: item.url, group: "YouTube猎源" });
+              }
+            });
+            // Also extract top 2 videoIds from YouTube search and inspect their watch pages
+            const vidMatches = [...ytRes.body.matchAll(/"videoId":"([a-zA-Z0-9_-]{11})"/g)].map(m => m[1]);
+            const uniqueVids = [...new Set(vidMatches)].slice(0, 2);
+            for (const vid of uniqueVids) {
+              if (taskCtrl.cancelled) break;
+              const watchRes = await probeUrlDualChannel(`https://www.youtube.com/watch?v=${vid}`);
+              if (watchRes && watchRes.body) {
+                const items = extractSubscriptionUrlsAndNodesFromText(watchRes.body, `YT视频-${vid}`, "youtube");
+                items.forEach(it => {
+                  if (it.type === "inline_nodes" && it.nodeCount > 0) upsertHuntedItem(it, existingUrls);
+                  else if (it.type === "sub_url") candidateTargets.push({ channel: "youtube", name: it.name, url: it.url, group: "YouTube猎源" });
+                });
+              }
+            }
+          }
+        } catch (_) {}
+      }
+
+      // 3. Curated High-Yield Candidates for the selected channel(s)
+      HUNTER_CANDIDATE_POOL.forEach(c => {
+        if (channel === "all" || c.channel === channel) {
+          candidateTargets.push(c);
+        }
+      });
+
+      // Deduplicate candidate targets
+      const seenTargetUrls = new Set();
+      const uniqueTargets = candidateTargets.filter(t => {
+        const u = normalizeSubscriptionUrl(t.url);
+        if (!u || seenTargetUrls.has(u)) return false;
+        seenTargetUrls.add(u);
+        return true;
+      });
+
+      for (let i = 0; i < uniqueTargets.length; i++) {
+        await waitIfTaskPaused();
+        if (taskCtrl.cancelled) break;
+        const target = uniqueTargets[i];
+        const pct = Math.min(98, 35 + Math.round(((i + 1) / Math.max(1, uniqueTargets.length)) * 63));
+        updateGlobalTaskProgress(`猎源验证 (${i + 1}/${uniqueTargets.length}): ${target.name}`, pct);
+
+        const res = await probeUrlDualChannel(target.url);
+        if (taskCtrl.cancelled) break;
+        if (!res || !res.body || !res.body.trim()) continue;
+
+        if (target.isHtmlPage) {
+          const extracted = extractSubscriptionUrlsAndNodesFromText(res.body, target.name, target.channel);
+          for (const ex of extracted) {
+            if (ex.type === "inline_nodes" && ex.nodeCount > 0) {
+              upsertHuntedItem(ex, existingUrls);
+            } else if (ex.type === "sub_url") {
+              const subCheck = await probeUrlDualChannel(ex.url);
+              if (subCheck && subCheck.body) {
+                const parsedSub = parseSubscriptionContent(subCheck.body, 500, ex.name, true);
+                if (parsedSub.valid.length > 0) {
+                  upsertHuntedItem({
+                    type: "sub_url",
+                    channel: target.channel,
+                    name: `${ex.name} (${parsedSub.rawTotal}条)`,
+                    url: ex.url,
+                    group: target.group,
+                    nodes: parsedSub.valid,
+                    nodeCount: parsedSub.rawTotal || parsedSub.valid.length,
+                    verified: true,
+                    directOk: Boolean(subCheck.directOk),
+                    proxyOk: Boolean(subCheck.proxyOk)
+                  }, existingUrls);
+                }
+              }
+            }
+          }
+        } else {
+          const parsed = parseSubscriptionContent(res.body, 500, target.name, true);
+          if (parsed.valid.length > 0) {
+            upsertHuntedItem({
+              type: "sub_url",
+              channel: target.channel,
+              name: target.name,
+              url: normalizeSubscriptionUrl(target.url),
+              group: target.group || "全网猎源",
+              nodes: parsed.valid,
+              nodeCount: parsed.rawTotal || parsed.valid.length,
+              verified: true,
+              directOk: Boolean(res.directOk),
+              proxyOk: Boolean(res.proxyOk)
+            }, existingUrls);
+          }
+        }
+        renderHuntedSourcesList();
+      }
+
+      finishGlobalTask();
+      renderHuntedSourcesList();
+      const newCnt = huntedSourcesState.filter(x => !x.alreadyInApp).length;
+      if (statusSub) {
+        statusSub.textContent = `✅ 扫描完成：共发现 ${huntedSourcesState.length} 个有效源（其中 ${newCnt} 个新源可一键加入 App）`;
+      }
+      showToast(`🌐 猎源扫描完成！发现 ${huntedSourcesState.length} 个有效源`);
+    }
+
+    function upsertHuntedItem(item, existingUrlsSet) {
+      const normUrl = normalizeSubscriptionUrl(item.url);
+      const alreadyInApp = existingUrlsSet ? existingUrlsSet.has(normUrl) : state.sources.some(s => normalizeSubscriptionUrl(s.url) === normUrl);
+      const idx = huntedSourcesState.findIndex(x => normalizeSubscriptionUrl(x.url) === normUrl || (x.type === "inline_nodes" && item.type === "inline_nodes" && x.name === item.name));
+      const record = Object.assign({}, item, { url: normUrl, alreadyInApp });
+      if (idx >= 0) huntedSourcesState[idx] = record;
+      else huntedSourcesState.unshift(record);
+    }
+
+    async function pasteToHunterCustomInput() {
+      const clip = await readClipboardUnified();
+      if (clip) {
+        document.getElementById("hunterCustomInput").value = clip;
+        showToast("📥 已粘贴剪贴板内容，点击下方按钮即可深度嗅探转源");
+        return;
+      }
+      document.getElementById("hunterCustomInput")?.focus();
+      showToast("请在输入框长按选择「粘贴」");
+    }
+
+    async function runCustomUrlOrTextSniffer() {
+      const inputEl = document.getElementById("hunterCustomInput");
+      const raw = (inputEl ? inputEl.value : "").trim();
+      if (!raw) return showToast("请输入网页/YouTube/GitHub链接，或直接粘贴含节点/订阅的文字");
+
+      const existingUrls = new Set(state.sources.map(s => normalizeSubscriptionUrl(s.url)));
+      startGlobalTask("深度嗅探自定义网址/文本...");
+      let foundBefore = huntedSourcesState.length;
+
+      // 1. Direct extraction from the pasted text itself
+      const directItems = extractSubscriptionUrlsAndNodesFromText(raw, "自定义嗅探", "web");
+      for (const it of directItems) {
+        if (it.type === "inline_nodes" && it.nodeCount > 0) {
+          upsertHuntedItem(it, existingUrls);
+        }
+      }
+
+      // 2. Fetch any URLs present in the input
+      const urlMatches = raw.match(/https?:\/\/[^\s"'<>`|\\]+/gi) || [];
+      const uniqueUrls = [...new Set(urlMatches.map(u => normalizeSubscriptionUrl(u.replace(/[.,;!?'"`)\]]+$/, ""))))].slice(0, 8);
+
+      for (let i = 0; i < uniqueUrls.length; i++) {
+        if (taskCtrl.cancelled) break;
+        const u = uniqueUrls[i];
+        const ch = u.includes("youtube.com") || u.includes("youtu.be") ? "youtube" : (u.includes("github") ? "github" : "web");
+        updateGlobalTaskProgress(`正在抓取并解析 (${i + 1}/${uniqueUrls.length}): ${u.slice(0, 38)}...`, Math.round(((i + 1) / uniqueUrls.length) * 90));
+
+        const res = await probeUrlDualChannel(u);
+        if (!res || !res.body) continue;
+
+        // First check if the URL itself is a direct subscription file
+        const directParsed = parseSubscriptionContent(res.body, 500, "嗅探订阅源", true);
+        if (directParsed.valid.length > 0 && !res.body.trim().startsWith("<!DOCTYPE") && !res.body.includes("<html")) {
+          let hostLabel = "嗅探新源";
+          try { hostLabel = new URL(u).hostname + "-" + new URL(u).pathname.split("/").filter(Boolean).slice(-1)[0]; } catch (_) {}
+          upsertHuntedItem({
+            type: "sub_url",
+            channel: ch,
+            name: `${hostLabel.slice(0, 28)}`,
+            url: u,
+            group: ch === "youtube" ? "YouTube猎源" : (ch === "github" ? "GitHub挖掘" : "全网猎源"),
+            nodes: directParsed.valid,
+            nodeCount: directParsed.rawTotal || directParsed.valid.length,
+            verified: true,
+            directOk: Boolean(res.directOk),
+            proxyOk: Boolean(res.proxyOk)
+          }, existingUrls);
+          continue;
+        }
+
+        // Otherwise treat as HTML / YouTube / GitHub page and extract embedded subscription URLs & scattered nodes
+        const pageItems = extractSubscriptionUrlsAndNodesFromText(res.body, ch === "youtube" ? "YouTube页面" : "网页嗅探", ch);
+        for (const pIt of pageItems) {
+          if (pIt.type === "inline_nodes" && pIt.nodeCount > 0) {
+            upsertHuntedItem(pIt, existingUrls);
+          } else if (pIt.type === "sub_url") {
+            const subRes = await probeUrlDualChannel(pIt.url);
+            if (subRes && subRes.body) {
+              const pSub = parseSubscriptionContent(subRes.body, 500, pIt.name, true);
+              if (pSub.valid.length > 0) {
+                upsertHuntedItem({
+                  type: "sub_url",
+                  channel: ch,
+                  name: pIt.name,
+                  url: pIt.url,
+                  group: pIt.group,
+                  nodes: pSub.valid,
+                  nodeCount: pSub.rawTotal || pSub.valid.length,
+                  verified: true,
+                  directOk: Boolean(subRes.directOk),
+                  proxyOk: Boolean(subRes.proxyOk)
+                }, existingUrls);
+              }
+            }
+          }
+        }
+      }
+
+      finishGlobalTask();
+      renderHuntedSourcesList();
+      const addedCnt = huntedSourcesState.length - foundBefore;
+      showToast(addedCnt > 0 || huntedSourcesState.length > 0
+        ? `🎯 嗅探完成！已提取并转换为 App 可用源，点击「➕ 加入 App 源」即可入库`
+        : `⚠️ 未在该内容中检测到有效节点或可连通订阅链接`);
+    }
+
+    function renderHuntedSourcesList() {
+      const box = document.getElementById("hunterResultsList");
+      const cntEl = document.getElementById("hunterFoundCount");
+      const newBadge = document.getElementById("hunterNewCountBadge");
+      if (!box) return;
+
+      const existingUrls = new Set(state.sources.map(s => normalizeSubscriptionUrl(s.url)));
+      huntedSourcesState.forEach(item => {
+        item.alreadyInApp = existingUrls.has(normalizeSubscriptionUrl(item.url));
+      });
+
+      const newItems = huntedSourcesState.filter(x => !x.alreadyInApp);
+      if (cntEl) cntEl.textContent = huntedSourcesState.length;
+      if (newBadge) newBadge.textContent = newItems.length;
+
+      if (!huntedSourcesState.length) {
+        box.innerHTML = `<div style="text-align:center;padding:18px;color:var(--text-secondary);font-size:12.5px;">尚未发现源，请点击上方扫描按钮或粘贴网页/视频地址嗅探</div>`;
+        return;
+      }
+
+      const chBadge = (ch, type) => {
+        if (type === "inline_nodes") return `<span class="tag tag-warn">📦 散装节点转订阅源</span>`;
+        if (ch === "github") return `<span class="tag tag-proxy">🐙 GitHub源</span>`;
+        if (ch === "youtube") return `<span class="tag tag-err">▶️ YouTube源</span>`;
+        return `<span class="tag tag-ok">🌐 全网订阅源</span>`;
+      };
+
+      box.innerHTML = huntedSourcesState.map((item, idx) => {
+        const displayUrl = item.url.startsWith("data:text/plain")
+          ? `data:text/plain;base64,... [App内联订阅源 · 含 ${item.nodeCount} 条节点]`
+          : item.url;
+        return `
+          <div class="sub-item" style="border-color:${item.alreadyInApp ? "var(--border-subtle)" : "rgba(16,185,129,0.55)"};">
+            <div class="sub-item-header">
+              <div style="min-width:0;flex:1;">
+                <div class="sub-name">
+                  ${chBadge(item.channel, item.type)}
+                  <span>${escapeHtml(item.name)}</span>
+                  <span class="tag tag-ok">有效 ${item.nodeCount} 条</span>
+                  ${item.alreadyInApp ? `<span class="tag" style="background:rgba(148,163,184,0.18);color:#94a3b8;">✅ 已在App源中</span>` : `<span class="tag tag-ok">🆕 新源可入库</span>`}
+                </div>
+                <div class="sub-url">${escapeHtml(displayUrl)}</div>
+              </div>
+            </div>
+            <div class="sub-action-bar">
+              <button class="btn ${item.alreadyInApp ? "btn-ghost" : "btn-emerald"} btn-xs" onclick="addHuntedSourceToApp(${idx})">
+                ${item.alreadyInApp ? "✅ 已入库(再拉取)" : "➕ 添加到App源"}
+              </button>
+              <button class="btn btn-primary btn-xs" onclick="testHuntedSourceNow(${idx})">⚡ 拉取并实测</button>
+              <button class="btn btn-violet btn-xs" onclick="sendHuntedSourceToConverter(${idx})">🔄 送去转换</button>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function addHuntedSourceToApp(idx) {
+      const item = huntedSourcesState[idx];
+      if (!item) return;
+      const normUrl = normalizeSubscriptionUrl(item.url);
+      let existing = state.sources.find(s => normalizeSubscriptionUrl(s.url) === normUrl);
+      if (!existing) {
+        existing = {
+          id: Date.now() + idx,
+          name: item.name,
+          group: item.group || "全网猎源",
+          url: normUrl,
+          enabled: true,
+          lastCount: Math.min(60, item.nodeCount || 60),
+          directOk: item.directOk !== false,
+          directMs: 160,
+          proxyOk: true,
+          proxyMs: 120
+        };
+        state.sources.unshift(existing);
+      }
+      if (item.nodes && item.nodes.length) {
+        mergeNodesIntoPool(item.nodes);
+        recordPullSnapshot("single", item.name, `猎源扫描入库 (${item.nodes.length}条)`, item.nodes);
+      }
+      saveState();
+      renderSources();
+      renderWeeklyReview();
+      renderHuntedSourcesList();
+      showToast(`✅ 已将「${item.name}」添加到 App 源列表并入池 (${item.nodes ? item.nodes.length : 0}条)！`);
+    }
+
+    function addAllHuntedSourcesToApp() {
+      if (!huntedSourcesState.length) return showToast("请先扫描获取新源");
+      let added = 0;
+      const allNodes = [];
+      huntedSourcesState.forEach((item, idx) => {
+        const normUrl = normalizeSubscriptionUrl(item.url);
+        if (!state.sources.some(s => normalizeSubscriptionUrl(s.url) === normUrl)) {
+          state.sources.unshift({
+            id: Date.now() + idx,
+            name: item.name,
+            group: item.group || "全网猎源",
+            url: normUrl,
+            enabled: true,
+            lastCount: Math.min(60, item.nodeCount || 60),
+            directOk: item.directOk !== false,
+            directMs: 165,
+            proxyOk: true,
+            proxyMs: 120
+          });
+          added++;
+        }
+        if (item.nodes && item.nodes.length) allNodes.push(...item.nodes);
+      });
+      if (allNodes.length) {
+        mergeNodesIntoPool(allNodes);
+        recordPullSnapshot("multi", `全网猎源合并 (${huntedSourcesState.length}源)`, `从 GitHub/YouTube/网络扫描入库 (${allNodes.length}条)`, allNodes);
+      }
+      saveState();
+      renderSources();
+      renderWeeklyReview();
+      renderHuntedSourcesList();
+      showToast(`✅ 已将 ${added} 个新源添加到 App 源列表，并合入 ${allNodes.length} 条节点！`);
+    }
+
+    async function testHuntedSourceNow(idx) {
+      const item = huntedSourcesState[idx];
+      if (!item || !item.nodes || !item.nodes.length) return showToast("该源暂无有效节点");
+      addHuntedSourceToApp(idx);
+      switchTab("tab-test");
+      switchTestSubMode("standalone");
+      await executeStandaloneTestBatch(item.nodes.slice(0, 80), `【猎源实测】${item.name}`, `全网猎源 (${item.channel})`, nowTimeStr());
+    }
+
+    async function pullAndTestAllHuntedSources() {
+      if (!huntedSourcesState.length) return showToast("请先执行猎源扫描");
+      addAllHuntedSourcesToApp();
+      const allNodes = [];
+      const seen = new Set();
+      huntedSourcesState.forEach(item => {
+        (item.nodes || []).slice(0, 40).forEach(n => {
+          if (!seen.has(n.raw)) { seen.add(n.raw); allNodes.push(n); }
+        });
+      });
+      if (!allNodes.length) return showToast("暂无可测节点");
+      switchTab("tab-test");
+      switchTestSubMode("standalone");
+      await executeStandaloneTestBatch(allNodes, `【全网猎源联测】`, `猎源合并 (${allNodes.length}条)`, nowTimeStr());
+    }
+
+    function sendHuntedSourceToConverter(idx) {
+      const item = huntedSourcesState[idx];
+      if (!item || !item.nodes || !item.nodes.length) return showToast("该源暂无节点");
+      openStandaloneConverterWithNodes(item.nodes, `猎源:${item.name}`);
     }
 
     // =========================================================================
@@ -5111,6 +6636,12 @@
       initKeepAliveEngine();
       applyOrientationMode(orientMode, false);
       renderAggDateGroupBar();
+      const initBatch = BATCH_DB[state.currentBatchKey];
+      const initRec = getRecommendedNodes(initBatch);
+      if (initRec.length && document.getElementById("standaloneConvertInput")) {
+        document.getElementById("standaloneConvertInput").value = initRec.map(n => n.raw).join("\n");
+        runStandaloneConvertLive();
+      }
     });
   </script>
 </body>

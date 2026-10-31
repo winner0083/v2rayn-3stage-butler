@@ -765,6 +765,7 @@ public class XrayBenchEngine {
             sslSock.setSoTimeout(timeoutMs);
             sslSock.startHandshake();
 
+            long tHttp = System.currentTimeMillis();
             String req = "GET " + PING_PATH + " HTTP/1.1\r\nHost: " + PING_HOST + "\r\nUser-Agent: Mozilla/5.0\r\nConnection: close\r\n\r\n";
             OutputStream out = sslSock.getOutputStream();
             out.write(req.getBytes(StandardCharsets.UTF_8));
@@ -772,11 +773,13 @@ public class XrayBenchEngine {
 
             byte[] buf = new byte[256];
             int r = sslSock.getInputStream().read(buf);
-            long elapsed = System.currentTimeMillis() - t0;
+            long httpElapsed = System.currentTimeMillis() - tHttp;
+            long totalElapsed = System.currentTimeMillis() - t0;
             if (r <= 0) return -1;
             String header = new String(buf, 0, r, StandardCharsets.UTF_8);
             if (header.contains(" 204") || header.contains(" 200")) {
-                return (int) elapsed;
+                int rtt = (int) (httpElapsed > 5 ? httpElapsed : Math.max(15, totalElapsed / 3));
+                return rtt;
             }
             return -1;
         } finally {
@@ -1592,11 +1595,34 @@ public class MainActivity extends BridgeActivity {
         }
 
         @JavascriptInterface
+        public String readFromClipboard() {
+            try {
+                ClipboardManager cm = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+                if (cm != null && cm.hasPrimaryClip()) {
+                    ClipData cd = cm.getPrimaryClip();
+                    if (cd != null && cd.getItemCount() > 0) {
+                        CharSequence cs = cd.getItemAt(0).coerceToText(MainActivity.this);
+                        if (cs != null) return cs.toString();
+                    }
+                }
+            } catch (Exception ignored) {}
+            return "";
+        }
+
+        @JavascriptInterface
         public boolean launchV2rayNG(String clipText) {
             if (clipText != null && !clipText.isEmpty()) {
                 copyToClipboard(clipText);
             }
-            String[] pkgs = new String[]{"com.v2ray.ang", "moe.nb4a", "io.nekohasekai.sagernet"};
+            String[] pkgs = new String[]{
+                "com.v2ray.ang",
+                "moe.nb4a",
+                "io.nekohasekai.sagernet",
+                "com.github.metacubex.clash.meta",
+                "com.github.kr328.clash",
+                "io.nekohasekai.sfa",
+                "com.karing.app"
+            };
             for (String pkg : pkgs) {
                 try {
                     Intent launch = getPackageManager().getLaunchIntentForPackage(pkg);
