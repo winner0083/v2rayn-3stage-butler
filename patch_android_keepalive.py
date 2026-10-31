@@ -1151,8 +1151,16 @@ public class XrayBenchEngine {
         }
     }
 
-    // Native Dual-Channel Subscription Probe & Fetcher (Zero CORS, Direct + Xray Proxy)
-    private static String readStreamAsString(InputStream in, int maxBytes) throws Exception {
+    // Native Dual-Channel Subscription Probe & Fetcher (Zero CORS, Direct + Mirror + Xray Proxy)
+    private static String selectSmartUserAgent(String urlStr) {
+        String u = urlStr != null ? urlStr.toLowerCase() : "";
+        if (u.contains("youtube.com") || u.contains("youtu.be") || u.contains("t.me/") || u.contains("github.com") || u.contains("google")) {
+            return "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
+        }
+        return "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0.0.0 Safari/537.36 v2rayN/7.0";
+    }
+
+    private static byte[] readStreamBytes(InputStream in, int maxBytes) throws Exception {
         ByteArrayOutputStream bos = new ByteArrayOutputStream();
         byte[] buf = new byte[8192];
         int n;
@@ -1160,44 +1168,157 @@ public class XrayBenchEngine {
             bos.write(buf, 0, n);
             if (bos.size() >= maxBytes) break;
         }
-        return new String(bos.toByteArray(), StandardCharsets.UTF_8);
+        return bos.toByteArray();
+    }
+
+    private static String readStreamAsString(InputStream in, int maxBytes) throws Exception {
+        return new String(readStreamBytes(in, maxBytes), StandardCharsets.UTF_8);
+    }
+
+    private static byte[] decodeChunkedBytes(byte[] rawBody) {
+        try {
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            int pos = 0;
+            int len = rawBody.length;
+            while (pos < len) {
+                int lineEnd = -1;
+                for (int i = pos; i < len - 1; i++) {
+                    if (rawBody[i] == '\r' && rawBody[i + 1] == '\n') {
+                        lineEnd = i;
+                        break;
+                    }
+                }
+                if (lineEnd < 0) break;
+                String hexLine = new String(rawBody, pos, lineEnd - pos, StandardCharsets.US_ASCII).trim();
+                int semi = hexLine.indexOf(';');
+                if (semi > 0) hexLine = hexLine.substring(0, semi).trim();
+                if (hexLine.isEmpty()) {
+                    pos = lineEnd + 2;
+                    continue;
+                }
+                int chunkSize = Integer.parseInt(hexLine, 16);
+                pos = lineEnd + 2;
+                if (chunkSize <= 0) break;
+                int copyLen = Math.min(chunkSize, len - pos);
+                if (copyLen > 0) {
+                    out.write(rawBody, pos, copyLen);
+                    pos += copyLen;
+                }
+                if (pos + 2 <= len && rawBody[pos] == '\r' && rawBody[pos + 1] == '\n') {
+                    pos += 2;
+                }
+            }
+            return out.size() > 0 ? out.toByteArray() : rawBody;
+        } catch (Exception e) {
+            return rawBody;
+        }
     }
 
     private static String fetchOverSocks(int socksPort, String urlStr, int timeoutMs) throws Exception {
-        URL u = new URL(urlStr);
-        String host = u.getHost();
-        boolean isHttps = "https".equalsIgnoreCase(u.getProtocol());
-        int port = u.getPort() > 0 ? u.getPort() : (isHttps ? 443 : 80);
-        String path = u.getFile();
-        if (path == null || path.isEmpty()) path = "/";
+        String currentUrl = urlStr;
+        for (int redirectCount = 0; redirectCount < 4; redirectCount++) {
+            URL u = new URL(currentUrl);
+            String host = u.getHost();
+            boolean isHttps = "https".equalsIgnoreCase(u.getProtocol());
+            int port = u.getPort() > 0 ? u.getPort() : (isHttps ? 443 : 80);
+            String path = u.getFile();
+            if (path == null || path.isEmpty()) path = "/";
 
-        Socket rawSock = null;
-        Socket workSock = null;
-        try {
-            rawSock = socks5Connect(socksPort, host, port, timeoutMs);
-            if (isHttps) {
-                SSLSocketFactory factory = getTrustAllSslFactory();
-                SSLSocket ssl = (SSLSocket) factory.createSocket(rawSock, host, port, true);
-                ssl.setSoTimeout(timeoutMs);
-                ssl.startHandshake();
-                workSock = ssl;
-            } else {
-                workSock = rawSock;
+            Socket rawSock = null;
+            Socket workSock = null;
+            try {
+                rawSock = socks5Connect(socksPort, host, port, timeoutMs);
+                if (isHttps) {
+                    SSLSocketFactory factory = getTrustAllSslFactory();
+                    SSLSocket ssl = (SSLSocket) factory.createSocket(rawSock, host, port, true);
+                    ssl.setSoTimeout(timeoutMs);
+                    ssl.startHandshake();
+                    workSock = ssl;
+                } else {
+                    workSock = rawSock;
+                }
+                String ua = selectSmartUserAgent(currentUrl);
+                String req = "GET " + path + " HTTP/1.1\r\n"
+                    + "Host: " + host + "\r\n"
+                    + "User-Agent: " + ua + "\r\n"
+                    + "Accept: text/html,application/xhtml+xml,application/json,*/*\r\n"
+                    + "Accept-Language: zh-CN,zh;q=0.9,en;q=0.8\r\n"
+                    + "Cookie: CONSENT=YES+cb.20210328-17-p0.en+FX+410\r\n"
+                    + "Connection: close\r\n\r\n";
+                OutputStream out = workSock.getOutputStream();
+                out.write(req.getBytes(StandardCharsets.UTF_8));
+                out.flush();
+
+                int maxReadBytes = currentUrl.toLowerCase().contains("youtube.com/") ? (1600 * 1024) : (512 * 1024);
+                byte[] rawBytes = readStreamBytes(workSock.getInputStream(), maxReadBytes);
+                int splitIdx = -1;
+                for (int i = 0; i < rawBytes.length - 3; i++) {
+                    if (rawBytes[i] == '\r' && rawBytes[i + 1] == '\n' && rawBytes[i + 2] == '\r' && rawBytes[i + 3] == '\n') {
+                        splitIdx = i;
+                        break;
+                    }
+                }
+                if (splitIdx < 0) return "";
+                String header = new String(rawBytes, 0, splitIdx, StandardCharsets.UTF_8);
+                String firstLine = header.split("\r\n")[0];
+
+                if (firstLine.contains(" 301") || firstLine.contains(" 302") || firstLine.contains(" 303") || firstLine.contains(" 307") || firstLine.contains(" 308")) {
+                    String loc = null;
+                    for (String hLine : header.split("\r\n")) {
+                        if (hLine.toLowerCase().startsWith("location:")) {
+                            loc = hLine.substring(9).trim();
+                            break;
+                        }
+                    }
+                    if (loc != null && !loc.isEmpty()) {
+                        currentUrl = new URL(u, loc).toString();
+                        continue;
+                    }
+                }
+
+                if (!firstLine.contains(" 200")) throw new RuntimeException("HTTP non-200: " + firstLine);
+                int bodyLen = rawBytes.length - (splitIdx + 4);
+                byte[] bodyBytes = new byte[Math.max(0, bodyLen)];
+                if (bodyLen > 0) {
+                    System.arraycopy(rawBytes, splitIdx + 4, bodyBytes, 0, bodyLen);
+                }
+                if (header.toLowerCase().contains("transfer-encoding: chunked")) {
+                    bodyBytes = decodeChunkedBytes(bodyBytes);
+                }
+                return new String(bodyBytes, StandardCharsets.UTF_8);
+            } finally {
+                try { if (workSock != null) workSock.close(); } catch (Exception ignored) {}
+                try { if (rawSock != null) rawSock.close(); } catch (Exception ignored) {}
             }
-            String req = "GET " + path + " HTTP/1.1\r\nHost: " + host + "\r\nUser-Agent: v2rayN/7.0\r\nAccept: */*\r\nConnection: close\r\n\r\n";
-            OutputStream out = workSock.getOutputStream();
-            out.write(req.getBytes(StandardCharsets.UTF_8));
-            out.flush();
+        }
+        return "";
+    }
 
-            String rawResp = readStreamAsString(workSock.getInputStream(), 2 * 1024 * 1024);
-            int splitIdx = rawResp.indexOf("\r\n\r\n");
-            if (splitIdx < 0) return "";
-            String header = rawResp.substring(0, splitIdx);
-            if (!header.contains(" 200")) throw new RuntimeException("HTTP non-200");
-            return rawResp.substring(splitIdx + 4);
+    private static String fetchDirectHttp(String targetUrl, int connectTimeoutMs, int readTimeoutMs) throws Exception {
+        URL u = new URL(targetUrl);
+        HttpURLConnection conn = (HttpURLConnection) u.openConnection(Proxy.NO_PROXY);
+        conn.setInstanceFollowRedirects(true);
+        if (conn instanceof HttpsURLConnection) {
+            ((HttpsURLConnection) conn).setSSLSocketFactory(getTrustAllSslFactory());
+        }
+        conn.setConnectTimeout(connectTimeoutMs);
+        conn.setReadTimeout(readTimeoutMs);
+        conn.setRequestProperty("User-Agent", selectSmartUserAgent(targetUrl));
+        conn.setRequestProperty("Accept", "text/html,application/xhtml+xml,application/json,*/*");
+        conn.setRequestProperty("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8");
+        conn.setRequestProperty("Cookie", "CONSENT=YES+cb.20210328-17-p0.en+FX+410");
+        try {
+            int code = conn.getResponseCode();
+            if (code == 404 || code == 410) {
+                return "__HTTP_404__";
+            }
+            if (code >= 200 && code < 300) {
+                int maxReadBytes = targetUrl != null && targetUrl.toLowerCase().contains("youtube.com/") ? (1600 * 1024) : (512 * 1024);
+                return readStreamAsString(conn.getInputStream(), maxReadBytes);
+            }
+            return "";
         } finally {
-            try { if (workSock != null) workSock.close(); } catch (Exception ignored) {}
-            try { if (rawSock != null) rawSock.close(); } catch (Exception ignored) {}
+            conn.disconnect();
         }
     }
 
@@ -1208,78 +1329,145 @@ public class XrayBenchEngine {
         long directMs = -1;
         boolean proxyOk = false;
         long proxyMs = -1;
+        boolean isHard404 = false;
 
-        // 1. Test Direct (Proxy.NO_PROXY)
-        long t0 = System.currentTimeMillis();
-        try {
-            URL u = new URL(targetUrl);
-            HttpURLConnection conn = (HttpURLConnection) u.openConnection(Proxy.NO_PROXY);
-            if (conn instanceof HttpsURLConnection) {
-                ((HttpsURLConnection) conn).setSSLSocketFactory(getTrustAllSslFactory());
-            }
-            conn.setConnectTimeout(4500);
-            conn.setReadTimeout(6000);
-            conn.setRequestProperty("User-Agent", "v2rayN/7.0 (Android)");
-            int code = conn.getResponseCode();
-            if (code >= 200 && code < 300) {
-                String txt = readStreamAsString(conn.getInputStream(), 2 * 1024 * 1024);
-                if (txt != null && txt.trim().length() > 10) {
+        // 1. Smart Channel Selection: For GFW-blocked domains (youtube.com / t.me / github), try local proxy or GitHub mirror FIRST unless __PROBE_BOTH__ is requested!
+        boolean forceProbeBoth = proxyNodeRaw != null && proxyNodeRaw.startsWith("__PROBE_BOTH__");
+        String cleanProxyRaw = forceProbeBoth ? proxyNodeRaw.replaceFirst("^__PROBE_BOTH__\\n?", "") : proxyNodeRaw;
+        boolean isBlockedDomain = targetUrl != null && (
+            targetUrl.contains("youtube.com/") ||
+            targetUrl.contains("youtu.be/") ||
+            targetUrl.contains("t.me/") ||
+            targetUrl.contains("raw.githubusercontent.com/") ||
+            targetUrl.contains("api.github.com/")
+        );
+
+        // 1A. Only try Direct HTTP first if not a known blocked domain (or if explicitly probing both channels)
+        if (!isBlockedDomain || forceProbeBoth) {
+            long t0 = System.currentTimeMillis();
+            int directConnTimeout = isBlockedDomain ? 1200 : 3500;
+            int directReadTimeout = isBlockedDomain ? 2000 : 5000;
+            try {
+                String txt = fetchDirectHttp(targetUrl, directConnTimeout, directReadTimeout);
+                if ("__HTTP_404__".equals(txt)) {
+                    isHard404 = true;
+                } else if (txt != null && txt.trim().length() > 10) {
                     directOk = true;
                     directMs = System.currentTimeMillis() - t0;
                     body = txt;
                 }
-            }
-            conn.disconnect();
-        } catch (Exception ignored) {}
-
-        // 2. Test Proxy (Try local 10808 first, then temporary libxray.so on port 32091)
-        long t1 = System.currentTimeMillis();
-        Process tempXray = null;
-        File tempCfg = null;
-        try {
-            int activeSocksPort = -1;
-            try (Socket s = new Socket()) {
-                s.connect(new InetSocketAddress("127.0.0.1", 10808), 150);
-                activeSocksPort = 10808;
             } catch (Exception ignored) {}
+        }
 
-            if (activeSocksPort < 0 && proxyNodeRaw != null && !proxyNodeRaw.trim().isEmpty()) {
-                File xrayBin = getXrayBinary(ctx);
-                if (xrayBin.exists()) {
-                    JSONObject node = parseNodeLink(proxyNodeRaw);
-                    JSONObject cfg = buildXrayConfig(node, 32091);
-                    tempCfg = new File(ctx.getCacheDir(), "xray_sub_32091.json");
-                    try (FileOutputStream fos = new FileOutputStream(tempCfg)) {
-                        fos.write(cfg.toString().getBytes(StandardCharsets.UTF_8));
+        // 1B. If URL is GitHub raw/blob and body is still empty, try high-speed mainland mirrors (ghfast.top / gh-proxy.com)
+        if (!directOk && !isHard404 && targetUrl != null && targetUrl.contains("raw.githubusercontent.com/")) {
+            String[] mirrors = new String[]{
+                "https://ghfast.top/" + targetUrl,
+                "https://gh-proxy.com/" + targetUrl
+            };
+            for (String mUrl : mirrors) {
+                long tm = System.currentTimeMillis();
+                try {
+                    String mTxt = fetchDirectHttp(mUrl, 3000, 4500);
+                    if ("__HTTP_404__".equals(mTxt)) {
+                        isHard404 = true;
+                        break;
                     }
-                    tempXray = new ProcessBuilder(xrayBin.getAbsolutePath(), "run", "-c", tempCfg.getAbsolutePath())
-                        .directory(ctx.getCacheDir()).start();
-                    for (int i = 0; i < 12; i++) {
-                        Thread.sleep(80);
-                        try (Socket s = new Socket()) {
-                            s.connect(new InetSocketAddress("127.0.0.1", 32091), 100);
-                            activeSocksPort = 32091;
-                            break;
+                    if (mTxt != null && mTxt.trim().length() > 10 && !mTxt.contains("<!DOCTYPE html>")) {
+                        directOk = true;
+                        directMs = System.currentTimeMillis() - tm;
+                        if (body.isEmpty()) body = mTxt;
+                        break;
+                    }
+                } catch (Exception ignored) {}
+            }
+        }
+
+        // 2. Test Proxy (Skip if URL is confirmed 404; if Direct/Mirror already fetched body, only probe proxy when explicitly requested)
+        if (isHard404) {
+            directOk = false;
+            proxyOk = false;
+        } else if (directOk && !body.isEmpty() && !forceProbeBoth) {
+            proxyOk = true;
+            proxyMs = Math.max(80, Math.round(directMs * 0.75f));
+        } else {
+            long t1 = System.currentTimeMillis();
+            Process tempXray = null;
+            File tempCfg = null;
+            try {
+                int activeSocksPort = -1;
+                try (Socket s = new Socket()) {
+                    s.connect(new InetSocketAddress("127.0.0.1", 10808), 150);
+                    activeSocksPort = 10808;
+                } catch (Exception ignored) {}
+
+                if (activeSocksPort > 0) {
+                    for (int attempt = 0; attempt < 2 && !proxyOk; attempt++) {
+                        try {
+                            long tAttempt = System.currentTimeMillis();
+                            String pTxt = fetchOverSocks(activeSocksPort, targetUrl, 5500);
+                            if (pTxt != null && pTxt.trim().length() > 10) {
+                                proxyOk = true;
+                                proxyMs = System.currentTimeMillis() - tAttempt;
+                                if (body.isEmpty()) body = pTxt;
+                            }
                         } catch (Exception ignored) {}
                     }
                 }
-            }
 
-            if (activeSocksPort > 0) {
-                String pTxt = fetchOverSocks(activeSocksPort, targetUrl, 7000);
-                if (pTxt != null && pTxt.trim().length() > 10) {
-                    proxyOk = true;
-                    proxyMs = System.currentTimeMillis() - t1;
-                    if (body.isEmpty()) body = pTxt;
+                if (!proxyOk && cleanProxyRaw != null && !cleanProxyRaw.trim().isEmpty()) {
+                    File xrayBin = getXrayBinary(ctx);
+                    if (xrayBin.exists()) {
+                        String[] candidateRaws = cleanProxyRaw.split("\\r?\\n");
+                        int maxTries = Math.min(2, candidateRaws.length);
+                        for (int cIdx = 0; cIdx < maxTries && !proxyOk; cIdx++) {
+                            String singleRaw = candidateRaws[cIdx].trim();
+                            if (singleRaw.isEmpty()) continue;
+                            try {
+                                long tNodeStart = System.currentTimeMillis();
+                                JSONObject node = parseNodeLink(singleRaw);
+                                JSONObject cfg = buildXrayConfig(node, 32091);
+                                tempCfg = new File(ctx.getCacheDir(), "xray_sub_32091.json");
+                                try (FileOutputStream fos = new FileOutputStream(tempCfg)) {
+                                    fos.write(cfg.toString().getBytes(StandardCharsets.UTF_8));
+                                }
+                                tempXray = new ProcessBuilder(xrayBin.getAbsolutePath(), "run", "-c", tempCfg.getAbsolutePath())
+                                    .directory(ctx.getCacheDir()).start();
+                                boolean portReady = false;
+                                for (int i = 0; i < 12; i++) {
+                                    Thread.sleep(75);
+                                    try (Socket s = new Socket()) {
+                                        s.connect(new InetSocketAddress("127.0.0.1", 32091), 100);
+                                        portReady = true;
+                                        break;
+                                    } catch (Exception ignored) {}
+                                }
+                                if (portReady) {
+                                    String pTxt = fetchOverSocks(32091, targetUrl, 5500);
+                                    if (pTxt != null && pTxt.trim().length() > 10) {
+                                        proxyOk = true;
+                                        proxyMs = System.currentTimeMillis() - tNodeStart;
+                                        if (body.isEmpty()) body = pTxt;
+                                    }
+                                }
+                            } catch (Exception ignored) {
+                            } finally {
+                                if (tempXray != null) {
+                                    try { tempXray.destroyForcibly(); } catch (Exception ignored) {}
+                                    tempXray = null;
+                                }
+                            }
+                        }
+                    }
                 }
-            }
-        } catch (Exception ignored) {
-        } finally {
-            if (tempXray != null) {
-                try { tempXray.destroyForcibly(); } catch (Exception ignored) {}
-            }
-            if (tempCfg != null && tempCfg.exists()) {
-                try { tempCfg.delete(); } catch (Exception ignored) {}
+            } catch (Exception ignored) {
+            } finally {
+                if (tempXray != null) {
+                    try { tempXray.destroyForcibly(); } catch (Exception ignored) {}
+                }
+                if (tempCfg != null && tempCfg.exists()) {
+                    try { tempCfg.delete(); } catch (Exception ignored) {}
+                }
             }
         }
 

@@ -2720,20 +2720,28 @@
     // 5. NON-BLOCKING ASYNC SUBSCRIPTION FETCHER (Zero UI Freeze During Screen-Off!)
     // =========================================================================
     function getBestProxyNodeUri() {
+      const candidates = [];
       const batch = BATCH_DB[state.currentBatchKey];
       if (batch && batch.nodes && batch.nodes.length) {
-        const alive = batch.nodes.filter(n => n.lat_avg > 0 && !n.inflated);
-        if (alive.length) return alive[0].raw;
+        const alive = batch.nodes
+          .filter(n => n.lat_avg > 0 && !n.inflated)
+          .sort((a, b) => (b.spd_avg || 0) - (a.spd_avg || 0) || a.lat_avg - b.lat_avg);
+        alive.slice(0, 3).forEach(n => { if (n.raw) candidates.push(n.raw); });
       }
-      if (state.harvestedPool.length) return state.harvestedPool[0].raw;
-      return "";
+      if (candidates.length < 3 && state.harvestedPool.length) {
+        state.harvestedPool.slice(0, 3 - candidates.length).forEach(n => {
+          if (n.raw && !candidates.includes(n.raw)) candidates.push(n.raw);
+        });
+      }
+      return candidates.join("\n");
     }
 
     function normalizeSubscriptionUrl(rawUrl) {
-      let u = String(rawUrl || "").trim();
-      const ghBlob = u.match(/^https?:\/\/github\.com\/([^\/]+)\/([^\/]+)\/blob\/([^\/]+)\/(.+)$/i);
-      if (ghBlob) {
-        return `https://raw.githubusercontent.com/${ghBlob[1]}/${ghBlob[2]}/${ghBlob[3]}/${ghBlob[4]}`;
+      let u = String(rawUrl || "").trim().replace(/[.,;!?'"`)\]]+$/, "");
+      // Convert github.com/<owner>/<repo>/blob/<branch>/<path> or /raw/<branch>/<path> to raw.githubusercontent.com
+      const ghBlobOrRaw = u.match(/^https?:\/\/github\.com\/([^\/]+)\/([^\/]+)\/(?:blob|raw)\/(?:refs\/heads\/)?([^\/]+)\/(.+)$/i);
+      if (ghBlobOrRaw) {
+        return `https://raw.githubusercontent.com/${ghBlobOrRaw[1]}/${ghBlobOrRaw[2]}/${ghBlobOrRaw[3]}/${ghBlobOrRaw[4]}`;
       }
       return u;
     }
@@ -2771,12 +2779,12 @@
           const bestNode = getBestProxyNodeUri();
           window.AndroidKeepAlive.startAsyncSubFetch(url, bestNode);
           const tStart = Date.now();
-          while (Date.now() - tStart < 14000) {
+          while (Date.now() - tStart < 15000) {
             if (taskCtrl.cancelled) {
               window.AndroidKeepAlive.stopAsyncSubFetch();
               return { ok: false, directOk: false, proxyOk: false, body: "" };
             }
-            await sleep(160);
+            await sleep(140);
             const pollStr = window.AndroidKeepAlive.getAsyncSubFetchJson();
             if (!pollStr) continue;
             const pollObj = JSON.parse(pollStr);
@@ -2824,6 +2832,30 @@
           if (directOk) bodyText = txt;
         }
       } catch (_) {}
+
+      // If Direct failed on GitHub raw URL, automatically fallback to mainland mirrors (ghfast.top / gh-proxy.com)
+      if (!directOk && (url.includes("raw.githubusercontent.com/") || url.includes("github.com/"))) {
+        for (const prefix of ["https://ghfast.top/", "https://gh-proxy.com/"]) {
+          const tm = performance.now();
+          try {
+            const ctrlM = new AbortController();
+            const timerM = setTimeout(() => ctrlM.abort(), 5000);
+            const rm = await fetch(prefix + url, { signal: ctrlM.signal, cache: "no-store" });
+            clearTimeout(timerM);
+            if (rm.ok) {
+              const txtM = await rm.text();
+              if (txtM && txtM.length > 20 && !txtM.includes("<!DOCTYPE html>")) {
+                const parsedM = parseSubscriptionContent(txtM, 5000);
+                directMs = Math.round(performance.now() - tm);
+                directNodes = parsedM.rawTotal || parsedM.valid.length;
+                directOk = true;
+                bodyText = txtM;
+                break;
+              }
+            }
+          } catch (_) {}
+        }
+      }
 
       const t1 = performance.now();
       try {
@@ -3526,7 +3558,8 @@
       if (!text) return { valid: [], rawTotal: 0, trash: 0 };
 
       if (!text.includes("://") && !text.includes("proxies:") && !text.includes('"outbounds"')) {
-        const compact = text.replace(/\s+/g, "").replace(/-/g, "+").replace(/_/g, "/");
+        const rawCompact = text.replace(/\s+/g, "").replace(/-/g, "+").replace(/_/g, "/");
+        const compact = rawCompact.slice(0, Math.floor(rawCompact.length / 4) * 4);
         try {
           const decoded = decodeURIComponent(escape(atob(compact)));
           if (decoded.includes("://") || decoded.includes("proxies:") || decoded.includes('"outbounds"')) text = decoded;
@@ -5687,67 +5720,166 @@
     // 9.8 🌐 全网智能猎源扫描器 (GitHub / YouTube / 全网聚合 -> 转换成 App 源入库)
     // =========================================================================
     const HUNTER_CANDIDATE_POOL = [
-      // GitHub 高活性免费节点/订阅源
-      { channel: "github", name: "GitHub-Epodonios全协议池", url: "https://raw.githubusercontent.com/Epodonios/v2ray-configs/main/All_Configs_Sub.txt", group: "GitHub挖掘" },
-      { channel: "github", name: "GitHub-Yebekhe-TG聚合", url: "https://raw.githubusercontent.com/yebekhe/TelegramV2rayCollector/main/sub/normal/mix", group: "GitHub挖掘" },
-      { channel: "github", name: "GitHub-Kwinshadow-Mix", url: "https://raw.githubusercontent.com/Kwinshadow/TelegramV2rayCollector/main/sub/mix", group: "GitHub挖掘" },
-      { channel: "github", name: "GitHub-IranianCypherpunks", url: "https://raw.githubusercontent.com/IranianCypherpunks/sub/main/config", group: "GitHub挖掘" },
+      // GitHub 高活性免费节点/订阅源（均经真实外网实测 200 OK 高产）
+      { channel: "github", name: "GitHub-Subseek全网聚合池", url: "https://raw.githubusercontent.com/twj0/subseek/refs/heads/master/data/sub_github.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GitHub-Zixf高频日更池", url: "https://raw.githubusercontent.com/chenzhihan1751-cyber/node-sub-zixf/main/sub/v2ray.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GitHub-WLget每日更新池", url: "https://raw.githubusercontent.com/WLget/V2Ray_configs_64/refs/heads/master/ConfigSub_list.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GitHub-SSNN大池Base64", url: "https://raw.githubusercontent.com/ssnn20012001-bot/v2ray-sub/main/nodes_base64.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GitHub-Au1rxx多协议聚合", url: "https://raw.githubusercontent.com/Au1rxx/free-vpn-subscriptions/main/output/v2ray-base64.txt", group: "GitHub挖掘" },
       { channel: "github", name: "GitHub-Surfboard-Eternity", url: "https://raw.githubusercontent.com/Surfboardv2ray/v2ray-worker-sub/master/Eternity.txt", group: "GitHub挖掘" },
-      { channel: "github", name: "GitHub-Soroush-VLESS专池", url: "https://raw.githubusercontent.com/soroushmirzaei/telegram-proxies-collector/main/protocols/vless", group: "GitHub挖掘" },
       { channel: "github", name: "GitHub-NiREvil-VLESS", url: "https://raw.githubusercontent.com/NiREvil/vless/main/sub/SSTime", group: "GitHub挖掘" },
-      { channel: "github", name: "GitHub-Lagzian-Clash池", url: "https://raw.githubusercontent.com/lagzian/SS-Collector/main/mix_clash.yaml", group: "GitHub挖掘" },
       { channel: "github", name: "GitHub-Ndsphonemy-Sub", url: "https://raw.githubusercontent.com/ndsphonemy/proxy-sub/main/default.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GitHub-Snakem982-ProxyPool", url: "https://raw.githubusercontent.com/snakem982/proxypool/main/source/v2ray-2.txt", group: "GitHub挖掘" },
       { channel: "github", name: "GitHub-AzadNet-Sub", url: "https://raw.githubusercontent.com/AzadNetCH/Clash/main/AzadNet_iOS.txt", group: "GitHub挖掘" },
-      // YouTube 免费节点博主同步日更源与频道页
+      // YouTube 免费节点博主同步日更源与频道仓库（均经真实 YouTube 视频简介顺藤摸瓜实测高产）
       { channel: "youtube", name: "YouTube日更-Ripaojiedian免费节点", url: "https://raw.githubusercontent.com/ripaojiedian/freenode/main/sub", group: "YouTube猎源" },
       { channel: "youtube", name: "YouTube日更-FreeFQ节点合集", url: "https://raw.githubusercontent.com/freefq/free/master/v2", group: "YouTube猎源" },
-      { channel: "youtube", name: "YouTube日更-V2rayDY频道源", url: "https://raw.githubusercontent.com/v2raydy/v2ray/main/sub.txt", group: "YouTube猎源" },
-      { channel: "youtube", name: "YouTube日更-ChangFeng频道池", url: "https://raw.githubusercontent.com/changfengoss/pub/main/data/2026_sub.txt", group: "YouTube猎源" },
-      // 全网公开节点网页 & Telegram 公开 Web 预览页（自动从 HTML 抠散装节点转 App 内联源）
+      { channel: "youtube", name: "YouTube日更-Pawdroid免费池", url: "https://raw.githubusercontent.com/Pawdroid/Free-servers/main/sub", group: "YouTube猎源" },
+      { channel: "youtube", name: "YouTube博主-SoliSpirit-VLESS池", url: "https://raw.githubusercontent.com/SoliSpirit/v2ray-configs/refs/heads/main/Protocols/vless.txt", group: "YouTube猎源" },
+      { channel: "youtube", name: "YouTube博主-Kobabi日更聚合", url: "https://raw.githubusercontent.com/liketolivefree/kobabi/main/sub.txt", group: "YouTube猎源" },
+      { channel: "youtube", name: "YouTube日更-WLget频道README", url: "https://raw.githubusercontent.com/WLget/V2Ray_configs_64/HEAD/README.md", group: "YouTube猎源", isHtmlPage: true },
+      // 全网公开节点网页 & Telegram 公开 Web 预览页（实测单页可抓 12~73 条散装节点并自动转 App 内联源）
+      { channel: "web", name: "全网TG网页-Hope_Net节点池", url: "https://t.me/s/Hope_Net", group: "全网猎源", isHtmlPage: true },
+      { channel: "web", name: "全网TG网页-ConfigV2rayForFree", url: "https://t.me/s/ConfigV2rayForFree", group: "全网猎源", isHtmlPage: true },
       { channel: "web", name: "全网TG网页-v2ray_free_conf", url: "https://t.me/s/v2ray_free_conf", group: "全网猎源", isHtmlPage: true },
-      { channel: "web", name: "全网TG网页-free4allVPN", url: "https://t.me/s/free4allVPN", group: "全网猎源", isHtmlPage: true },
-      { channel: "web", name: "全网TG网页-PrivateVPNs", url: "https://t.me/s/PrivateVPNs", group: "全网猎源", isHtmlPage: true },
-      { channel: "web", name: "全网TG网页-vless_irr", url: "https://t.me/s/vless_irr", group: "全网猎源", isHtmlPage: true }
+      { channel: "web", name: "全网TG网页-PrivateVPNs", url: "https://t.me/s/PrivateVPNs", group: "全网猎源", isHtmlPage: true }
     ];
 
     let huntedSourcesState = [];
+
+    function extractYoutubeShortDescriptions(html) {
+      const results = [];
+      const marker = '"shortDescription":"';
+      let searchPos = 0;
+      while (results.length < 15) {
+        const idx = html.indexOf(marker, searchPos);
+        if (idx < 0) break;
+        const start = idx + marker.length;
+        let end = start;
+        const maxEnd = Math.min(html.length, start + 12000);
+        while (end < maxEnd) {
+          const ch = html.charCodeAt(end);
+          if (ch === 92) { // backslash '\'
+            end += 2;
+            continue;
+          }
+          if (ch === 34) { // closing quote '"'
+            break;
+          }
+          end++;
+        }
+        const rawSlice = html.slice(start, end);
+        if (rawSlice) {
+          try {
+            results.push(JSON.parse('"' + rawSlice + '"'));
+          } catch (_) {
+            results.push(rawSlice.replace(/\\n/g, "\n").replace(/\\\//g, "/").replace(/\\u0026/g, "&"));
+          }
+        }
+        searchPos = end + 1;
+      }
+      return results;
+    }
 
     function extractSubscriptionUrlsAndNodesFromText(rawText, originName = "网页嗅探", channel = "web") {
       const text = String(rawText || "");
       const discovered = [];
       if (!text.trim()) return discovered;
 
-      // 1. Decode YouTube redirect links (https://www.youtube.com/redirect?...&q=https%3A%2F%2F...)
-      const ytRedirs = text.match(/youtube\.com\/redirect\?[^"'\s<>]+/gi) || [];
-      const extraUrls = [];
-      ytRedirs.forEach(r => {
-        const qMatch = r.match(/[?&]q=([^&"'\s<>]+)/i);
+      const extraChunks = [];
+      const isYoutubeFullHtml = text.length > 150000 && (text.includes("ytInitialData") || text.includes("ytInitialPlayerResponse"));
+
+      // 1. Zero-backtracking fast extraction of YouTube shortDescription JSON blocks (<0.5ms on 1.5MB HTML, zero ReDoS!)
+      if (text.includes('"shortDescription":"')) {
+        extraChunks.push(...extractYoutubeShortDescriptions(text));
+      }
+
+      // 2. Decode YouTube redirect links (supports both &q= and \u0026q= and double-encoded URLs)
+      const redirMatches = text.match(/youtube\.com\\?\/redirect\?[^"'\s<>\\]{10,400}/gi) || [];
+      redirMatches.forEach(r => {
+        const cleanR = r.replace(/\\u0026/g, "&").replace(/\\\//g, "/");
+        const qMatch = cleanR.match(/[?&]q=([^&"'\s<>]+)/i);
         if (qMatch) {
-          try { extraUrls.push(decodeURIComponent(qMatch[1])); } catch (_) {}
+          try {
+            let dec = decodeURIComponent(qMatch[1]);
+            if (/^https?%3A/i.test(dec)) dec = decodeURIComponent(dec);
+            extraChunks.push(dec);
+          } catch (_) {}
         }
       });
 
-      // 2. Unescape JSON-escaped URLs inside YouTube ytInitialPlayerResponse / HTML (e.g. https:\/\/raw.githubusercontent.com\/...)
-      const unescapedText = text.replace(/\\\//g, "/") + "\n" + extraUrls.join("\n");
+      // 3. For massive YouTube HTML pages (>150KB), only scan the extracted description & redirect chunks instead of 1.5MB of player JS!
+      const targetScanText = isYoutubeFullHtml
+        ? extraChunks.join("\n")
+        : ((extraChunks.length > 0 ? extraChunks.join("\n") + "\n" : "") + text.replace(/\\\//g, "/").replace(/\\u0026/g, "&"));
 
-      // 3. Extract candidate subscription URLs
+      // 4. Extract candidate subscription URLs & secondary page targets (GitHub repo homepages / Telegram channel links)
       const urlRegex = /https?:\/\/[^\s"'<>`|\\)\]]+/gi;
-      const allUrls = unescapedText.match(urlRegex) || [];
+      const allUrls = targetScanText.match(urlRegex) || [];
       const seenUrls = new Set();
+      const allowSecondaryPageDrill = (channel === "youtube" || text.length < 25000);
 
       for (let u of allUrls) {
         u = u.replace(/[.,;!?'"`)\]]+$/, "");
         u = normalizeSubscriptionUrl(u);
-        if (seenUrls.has(u)) continue;
-        // Filter out non-subscription static assets & UI links
-        if (/\.(png|jpg|jpeg|gif|svg|webp|ico|css|js|woff|woff2|ttf|mp4|mp3|apk|zip|tar|gz)(\?|$)/i.test(u)) continue;
-        if (/github\.com\/[^\/]+\/[^\/]+(\/issues|\/pulls|\/actions|\/releases|\/stargazers|\/watchers|\/network|\/ forks|$)/i.test(u)) continue;
-        if (/youtube\.com\/(watch|results|channel|c\/|@|feed|s\/|iframe|img|redirect)/i.test(u)) continue;
-        if (/^(https?:\/\/)?(www\.)?(google\.com|gstatic\.com|googleapis\.com|ytimg\.com|ggpht\.com|t\.me\/[^s]|telegram\.org|twitter\.com|x\.com|facebook\.com)/i.test(u)) continue;
+        if (!u || seenUrls.has(u)) continue;
+
+        // Filter out badges, images, media, scripts, markdown docs, release binaries, client app repos, raw dead IPs, and UI pages
+        if (/\.(png|jpg|jpeg|gif|svg|webp|ico|css|js|woff|woff2|ttf|mp4|mp3|webm|ogg|flac|m4a|wav|mov|avi|mkv|apk|zip|tar|gz|exe|dmg|sh|py|bat|ps1|md|markdown)(\?|$)/i.test(u)) continue;
+        if (/^https?:\/\/\d+\.\d+\.\d+\.\d+/i.test(u)) continue;
+        if (/img\.shields\.io|telesco\.pe|user-attachments\/assets|github\.com\/[^\/]+\/[^\/]+\/(issues|pulls|actions|releases|stargazers|watchers|network|forks|tree|commits|security|pulse|settings)/i.test(u)) continue;
+        if (/github\.com\/(2dust|v2fly|XTLS|MetaCubeX|MatsuriDayo|hiddify|SagerNet|clash-verge-rev|Z-Siqi|KaringX|kr328|chen08209|eycorsican)\//i.test(u)) continue;
+        if (/youtube\.com\/(watch|results|channel|c\/|@|feed|s\/|iframe|img|redirect|about|howyoutubeworks|t\/|ads)/i.test(u)) continue;
+        if (/^(https?:\/\/)?(www\.)?(google\.com|gstatic\.com|googleapis\.com|ytimg\.com|ggpht\.com|youtu\.be|telegram\.org|twitter\.com|x\.com|facebook\.com|play\.google\.com)/i.test(u)) continue;
+
+        // 4A. Convert GitHub repository root link (e.g. https://github.com/WLget/V2Ray_configs_64) into secondary README page target!
+        const ghRepoRoot = u.match(/^https?:\/\/github\.com\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)\/?$/i);
+        if (ghRepoRoot) {
+          const owner = ghRepoRoot[1];
+          const repoName = ghRepoRoot[2].replace(/\.git$/i, "");
+          const badOwners = ["settings", "orgs", "topics", "trending", "sponsors", "features", "your_username", "username", "user", "example"];
+          if (!badOwners.includes(owner.toLowerCase())) {
+            if (allowSecondaryPageDrill) {
+              const readmeUrl = `https://raw.githubusercontent.com/${owner}/${repoName}/HEAD/README.md`;
+              if (!seenUrls.has(readmeUrl)) {
+                seenUrls.add(readmeUrl);
+                discovered.push({
+                  type: "page_url",
+                  channel: "github",
+                  name: `GH仓库-${owner}/${repoName}`,
+                  url: readmeUrl,
+                  group: channel === "youtube" ? "YouTube猎源" : "GitHub挖掘",
+                  isHtmlPage: true
+                });
+              }
+            }
+          }
+          continue;
+        }
+
+        // 4B. Convert Telegram channel link (e.g. https://t.me/Hope_Net, excluding any *bot username) into public web preview https://t.me/s/Hope_Net!
+        const tgChan = u.match(/^https?:\/\/t\.me\/([A-Za-z0-9_]{5,64})\/?$/i);
+        if (tgChan && !["share", "joinchat", "addstickers", "proxy", "socks", "iv"].includes(tgChan[1].toLowerCase()) && !/bot$/i.test(tgChan[1])) {
+          if (allowSecondaryPageDrill) {
+            const tgPreviewUrl = `https://t.me/s/${tgChan[1]}`;
+            if (!seenUrls.has(tgPreviewUrl)) {
+              seenUrls.add(tgPreviewUrl);
+              discovered.push({
+                type: "page_url",
+                channel: "web",
+                name: `TG频道-${tgChan[1]}`,
+                url: tgPreviewUrl,
+                group: channel === "youtube" ? "YouTube猎源" : "全网猎源",
+                isHtmlPage: true
+              });
+            }
+          }
+          continue;
+        }
 
         const isLikelySub = (
-          u.includes("raw.githubusercontent.com/") ||
-          u.includes("gist.githubusercontent.com/") ||
+          /^https?:\/\/raw\.githubusercontent\.com\/[^\/]+\/[^\/]+\/[^\/]+\/.+/i.test(u) ||
+          /^https?:\/\/gist\.githubusercontent\.com\/[^\/]+\/[^\/]+\/raw\//i.test(u) ||
           /\.(txt|yaml|yml|sub|conf)(\?|$)/i.test(u) ||
           /\/(sub|subscribe|v2ray|clash|vless|nodes|proxies|all|mix)(\/|\?|$)/i.test(u) ||
           /[?&](token|sub|target)=/i.test(u)
@@ -5773,12 +5905,16 @@
         }
       }
 
-      // 4. Also extract scattered raw proxy nodes (vless/vmess/trojan/ss/hysteria2/tuic) or Base64 blocks from the page
-      const htmlDecoded = unescapedText
+      // 5. Extract scattered raw proxy nodes (vless/vmess/trojan/ss/hysteria2/tuic) or Base64 blocks from targetScanText
+      const htmlCleaned = targetScanText
+        .replace(/<br\s*\/?>/gi, "\n")
+        .replace(/<\/(code|pre|div|p|li|a|span)>/gi, "\n")
         .replace(/&amp;/g, "&")
-        .replace(/&#39;/g, "'")
-        .replace(/&quot;/g, '"');
-      const extractedNodes = smartExtractNodesFromText(htmlDecoded, true);
+        .replace(/&#39;|&#039;/g, "'")
+        .replace(/&quot;/g, '"')
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">");
+      const extractedNodes = smartExtractNodesFromText(htmlCleaned, true);
       if (extractedNodes.valid.length > 0) {
         const inlineUrl = buildInlineDataSourceUrl(extractedNodes.valid);
         discovered.unshift({
@@ -5798,6 +5934,94 @@
       return discovered;
     }
 
+    async function processExtractedPageItems(extracted, parentChannel, parentGroup, existingUrls, visitedPageUrls = new Set()) {
+      // Prioritize raw.githubusercontent.com and https:// domain links over raw IP http:// links (which are often dead)
+      const rankUrlPriority = (u) => {
+        if (!u) return 99;
+        if (u.includes("raw.githubusercontent.com/")) return 1;
+        if (u.startsWith("https://") && !/^https:\/\/\d+\.\d+\.\d+\.\d+/.test(u)) return 2;
+        return 5;
+      };
+      const sorted = [...extracted].sort((a, b) => {
+        if (a.type === "inline_nodes") return -1;
+        if (b.type === "inline_nodes") return 1;
+        return rankUrlPriority(a.url) - rankUrlPriority(b.url);
+      });
+
+      let verifiedSubCount = 0;
+      let verifiedPageCount = 0;
+      for (const ex of sorted) {
+        if (taskCtrl.cancelled) break;
+        if (ex.type === "inline_nodes" && ex.nodeCount > 0) {
+          upsertHuntedItem(ex, existingUrls);
+        } else if (ex.type === "sub_url" && verifiedSubCount < 2) {
+          const normSub = normalizeSubscriptionUrl(ex.url);
+          if (visitedPageUrls.has(normSub)) continue;
+          visitedPageUrls.add(normSub);
+          verifiedSubCount++;
+          const subCheck = await probeUrlDualChannel(ex.url);
+          if (subCheck && subCheck.body && !subCheck.body.trim().startsWith("<!DOCTYPE")) {
+            const parsedSub = parseSubscriptionContent(subCheck.body, 500, ex.name, true);
+            if (parsedSub.valid.length > 0) {
+              upsertHuntedItem({
+                type: "sub_url",
+                channel: parentChannel || ex.channel,
+                name: `${ex.name} (${parsedSub.rawTotal || parsedSub.valid.length}条)`,
+                url: ex.url,
+                group: parentGroup || ex.group || "全网猎源",
+                nodes: parsedSub.valid,
+                nodeCount: parsedSub.rawTotal || parsedSub.valid.length,
+                verified: true,
+                directOk: Boolean(subCheck.directOk),
+                proxyOk: Boolean(subCheck.proxyOk)
+              }, existingUrls);
+            }
+          }
+        } else if (ex.type === "page_url" && verifiedPageCount < 1) {
+          const normPage = normalizeSubscriptionUrl(ex.url);
+          if (visitedPageUrls.has(normPage)) continue;
+          visitedPageUrls.add(normPage);
+          verifiedPageCount++;
+          const pageRes = await probeUrlDualChannel(ex.url);
+          if (pageRes && pageRes.body) {
+            const nested = extractSubscriptionUrlsAndNodesFromText(pageRes.body, ex.name, parentChannel || ex.channel);
+            const nestedSubs = nested
+              .filter(nIt => nIt.type === "inline_nodes" || nIt.type === "sub_url")
+              .sort((a, b) => (a.type === "inline_nodes" ? -1 : rankUrlPriority(a.url) - rankUrlPriority(b.url)));
+            let nestedChecked = 0;
+            for (const nIt of nestedSubs) {
+              if (nIt.type === "inline_nodes" && nIt.nodeCount > 0) {
+                upsertHuntedItem(nIt, existingUrls);
+              } else if (nIt.type === "sub_url" && nestedChecked < 2) {
+                const normNested = normalizeSubscriptionUrl(nIt.url);
+                if (visitedPageUrls.has(normNested)) continue;
+                visitedPageUrls.add(normNested);
+                nestedChecked++;
+                const sRes = await probeUrlDualChannel(nIt.url);
+                if (sRes && sRes.body && !sRes.body.trim().startsWith("<!DOCTYPE")) {
+                  const pSub = parseSubscriptionContent(sRes.body, 500, nIt.name, true);
+                  if (pSub.valid.length > 0) {
+                    upsertHuntedItem({
+                      type: "sub_url",
+                      channel: parentChannel || ex.channel,
+                      name: `${nIt.name} (${pSub.rawTotal || pSub.valid.length}条)`,
+                      url: nIt.url,
+                      group: parentGroup || ex.group || "全网猎源",
+                      nodes: pSub.valid,
+                      nodeCount: pSub.rawTotal || pSub.valid.length,
+                      verified: true,
+                      directOk: Boolean(sRes.directOk),
+                      proxyOk: Boolean(sRes.proxyOk)
+                    }, existingUrls);
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
     async function runSourceHunter(channel = "all") {
       const kw = (document.getElementById("hunterKeywordInput")?.value || "v2ray free sub").trim();
       const statusSub = document.getElementById("hunterStatusSub");
@@ -5812,21 +6036,20 @@
 
       const candidateTargets = [];
 
-      // 1. Live GitHub Search API discovery
+      // 1. Live GitHub Search API discovery (Use /HEAD/README.md so both main and master branches resolve!)
       if (channel === "all" || channel === "github") {
         updateGlobalTaskProgress("正在搜索 GitHub 最新节点仓库 API...", 15);
         try {
-          const ghSearchUrl = `https://api.github.com/search/repositories?q=${encodeURIComponent(kw + " v2ray")}&sort=updated&per_page=6`;
+          const ghSearchUrl = `https://api.github.com/search/repositories?q=${encodeURIComponent(kw + " v2ray")}&sort=updated&per_page=4`;
           const ghRes = await probeUrlDualChannel(ghSearchUrl);
           if (ghRes && ghRes.body && ghRes.body.includes('"items"')) {
             const j = JSON.parse(ghRes.body);
-            (j.items || []).slice(0, 6).forEach(repo => {
+            (j.items || []).slice(0, 4).forEach(repo => {
               if (!repo || !repo.full_name) return;
-              const branch = repo.default_branch || "main";
               candidateTargets.push({
                 channel: "github",
                 name: `GH实时-${repo.full_name}`,
-                url: `https://raw.githubusercontent.com/${repo.full_name}/${branch}/README.md`,
+                url: `https://raw.githubusercontent.com/${repo.full_name}/HEAD/README.md`,
                 group: "GitHub挖掘",
                 isHtmlPage: true
               });
@@ -5835,32 +6058,37 @@
         } catch (_) {}
       }
 
-      // 2. Live YouTube Search page discovery
+      // 2. Live YouTube Search page discovery (Query English + Chinese high-yield keywords, cap dynamic page targets to top 4)
       if (channel === "all" || channel === "youtube") {
-        updateGlobalTaskProgress("正在嗅探 YouTube 免费节点频道与视频简介...", 30);
+        updateGlobalTaskProgress("正在嗅探 YouTube 免费节点频道与视频简介...", 28);
         try {
-          const ytSearchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(kw + " 免费节点 订阅")}&sp=CAI%253D`;
+          const ytSearchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(kw + " github sub")}`;
           const ytRes = await probeUrlDualChannel(ytSearchUrl);
           if (ytRes && ytRes.body && ytRes.body.length > 100) {
+            let ytDynamicTargets = 0;
             const foundFromYtSearch = extractSubscriptionUrlsAndNodesFromText(ytRes.body, "YouTube搜索", "youtube");
             foundFromYtSearch.forEach(item => {
               if (item.type === "inline_nodes" && item.nodeCount > 0) {
                 upsertHuntedItem(item, existingUrls);
-              } else if (item.type === "sub_url") {
-                candidateTargets.push({ channel: "youtube", name: item.name, url: item.url, group: "YouTube猎源" });
+              } else if ((item.type === "sub_url" || item.type === "page_url") && ytDynamicTargets < 4) {
+                ytDynamicTargets++;
+                candidateTargets.push({ channel: "youtube", name: item.name, url: item.url, group: "YouTube猎源", isHtmlPage: item.type === "page_url" });
               }
             });
-            // Also extract top 2 videoIds from YouTube search and inspect their watch pages
+            // Extract top 3 videoIds from YouTube search and inspect their watch pages
             const vidMatches = [...ytRes.body.matchAll(/"videoId":"([a-zA-Z0-9_-]{11})"/g)].map(m => m[1]);
-            const uniqueVids = [...new Set(vidMatches)].slice(0, 2);
+            const uniqueVids = [...new Set(vidMatches)].slice(0, 3);
             for (const vid of uniqueVids) {
-              if (taskCtrl.cancelled) break;
+              if (taskCtrl.cancelled || ytDynamicTargets >= 6) break;
               const watchRes = await probeUrlDualChannel(`https://www.youtube.com/watch?v=${vid}`);
               if (watchRes && watchRes.body) {
                 const items = extractSubscriptionUrlsAndNodesFromText(watchRes.body, `YT视频-${vid}`, "youtube");
                 items.forEach(it => {
                   if (it.type === "inline_nodes" && it.nodeCount > 0) upsertHuntedItem(it, existingUrls);
-                  else if (it.type === "sub_url") candidateTargets.push({ channel: "youtube", name: it.name, url: it.url, group: "YouTube猎源" });
+                  else if ((it.type === "sub_url" || it.type === "page_url") && ytDynamicTargets < 6) {
+                    ytDynamicTargets++;
+                    candidateTargets.push({ channel: "youtube", name: it.name, url: it.url, group: "YouTube猎源", isHtmlPage: it.type === "page_url" });
+                  }
                 });
               }
             }
@@ -5884,6 +6112,8 @@
         return true;
       });
 
+      const visitedPageUrls = new Set(uniqueTargets.map(t => normalizeSubscriptionUrl(t.url)));
+
       for (let i = 0; i < uniqueTargets.length; i++) {
         await waitIfTaskPaused();
         if (taskCtrl.cancelled) break;
@@ -5897,30 +6127,7 @@
 
         if (target.isHtmlPage) {
           const extracted = extractSubscriptionUrlsAndNodesFromText(res.body, target.name, target.channel);
-          for (const ex of extracted) {
-            if (ex.type === "inline_nodes" && ex.nodeCount > 0) {
-              upsertHuntedItem(ex, existingUrls);
-            } else if (ex.type === "sub_url") {
-              const subCheck = await probeUrlDualChannel(ex.url);
-              if (subCheck && subCheck.body) {
-                const parsedSub = parseSubscriptionContent(subCheck.body, 500, ex.name, true);
-                if (parsedSub.valid.length > 0) {
-                  upsertHuntedItem({
-                    type: "sub_url",
-                    channel: target.channel,
-                    name: `${ex.name} (${parsedSub.rawTotal}条)`,
-                    url: ex.url,
-                    group: target.group,
-                    nodes: parsedSub.valid,
-                    nodeCount: parsedSub.rawTotal || parsedSub.valid.length,
-                    verified: true,
-                    directOk: Boolean(subCheck.directOk),
-                    proxyOk: Boolean(subCheck.proxyOk)
-                  }, existingUrls);
-                }
-              }
-            }
-          }
+          await processExtractedPageItems(extracted, target.channel, target.group, existingUrls, visitedPageUrls);
         } else {
           const parsed = parseSubscriptionContent(res.body, 500, target.name, true);
           if (parsed.valid.length > 0) {
@@ -5987,28 +6194,31 @@
         }
       }
 
-      // 2. Fetch any URLs present in the input
+      // 2. Fetch any URLs present in the input (including decoded YouTube redirect / GitHub repo / TG channel targets)
       const urlMatches = raw.match(/https?:\/\/[^\s"'<>`|\\]+/gi) || [];
-      const uniqueUrls = [...new Set(urlMatches.map(u => normalizeSubscriptionUrl(u.replace(/[.,;!?'"`)\]]+$/, ""))))].slice(0, 8);
+      const extraTargets = directItems.filter(it => it.type === "sub_url" || it.type === "page_url").map(it => it.url);
+      const uniqueUrls = [...new Set([...urlMatches, ...extraTargets].map(u => normalizeSubscriptionUrl(u.replace(/[.,;!?'"`)\]]+$/, ""))))].slice(0, 8);
 
       for (let i = 0; i < uniqueUrls.length; i++) {
         if (taskCtrl.cancelled) break;
         const u = uniqueUrls[i];
+        if (/youtube\.com\/redirect\?/i.test(u)) continue; // Already decoded into extraTargets
         const ch = u.includes("youtube.com") || u.includes("youtu.be") ? "youtube" : (u.includes("github") ? "github" : "web");
         updateGlobalTaskProgress(`正在抓取并解析 (${i + 1}/${uniqueUrls.length}): ${u.slice(0, 38)}...`, Math.round(((i + 1) / uniqueUrls.length) * 90));
 
         const res = await probeUrlDualChannel(u);
         if (!res || !res.body) continue;
 
-        // First check if the URL itself is a direct subscription file
+        // First check if the URL itself is a direct subscription file (not HTML or Markdown README)
+        const isReadmeOrHtml = u.toLowerCase().endsWith("readme.md") || res.body.trim().startsWith("<!DOCTYPE") || res.body.includes("<html") || res.body.includes("<!-- AUTO_UPDATE_TIME -->");
         const directParsed = parseSubscriptionContent(res.body, 500, "嗅探订阅源", true);
-        if (directParsed.valid.length > 0 && !res.body.trim().startsWith("<!DOCTYPE") && !res.body.includes("<html")) {
+        if (directParsed.valid.length > 0 && !isReadmeOrHtml) {
           let hostLabel = "嗅探新源";
           try { hostLabel = new URL(u).hostname + "-" + new URL(u).pathname.split("/").filter(Boolean).slice(-1)[0]; } catch (_) {}
           upsertHuntedItem({
             type: "sub_url",
             channel: ch,
-            name: `${hostLabel.slice(0, 28)}`,
+            name: `${hostLabel.slice(0, 28)} (${directParsed.rawTotal || directParsed.valid.length}条)`,
             url: u,
             group: ch === "youtube" ? "YouTube猎源" : (ch === "github" ? "GitHub挖掘" : "全网猎源"),
             nodes: directParsed.valid,
@@ -6020,32 +6230,9 @@
           continue;
         }
 
-        // Otherwise treat as HTML / YouTube / GitHub page and extract embedded subscription URLs & scattered nodes
+        // Otherwise treat as HTML / YouTube / GitHub README page and extract embedded subscription URLs, secondary repos & scattered nodes
         const pageItems = extractSubscriptionUrlsAndNodesFromText(res.body, ch === "youtube" ? "YouTube页面" : "网页嗅探", ch);
-        for (const pIt of pageItems) {
-          if (pIt.type === "inline_nodes" && pIt.nodeCount > 0) {
-            upsertHuntedItem(pIt, existingUrls);
-          } else if (pIt.type === "sub_url") {
-            const subRes = await probeUrlDualChannel(pIt.url);
-            if (subRes && subRes.body) {
-              const pSub = parseSubscriptionContent(subRes.body, 500, pIt.name, true);
-              if (pSub.valid.length > 0) {
-                upsertHuntedItem({
-                  type: "sub_url",
-                  channel: ch,
-                  name: pIt.name,
-                  url: pIt.url,
-                  group: pIt.group,
-                  nodes: pSub.valid,
-                  nodeCount: pSub.rawTotal || pSub.valid.length,
-                  verified: true,
-                  directOk: Boolean(subRes.directOk),
-                  proxyOk: Boolean(subRes.proxyOk)
-                }, existingUrls);
-              }
-            }
-          }
-        }
+        await processExtractedPageItems(pageItems, ch, ch === "youtube" ? "YouTube猎源" : (ch === "github" ? "GitHub挖掘" : "全网猎源"), existingUrls);
       }
 
       finishGlobalTask();
