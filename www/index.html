@@ -482,10 +482,58 @@
       width: 100%;
     }
 
-    @media (max-width: 390px) {
+    @media (max-width: 440px) {
+      .btn-grid-4.stack-sm {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .btn-grid-3.stack-sm {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 6px;
+      }
+      .btn-grid-3.stack-sm .btn {
+        font-size: 12px;
+        padding: 7px 6px;
+      }
+      .btn-grid-2.stack-sm {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+    @media (max-width: 319px) {
       .btn-grid-2.stack-sm, .btn-grid-3.stack-sm, .btn-grid-4.stack-sm {
         grid-template-columns: minmax(0, 1fr);
       }
+    }
+
+    /* New User Onboarding Quick Guide Card */
+    .onboarding-guide {
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.14), rgba(59, 130, 246, 0.14));
+      border: 1px solid rgba(52, 211, 153, 0.5);
+      border-radius: 13px;
+      padding: 12px 13px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .onboarding-steps {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 6px;
+    }
+    .onboarding-step {
+      background: rgba(15, 23, 42, 0.65);
+      border: 1px solid var(--border-subtle);
+      border-radius: 9px;
+      padding: 7px 6px;
+      font-size: 11.5px;
+      line-height: 1.35;
+      color: var(--text-secondary);
+      cursor: pointer;
+    }
+    .onboarding-step strong {
+      display: block;
+      color: #6ee7b7;
+      font-size: 12px;
+      margin-bottom: 2px;
     }
 
     /* Enlarged Touch Switch (48x26px) */
@@ -697,11 +745,15 @@
       background: rgba(59, 130, 246, 0.08);
       border: 1px solid rgba(59, 130, 246, 0.35);
       border-radius: 12px;
-      padding: 10px;
-      margin-bottom: 10px;
+      padding: 8px 10px;
+      margin-bottom: 8px;
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 6px;
+    }
+    .rank-action-bar .btn-xs {
+      min-height: 32px;
+      padding: 4px 8px;
     }
 
     /* Segmented Control */
@@ -1166,6 +1218,32 @@
       <!-- ======================================================== -->
       <section class="tab-pane active" id="tab-harvest">
 
+        <!-- New User 3-Step Quick Onboarding Guide (Dismissible & One-Click Experience) -->
+        <div class="onboarding-guide" id="newUserQuickGuide">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+            <div style="font-size:13.5px;font-weight:800;color:#34d399;">👋 新手 3 步快速上手指南 (点步骤直达)</div>
+            <button class="btn btn-ghost btn-xs" style="min-height:26px;padding:2px 8px;font-size:11px;" onclick="dismissOnboardingGuide()">✕ 收起</button>
+          </div>
+          <div class="onboarding-steps">
+            <div class="onboarding-step" onclick="runLiveHarvest()">
+              <strong>① 拉取/猎源</strong>
+              点全量拉取或全网猎源获取最新节点
+            </div>
+            <div class="onboarding-step" onclick="switchTab('tab-test')">
+              <strong>② 真核实测</strong>
+              跑三段式3遍、单轮快测或粘贴即测
+            </div>
+            <div class="onboarding-step" onclick="switchTab('tab-agg')">
+              <strong>③ 选优/转换</strong>
+              按榜单复制或转 Clash/sing-box 导入
+            </div>
+          </div>
+          <div class="btn-grid-2 stack-sm">
+            <button class="btn btn-emerald btn-xs" onclick="runNewUserOneClickQuickStart()">🚀 一键全自动体验 (拉取+实测)</button>
+            <button class="btn btn-amber btn-xs" onclick="switchTab('tab-test'); switchTestSubMode('paste');">📋 我有节点 -> 直接粘贴测/转</button>
+          </div>
+        </div>
+
         <!-- Top Mode Switcher: Existing Sources vs Network Source Hunter -->
         <div class="mode-switcher" style="margin-bottom:4px;">
           <button class="mode-tab-btn active-3stage" id="harvestModeBtn-sources" onclick="switchHarvestSubMode('sources')">
@@ -1203,7 +1281,7 @@
             <div class="card-header">
               <div>
                 <div class="card-title">📡 订阅源收集池 (启用 <span id="kpiSourceCount">31</span> 源)</div>
-                <div class="card-sub">直连可抓 <strong id="kpiDirectOk" style="color:#34d399;">14</strong> · 需走代理 <strong id="kpiProxyOnly" style="color:#60a5fa;">17</strong> · 异常 <strong id="kpiDeadSources" style="color:#fb7185;">1</strong> · 总池 <strong id="kpiSampledCount" style="color:#fbbf24;">17</strong> 条</div>
+                <div class="card-sub">直连可抓 <strong id="kpiDirectOk" style="color:#34d399;">14</strong> · 需走代理 <strong id="kpiProxyOnly" style="color:#60a5fa;">17</strong> · 异常 <strong id="kpiDeadSources" style="color:#fb7185;">1</strong> · 总池 <strong id="kpiSampledCount" style="color:#fbbf24;">14</strong> 条</div>
               </div>
               <button class="btn btn-violet btn-xs" onclick="switchHarvestSubMode('hunter')">🌐 扫新源</button>
             </div>
@@ -1238,7 +1316,7 @@
             <!-- Secondary Batch Actions -->
             <div class="btn-grid-3" style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border-subtle);">
               <button class="btn btn-amber btn-xs" onclick="probeAllSourcesDualChannel()">🩺 批量测源</button>
-              <button class="btn btn-rose btn-xs" onclick="deleteSelectedSources()">🗑️ 删勾选源</button>
+              <button class="btn btn-rose btn-xs" onclick="deleteDeadSources()">🧹 清理异常死源</button>
               <button class="btn btn-ghost btn-xs" onclick="openOptionsModal('params')">⚙️ 抽样/导出选项</button>
             </div>
           </div>
@@ -1489,83 +1567,44 @@
       <!-- TAB 3: 📊 汇总榜单 (Foreground: Verify & Export Nodes)   -->
       <!-- ======================================================== -->
       <section class="tab-pane" id="tab-agg">
-        <div class="card">
-          <div class="card-header">
-            <div>
-              <div class="card-title">📊 汇总交付中心</div>
-              <div class="card-sub">严格区分【⚡三段式3遍汇总】与【🧪单独测试结果】</div>
-            </div>
-            <button class="btn btn-ghost btn-xs" onclick="openMergeRecommendModal()">🎯 合并推荐</button>
-          </div>
-
-          <div class="seg-bar" style="margin-bottom:10px;">
-            <button class="seg-btn active" onclick="filterAggBatchCategory('all', this)">全部批次</button>
-            <button class="seg-btn" onclick="filterAggBatchCategory('3stage', this)">⚡ 三段式汇总</button>
-            <button class="seg-btn" onclick="filterAggBatchCategory('standalone', this)">🧪 单独测试结果</button>
-          </div>
-
-          <!-- 日期+时间归类：按日期分组 → 按时间排序 -->
-          <div style="font-size:12px;color:var(--text-secondary);margin-bottom:6px;">
-            📅 按日期归类（<span id="aggDateCount">0</span> 天）· 同日内按 <code>HH:MM:SS</code> 时间倒序
-          </div>
-          <div class="date-group-bar" id="aggDateGroupBar"></div>
-          <select class="select" id="batchSelector" onchange="switchBatch(this.value)" style="margin-bottom:10px;"></select>
-
-          <!-- Explicit Data Provenance Verification Card -->
-          <div class="provenance-box" style="margin-bottom:10px;" id="aggProvenanceCard"></div>
-
-          <!-- 均衡 Top500 核验确认卡：延迟与下载速度双优 -->
-          <div class="card top500-card" style="margin-bottom:10px;">
-            <div class="card-header">
-              <div>
-                <div class="card-title" style="color:#c4b5fd;">⚖️ 均衡 Top500 核验确认（延迟 & 下载速度双优）</div>
-                <div class="card-sub">跨轮合并筛选 · 剔除高延迟虚快 / 低延迟零速度的偏科节点</div>
-              </div>
-              <button class="btn btn-ghost btn-xs" onclick="exportBalancedTop500()">📥 导出 Top500</button>
-            </div>
-            <div class="top500-kpis">
-              <div class="top500-kpi" id="top500KpiEligible"><div class="kpi-num">0</div><div class="kpi-lbl2">✅ 双优达标</div></div>
-              <div class="top500-kpi warn" id="top500KpiSkewed"><div class="kpi-num">0</div><div class="kpi-lbl2">⚠️ 偏科剔除</div></div>
-              <div class="top500-kpi ok" id="top500KpiConfirm"><div class="kpi-num">0</div><div class="kpi-lbl2">🎯 确认 Top500</div></div>
-            </div>
-            <div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px;" id="top500KpiMeta">尚无 3 轮合并数据，跑满三段式后自动生成</div>
-            <div class="btn-grid-3 stack-sm">
-              <button class="btn btn-primary" onclick="switchAggRankTab('balanced', document.getElementById('aggRankBtn-balanced'))">⚖️ 查看均衡 Top500</button>
-              <button class="btn btn-emerald" onclick="copyBalancedTop500(false)">📋 复制纯链接</button>
-              <button class="btn btn-amber" onclick="copyBalancedTop500(true)">📦 复制 Base64</button>
-            </div>
-            <div class="btn-grid-3 stack-sm" style="margin-top:8px;">
-              <button class="btn btn-violet" onclick="convertBalancedTop500()">🔄 转换格式</button>
-              <button class="btn btn-ghost" onclick="exportBalancedTop500()">📥 导出 .txt</button>
-              <button class="btn btn-ghost" onclick="launchV2rayNGWithBalanced()">🚀 导入 v2rayNG</button>
-            </div>
-            <div style="margin-top:8px;font-size:12px;color:var(--text-secondary);">
-              🎯 一键导入：<button class="btn btn-ghost btn-xs" onclick="launchV2rayNGWithBalanced()">🚀 导入 v2rayNG</button>
-              <span style="margin-left:6px;">达标率 <strong id="top500PassRate" style="color:#34d399;">0%</strong></span>
-            </div>
-          </div>
-
-          <!-- Primary 3 One-Tap Delivery Buttons -->
-          <div class="btn-grid-3 stack-sm">
-            <button class="btn btn-amber" onclick="launchV2rayNGWithRecommended()">🚀 导入 v2rayNG</button>
-            <button class="btn btn-emerald" onclick="copyRecommendedLinks(false)">📋 复制纯链接</button>
-            <button class="btn btn-primary" onclick="copyRecommendedLinks(true)">📦 复制 Base64</button>
-          </div>
-        </div>
-
         <!-- L018 Incomplete Warning Banner -->
-        <div class="card" id="partialWarningBanner" style="display:none;border-color:var(--rose);background:#251420;">
+        <div class="card" id="partialWarningBanner" style="display:none;border-color:var(--rose);background:#251420;padding:10px 12px;">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
-            <span style="font-weight:800;color:#fda4af;">⚠️ 本三段式报告仅完成 <span id="partialPresentCnt">1</span>/3 轮 (PARTIAL)</span>
+            <span style="font-weight:800;font-size:13px;color:#fda4af;">⚠️ 本三段式报告仅完成 <span id="partialPresentCnt">1</span>/3 轮 (PARTIAL)</span>
             <button class="btn btn-amber btn-xs" onclick="switchTab('tab-test'); switchTestSubMode('3stage'); startThreeStageRun('missing');">
               ▶ 补跑缺失轮次
             </button>
           </div>
         </div>
 
-        <!-- Deliverable Node Ranking List -->
+        <!-- Primary First-Screen Ranking & Universal Delivery Card -->
         <div class="card">
-          <div class="seg-bar" style="margin-bottom:10px;">
+          <div class="card-header" style="margin-bottom:8px;">
+            <div>
+              <div class="card-title">📊 汇总排行榜 & 多榜自由交付</div>
+              <div class="card-sub">切换任意榜单均可直接复制、转 Clash/sing-box 或导入客户端</div>
+            </div>
+            <button class="btn btn-ghost btn-xs" onclick="openMergeRecommendModal()">🎯 合并推荐</button>
+          </div>
+
+          <div class="seg-bar" style="margin-bottom:8px;">
+            <button class="seg-btn active" onclick="filterAggBatchCategory('all', this)">全部批次</button>
+            <button class="seg-btn" onclick="filterAggBatchCategory('3stage', this)">⚡ 三段式汇总</button>
+            <button class="seg-btn" onclick="filterAggBatchCategory('standalone', this)">🧪 单独测试结果</button>
+          </div>
+
+          <!-- 日期+时间归类：按日期分组 → 按时间排序 -->
+          <div style="font-size:11.5px;color:var(--text-secondary);margin-bottom:4px;">
+            📅 按日期归类（<span id="aggDateCount">0</span> 天）· 同日内按 <code>HH:MM:SS</code> 时间倒序
+          </div>
+          <div class="date-group-bar" id="aggDateGroupBar"></div>
+          <select class="select" id="batchSelector" onchange="switchBatch(this.value)" style="margin-bottom:8px;"></select>
+
+          <!-- Explicit Data Provenance Verification Card -->
+          <div class="provenance-box" style="margin-bottom:10px;padding:9px 11px;" id="aggProvenanceCard"></div>
+
+          <!-- 5-Tab Ranking Switcher (Immediately Visible on First Screen!) -->
+          <div class="seg-bar" style="margin-bottom:8px;">
             <button class="seg-btn active" id="aggRankBtn-recommend" onclick="switchAggRankTab('recommend', this)">⭐ 最终推荐 (<span id="tabCntRec">0</span>)</button>
             <button class="seg-btn" onclick="switchAggRankTab('balanced', this)" id="aggRankBtn-balanced">⚖️ 均衡Top500 (<span id="tabCntBal">0</span>)</button>
             <button class="seg-btn" id="aggRankBtn-speed" onclick="switchAggRankTab('speed', this)">🚀 速度榜 (<span id="tabCntSpd">0</span>)</button>
@@ -1600,12 +1639,55 @@
             </div>
           </div>
 
+          <!-- Real-Time Node Search & Protocol Filter Bar -->
+          <div style="display:flex;gap:6px;margin-bottom:10px;align-items:center;">
+            <input
+              type="text"
+              class="input"
+              id="aggNodeSearchInput"
+              placeholder="🔍 搜索节点地区/名称/Host (如 日本、JP、US、Reality)..."
+              style="flex:1;min-height:36px;padding:6px 10px;font-size:12.5px;"
+              oninput="onAggSearchFilterChange()"
+            />
+            <select class="select" id="aggProtoFilterSel" onchange="onAggSearchFilterChange()" style="width:auto;min-height:36px;padding:4px 8px;font-size:12px;">
+              <option value="all">全协议</option>
+              <option value="vless">VLESS</option>
+              <option value="vmess">VMess</option>
+              <option value="trojan">Trojan</option>
+              <option value="ss">SS</option>
+            </select>
+            <button class="btn btn-ghost btn-xs" style="min-height:36px;padding:4px 8px;" onclick="clearAggSearchFilter()" title="清空搜索">✕</button>
+          </div>
+
           <div class="node-list" id="aggNodeList"></div>
 
           <div class="btn-grid-3" style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border-subtle);">
             <button class="btn btn-ghost btn-xs" onclick="exportActiveRankTxt()">📥 导出此榜.txt</button>
             <button class="btn btn-ghost btn-xs" onclick="downloadMarkdownReport()">📥 导出报告.md</button>
             <button class="btn btn-ghost btn-xs" onclick="downloadJsonSummary()">📥 导出全量.json</button>
+          </div>
+        </div>
+
+        <!-- 均衡 Top500 核验确认卡：延迟与下载速度双优 (Compact Summary Card) -->
+        <div class="card top500-card">
+          <div class="card-header" style="margin-bottom:6px;">
+            <div>
+              <div class="card-title" style="color:#c4b5fd;">⚖️ 均衡 Top500 专项核验（延迟 & 下载速度双优）</div>
+              <div class="card-sub">跨轮合并筛选 · 达标率 <strong id="top500PassRate" style="color:#34d399;">0%</strong></div>
+            </div>
+            <button class="btn btn-ghost btn-xs" onclick="exportBalancedTop500()">📥 导出 Top500</button>
+          </div>
+          <div class="top500-kpis">
+            <div class="top500-kpi" id="top500KpiEligible"><div class="kpi-num">0</div><div class="kpi-lbl2">✅ 双优达标</div></div>
+            <div class="top500-kpi warn" id="top500KpiSkewed"><div class="kpi-num">0</div><div class="kpi-lbl2">⚠️ 偏科/备选</div></div>
+            <div class="top500-kpi ok" id="top500KpiConfirm"><div class="kpi-num">0</div><div class="kpi-lbl2">🎯 确认 Top500</div></div>
+          </div>
+          <div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px;" id="top500KpiMeta">尚无 3 轮合并数据，跑满三段式后自动生成</div>
+          <div class="btn-grid-4 stack-sm">
+            <button class="btn btn-primary btn-xs" onclick="switchAggRankTab('balanced', document.getElementById('aggRankBtn-balanced'))">⚖️ 切到Top500榜</button>
+            <button class="btn btn-emerald btn-xs" onclick="copyBalancedTop500(false)">📋 复制链接</button>
+            <button class="btn btn-violet btn-xs" onclick="convertBalancedTop500()">🔄 转换格式</button>
+            <button class="btn btn-amber btn-xs" onclick="launchV2rayNGWithBalanced()">🚀 导入客户端</button>
           </div>
         </div>
       </section>
@@ -1648,7 +1730,7 @@
             id="standaloneConvertInput"
             placeholder="在此粘贴任意节点或配置：&#10;1. 复制出来的 vless:// vmess:// trojan:// ss:// hysteria2:// 链接（含群消息杂文自动提取）&#10;2. Base64 编码订阅全文&#10;3. Clash / Mihomo YAML (proxies:) 配置&#10;4. sing-box JSON (outbounds:) 配置"
             style="min-height:125px;margin-bottom:8px;font-family:Consolas,monospace;font-size:12px;"
-            oninput="runStandaloneConvertLive()"
+            oninput="onStandaloneConvertInputDebounced()"
           ></textarea>
 
           <!-- Parse Status & Options Bar -->
@@ -2422,22 +2504,65 @@
     // ---- 跨轮合并汇总数据库 SUMMARY_DB + 拉取批次采集账本 harvestedBatches ----
     const SUMMARY_DB = JSON.parse(localStorage.getItem("v2_summary_db_v1") || "{}");
     const harvestedBatches = JSON.parse(localStorage.getItem("v2_harvested_batches_v1") || "{}");
+
+    function safeSetLocalStorage(key, valStr) {
+      try {
+        localStorage.setItem(key, valStr);
+        return true;
+      } catch (e) {
+        // QuotaExceededError 自动瘦身保护：按时间淘汰最早的历史拉取快照或非内置批次释放空间
+        try {
+          const hbKeys = Object.keys(harvestedBatches);
+          if (hbKeys.length > 3) {
+            hbKeys.slice(3).forEach(k => delete harvestedBatches[k]);
+            localStorage.setItem("v2_harvested_batches_v1", JSON.stringify(harvestedBatches));
+          }
+          const bKeys = Object.keys(BATCH_DB).filter(k => k !== "2026-10-23" && k !== "2026-10-26" && k !== state.currentBatchKey);
+          if (bKeys.length > 4) {
+            bKeys.slice(0, bKeys.length - 4).forEach(k => delete BATCH_DB[k]);
+            localStorage.setItem("v2_batches_v2", JSON.stringify(BATCH_DB));
+          }
+          localStorage.setItem(key, valStr);
+          return true;
+        } catch (_) {
+          return false;
+        }
+      }
+    }
+
     function saveSummaryDb() {
-      try { localStorage.setItem("v2_summary_db_v1", JSON.stringify(SUMMARY_DB)); } catch (_) {}
+      safeSetLocalStorage("v2_summary_db_v1", JSON.stringify(SUMMARY_DB));
     }
     function saveHarvestedBatches() {
-      try { localStorage.setItem("v2_harvested_batches_v1", JSON.stringify(harvestedBatches)); } catch (_) {}
+      safeSetLocalStorage("v2_harvested_batches_v1", JSON.stringify(harvestedBatches));
     }
 
     function saveState() {
-      localStorage.setItem("v2_sources_v2", JSON.stringify(state.sources));
-      localStorage.setItem("v2_deprecated_v2", JSON.stringify(state.deprecatedNodes));
-      localStorage.setItem("v2_purged_cnt", String(state.purgedHistoryCount));
-      try {
-        localStorage.setItem("v2_batches_v2", JSON.stringify(BATCH_DB));
-      } catch (_) {}
+      safeSetLocalStorage("v2_sources_v2", JSON.stringify(state.sources));
+      safeSetLocalStorage("v2_deprecated_v2", JSON.stringify(state.deprecatedNodes));
+      safeSetLocalStorage("v2_purged_cnt", String(state.purgedHistoryCount));
+      safeSetLocalStorage("v2_batches_v2", JSON.stringify(BATCH_DB));
       saveSummaryDb();
       saveHarvestedBatches();
+    }
+
+    function dismissOnboardingGuide() {
+      const el = document.getElementById("newUserQuickGuide");
+      if (el) el.style.display = "none";
+      safeSetLocalStorage("v2_onboarding_dismissed", "1");
+    }
+
+    async function runNewUserOneClickQuickStart() {
+      showToast("🚀 启动一键全流程体验：正在拉取最新节点并自动实测出榜...");
+      await runLiveHarvest();
+      if (taskCtrl.cancelled) return;
+      const latestSnap = state.fetchSnapshots[0];
+      if (latestSnap && latestSnap.nodes && latestSnap.nodes.length) {
+        switchTab("tab-test");
+        switchTestSubMode("standalone");
+        await executeStandaloneTestBatch(latestSnap.nodes.slice(0, 60), `【一键快测】${latestSnap.title}`, latestSnap.sourceDesc, latestSnap.fetchedAt);
+        switchTab("tab-agg");
+      }
     }
 
     function loadPersistedBatches() {
@@ -3722,6 +3847,10 @@
     function deleteSelectedSources() {
       const selected = state.sources.filter(s => s.enabled);
       if (!selected.length) return showToast("请先勾选要删除的订阅源");
+      if (typeof window.confirm === "function") {
+        const ok = window.confirm(`⚠️ 确定要删除当前勾选的 ${selected.length} 个订阅源吗？\n（提示：左侧勾选框代表「启用参与拉取」，若只想清理失效死源请点击「清理异常死源」）`);
+        if (!ok) return;
+      }
       state.sources = state.sources.filter(s => !s.enabled);
       saveState();
       renderSources();
@@ -3732,6 +3861,9 @@
     function deleteDeadSources() {
       const dead = state.sources.filter(s => !s.directOk && !s.proxyOk);
       if (!dead.length) return showToast("当前没有双通道均挂的异常死源");
+      if (typeof window.confirm === "function") {
+        if (!window.confirm(`确定要清理 ${dead.length} 个直连与代理均不通的异常死源吗？`)) return;
+      }
       state.sources = state.sources.filter(s => s.directOk || s.proxyOk);
       saveState();
       renderSources();
@@ -3740,6 +3872,9 @@
     }
 
     function resetDefaultSources() {
+      if (typeof window.confirm === "function") {
+        if (!window.confirm("确定要恢复默认的 32 个主力订阅源吗？")) return;
+      }
       state.sources = JSON.parse(JSON.stringify(DEFAULT_SOURCES));
       saveState();
       renderSources();
@@ -4048,8 +4183,22 @@
       renderInspectRound();
     }
 
-    function renderInspectRound() {
+    let __currentInspectList = [];
+    let __inspectDisplayLimit = 50;
+
+    function openInspectNodeByIdx(idx) {
+      const n = __currentInspectList[idx];
+      if (n) openNodeModal(n);
+    }
+
+    function showMoreInspectNodes(showAll = false) {
+      __inspectDisplayLimit = showAll ? 99999 : (__inspectDisplayLimit + 100);
+      renderInspectRound(true);
+    }
+
+    function renderInspectRound(keepLimit = false) {
       if (document.hidden) { taskCtrl.needsUiFlushOnWake = true; return; }
+      if (!keepLimit) __inspectDisplayLimit = 50;
       const batch = BATCH_DB[state.currentBatchKey];
       const box = document.getElementById("roundInspectList");
       if (!batch || !box) return;
@@ -4073,10 +4222,14 @@
       }
 
       const sorted = [...batch.nodes].sort((a, b) => b.score - a.score);
-      box.innerHTML = sorted.map((n, idx) => {
+      __currentInspectList = sorted;
+      const visibleSlice = sorted.slice(0, __inspectDisplayLimit);
+      const remain = sorted.length - visibleSlice.length;
+
+      box.innerHTML = visibleSlice.map((n, idx) => {
         const isDead = (n.lat_avg === undefined || n.lat_avg < 0);
         return `
-        <div class="node-card" style="${isDead ? "opacity:0.65;border-color:rgba(244,63,94,0.4);" : ""}" onclick='openNodeModal(${JSON.stringify(n).replace(/'/g, "&#39;")})'>
+        <div class="node-card" style="${isDead ? "opacity:0.65;border-color:rgba(244,63,94,0.4);" : ""}" onclick="openInspectNodeByIdx(${idx})">
           <div class="node-rank ${!isDead && idx < 3 ? "top" + (idx + 1) : ""}">${idx + 1}</div>
           <div class="node-main">
             <div class="node-title">
@@ -4095,7 +4248,12 @@
           </div>
         </div>
       `;
-      }).join("");
+      }).join("") + (remain > 0 ? `
+        <div class="btn-grid-2" style="margin-top:8px;">
+          <button class="btn btn-ghost btn-xs" onclick="showMoreInspectNodes(false)">▼ 再加载 100 条 (剩 ${remain} 条)</button>
+          <button class="btn btn-ghost btn-xs" onclick="showMoreInspectNodes(true)">▼ 展开全部 ${sorted.length} 条</button>
+        </div>
+      ` : "");
     }
 
     function filterAggBatchCategory(cat, btnEl) {
@@ -5101,14 +5259,12 @@
       if (provCard) {
         provCard.style.borderColor = isStandalone ? "rgba(16,185,129,0.6)" : "rgba(59,130,246,0.6)";
         provCard.innerHTML = `
-          <div class="provenance-title" style="color:${isStandalone ? "#34d399" : "#60a5fa"};">
-            <span>📌 数据溯源核验</span>
-            <span class="tag ${isStandalone ? "tag-ok" : "tag-proxy"}">${isStandalone ? "🧪 单独测试报告" : `⚡ 三段式 (${(batch.roundsPresent || []).length}/3轮)`}</span>
+          <div class="provenance-title" style="color:${isStandalone ? "#34d399" : "#60a5fa"};margin-bottom:2px;font-size:12.5px;">
+            <span>📌 ${escapeHtml(batch.poolSource)}</span>
+            <span class="tag ${isStandalone ? "tag-ok" : "tag-proxy"}">${isStandalone ? "🧪 单测" : `⚡ 三段式(${(batch.roundsPresent || []).length}/3轮)`}</span>
           </div>
-          <div class="provenance-meta">
-            • <strong>被测数据源</strong>：<strong>${escapeHtml(batch.poolSource)}</strong><br/>
-            • <strong>拉取时间</strong>：<code>${escapeHtml(batch.fetchedAt || batch.date)}</code> | <strong>测试完成</strong>：<code>${escapeHtml(batch.date)}</code><br/>
-            • <strong>统计结果</strong>：参测 <strong>${(batch.poolSize || batch.nodes.length).toLocaleString()}</strong> 条 → 连通 <strong style="color:#34d399;">${aliveNodes.length}</strong> 条 → 最终推荐 <strong style="color:#60a5fa;">${recNodes.length}</strong> 条 · 均衡Top500 <strong style="color:#c4b5fd;">${balNodes.length}</strong> 条
+          <div class="provenance-meta" style="font-size:11.5px;line-height:1.35;">
+            参测 <strong>${(batch.poolSize || batch.nodes.length).toLocaleString()}</strong> → 连通 <strong style="color:#34d399;">${aliveNodes.length}</strong> · 推荐 <strong style="color:#60a5fa;">${recNodes.length}</strong> · Top500 <strong style="color:#c4b5fd;">${balNodes.length}</strong> | <code>${escapeHtml(batch.date)}</code>
           </div>
         `;
       }
@@ -5131,10 +5287,48 @@
       renderAggNodeList();
     }
 
+    let __currentAggDisplayList = [];
+    let __aggDisplayLimit = 50;
+
+    function filterAggNodesBySearchAndProto(list) {
+      const q = (document.getElementById("aggNodeSearchInput")?.value || "").trim().toLowerCase();
+      const proto = document.getElementById("aggProtoFilterSel")?.value || "all";
+      return list.filter(n => {
+        if (proto !== "all" && (n.proto || "").toLowerCase() !== proto) return false;
+        if (!q) return true;
+        const hay = `${n.name || ""} ${n.host || ""} ${n.proto || ""}`.toLowerCase();
+        return hay.includes(q);
+      });
+    }
+
+    function onAggSearchFilterChange() {
+      __aggDisplayLimit = 50;
+      renderAggNodeList(true);
+    }
+
+    function clearAggSearchFilter() {
+      const inp = document.getElementById("aggNodeSearchInput");
+      const sel = document.getElementById("aggProtoFilterSel");
+      if (inp) inp.value = "";
+      if (sel) sel.value = "all";
+      __aggDisplayLimit = 50;
+      renderAggNodeList(true);
+    }
+
+    function openAggNodeByIdx(idx) {
+      const n = __currentAggDisplayList[idx];
+      if (n) openNodeModal(n);
+    }
+
+    function showMoreAggNodes(showAll = false) {
+      __aggDisplayLimit = showAll ? 99999 : (__aggDisplayLimit + 100);
+      renderAggNodeList(true);
+    }
+
     function getActiveRankLimitedNodes() {
       const batch = BATCH_DB[state.currentBatchKey];
       if (!batch) return [];
-      const fullList = getNodesByRankMode(batch, state.aggRankMode || "recommend");
+      const fullList = filterAggNodesBySearchAndProto(getNodesByRankMode(batch, state.aggRankMode || "recommend"));
       const limitVal = Number(document.getElementById("activeRankLimitSel")?.value || 0);
       return limitVal > 0 ? fullList.slice(0, limitVal) : fullList;
     }
@@ -5180,10 +5374,13 @@
       downloadBlob(list.map(n => n.raw).join("\n") + "\n", `${title}_${list.length}条_${getNowDateStr()}.txt`, "text/plain;charset=utf-8");
     }
 
-    function renderAggNodeList() {
+    function renderAggNodeList(keepLimit = false) {
       const batch = BATCH_DB[state.currentBatchKey];
       if (!batch) return;
-      const list = getNodesByRankMode(batch, state.aggRankMode || "recommend");
+      if (!keepLimit) __aggDisplayLimit = 50;
+      const rawList = getNodesByRankMode(batch, state.aggRankMode || "recommend");
+      const list = filterAggNodesBySearchAndProto(rawList);
+      __currentAggDisplayList = list;
 
       const titleEl = document.getElementById("activeRankTitleLabel");
       const cntEl = document.getElementById("activeRankCountLabel");
@@ -5192,17 +5389,20 @@
 
       const box = document.getElementById("aggNodeList");
       if (!list.length) {
-        box.innerHTML = `<div style="text-align:center;padding:20px;color:var(--text-secondary);font-size:13px;">当前榜单暂无节点</div>`;
+        box.innerHTML = `<div style="text-align:center;padding:20px;color:var(--text-secondary);font-size:13px;">当前榜单暂无匹配节点</div>`;
         return;
       }
 
-      box.innerHTML = list.map((n, idx) => {
+      const visibleSlice = list.slice(0, __aggDisplayLimit);
+      const remain = list.length - visibleSlice.length;
+
+      box.innerHTML = visibleSlice.map((n, idx) => {
         const isDead = n.lat_avg < 0;
         const balVal = n.bal !== undefined ? n.bal : n.score;
         const balTag = !isDead && balVal !== undefined
           ? `<span class="tag" style="background:rgba(196,181,253,.15);color:#c4b5fd;">⚖️${balVal}</span>` : "";
         return `
-        <div class="node-card" onclick='openNodeModal(${JSON.stringify(n).replace(/'/g, "&#39;")})'>
+        <div class="node-card" onclick="openAggNodeByIdx(${idx})">
           <div class="node-rank ${!isDead && idx < 3 && !n.inflated ? "top" + (idx + 1) : ""}">${idx + 1}</div>
           <div class="node-main">
             <div class="node-title">
@@ -5223,7 +5423,12 @@
           </div>
         </div>
       `;
-      }).join("");
+      }).join("") + (remain > 0 ? `
+        <div class="btn-grid-2" style="margin-top:8px;">
+          <button class="btn btn-ghost btn-xs" onclick="showMoreAggNodes(false)">▼ 再加载 100 条 (剩 ${remain} 条)</button>
+          <button class="btn btn-ghost btn-xs" onclick="showMoreAggNodes(true)">▼ 展开全部 ${list.length} 条</button>
+        </div>
+      ` : "");
     }
 
     // =========================================================================
@@ -5306,6 +5511,17 @@
         if (btn) btn.className = k === fmt ? "btn btn-primary btn-sm" : "btn btn-ghost btn-sm";
       });
       runStandaloneConvertLive();
+    }
+
+    let __convInputTimer = null;
+    function onStandaloneConvertInputDebounced() {
+      if (__convInputTimer) clearTimeout(__convInputTimer);
+      const val = document.getElementById("standaloneConvertInput")?.value || "";
+      if (val.length < 4000) {
+        runStandaloneConvertLive();
+      } else {
+        __convInputTimer = setTimeout(() => runStandaloneConvertLive(), 120);
+      }
     }
 
     function runStandaloneConvertLive() {
@@ -6289,8 +6505,36 @@
     }
     function downloadMarkdownReport() {
       const batch = BATCH_DB[state.currentBatchKey];
+      if (!batch) return showToast("当前暂无汇总批次");
       const rec = getRecommendedNodes(batch);
-      downloadBlob(`# 汇总报告 (${state.currentBatchKey})\n\n- 数据源: ${batch.poolSource}\n- 推荐节点数: ${rec.length}\n`, "测试统计报告.md", "text/markdown;charset=utf-8");
+      const top = computeBalancedTop500(batch);
+      const spd = getNodesByRankMode(batch, "speed");
+      const lat = getNodesByRankMode(batch, "lowlat");
+      const lines = [
+        `# 📊 v2rayN 三段式管家测试统计报告 (${state.currentBatchKey})`,
+        "",
+        `## 一、批次概览`,
+        `- **测试批次**: \`${state.currentBatchKey}\``,
+        `- **数据来源**: ${batch.poolSource || "主收集池"}`,
+        `- **测试时间**: ${batch.date || getNowDateStr()}`,
+        `- **参测节点总数**: ${(batch.poolSize || batch.nodes.length)} 条`,
+        `- **最终推荐节点数**: **${rec.length}** 条`,
+        `- **均衡 Top500 确认数**: **${top.confirmed.length}** 条 (达标率 ${top.passRate}%)`,
+        `- **速度榜节点数**: ${spd.length} 条 | **低延迟榜节点数**: ${lat.length} 条`,
+        "",
+        `## 二、推荐节点 Top 50 排名表`,
+        `| 排名 | 协议 | 节点名称 | 地址:端口 | 连通轮次 | 平均延迟 | 下载速度 | 均衡评分 |`,
+        `|---:|:---:|:---|:---|:---:|---:|---:|---:|`
+      ];
+      rec.slice(0, 50).forEach((n, idx) => {
+        const spdTxt = n.spd_avg > 0 ? `${Number(n.spd_avg).toFixed(2)} Mbps` : "仅延迟";
+        const balTxt = n.bal !== undefined ? n.bal : (n.score || "-");
+        lines.push(`| ${idx + 1} | ${n.proto.toUpperCase()} | ${String(n.name || "").replace(/\|/g, "｜")} | \`${n.host}\` | ${n.alive || 1}/${n.rounds || 1} | ${n.lat_avg} ms | ${spdTxt} | ${balTxt} |`);
+      });
+      lines.push("", `## 三、推荐节点可直接导入链接 (前 50 条)`, "```text");
+      rec.slice(0, 50).forEach(n => lines.push(n.raw));
+      lines.push("```", "");
+      downloadBlob(lines.join("\n"), `测试统计报告_${getNowDateStr()}.md`, "text/markdown;charset=utf-8");
     }
     function downloadJsonSummary() {
       downloadBlob(JSON.stringify(BATCH_DB[state.currentBatchKey], null, 2), "测试汇总.json", "application/json;charset=utf-8");
@@ -6310,27 +6554,222 @@
     function closeNodeModal() { document.getElementById("nodeModal").classList.remove("open"); }
     function copyModalNodeLink() { copyText(document.getElementById("modalNodeRaw").value, "已复制节点链接"); }
 
+    // =========================================================================
+    // 标准 ISO/IEC 18004 二维码矩阵生成器 (Byte Mode, Version 1..16, EC Level L)
+    // 确保节点二维码弹窗 100% 可被 v2rayNG / Shadowrocket / 微信 / 相机真实扫描识别
+    // =========================================================================
+    function encodeIsoQrMatrix(text) {
+      let bytes = [];
+      try {
+        bytes = Array.from(new TextEncoder().encode(String(text || "")));
+      } catch (_) {
+        const s = unescape(encodeURIComponent(String(text || "")));
+        for (let i = 0; i < s.length; i++) bytes.push(s.charCodeAt(i) & 0xff);
+      }
+      const V_TABLE = [
+        null,
+        [19, 7, 1, 19, 0, 0, []],
+        [34, 10, 1, 34, 0, 0, [6, 18]],
+        [55, 15, 1, 55, 0, 0, [6, 22]],
+        [80, 20, 1, 80, 0, 0, [6, 26]],
+        [108, 26, 1, 108, 0, 0, [6, 30]],
+        [136, 18, 2, 68, 0, 0, [6, 34]],
+        [156, 20, 2, 78, 0, 0, [6, 22, 38]],
+        [194, 24, 2, 97, 0, 0, [6, 24, 42]],
+        [232, 30, 2, 116, 0, 0, [6, 26, 46]],
+        [274, 18, 2, 68, 2, 69, [6, 28, 50]],
+        [324, 20, 4, 81, 0, 0, [6, 30, 54]],
+        [370, 24, 2, 92, 2, 93, [6, 32, 58]],
+        [428, 26, 4, 107, 0, 0, [6, 34, 62]],
+        [461, 30, 3, 115, 1, 116, [6, 26, 46, 66]],
+        [523, 22, 5, 87, 1, 88, [6, 26, 48, 70]],
+        [589, 24, 5, 98, 1, 99, [6, 26, 50, 74]]
+      ];
+      let ver = 1;
+      for (; ver <= 16; ver++) {
+        const cap = V_TABLE[ver][0] - (ver <= 9 ? 2 : 3);
+        if (bytes.length <= cap) break;
+      }
+      if (ver > 16) ver = 16;
+      const [totalData, ecLen, g1Blocks, g1Cw, g2Blocks, g2Cw, align] = V_TABLE[ver];
+      const maxBytes = totalData - (ver <= 9 ? 2 : 3);
+      const dataBytes = bytes.slice(0, maxBytes);
+
+      const bits = [];
+      const pushBits = (val, len) => { for (let i = len - 1; i >= 0; i--) bits.push((val >>> i) & 1); };
+      pushBits(0b0100, 4);
+      pushBits(dataBytes.length, ver <= 9 ? 8 : 16);
+      for (const b of dataBytes) pushBits(b, 8);
+      const maxBits = totalData * 8;
+      pushBits(0, Math.min(4, maxBits - bits.length));
+      while (bits.length % 8 !== 0) bits.push(0);
+      const dataCw = [];
+      for (let i = 0; i < bits.length; i += 8) {
+        let b = 0;
+        for (let j = 0; j < 8; j++) b = (b << 1) | bits[i + j];
+        dataCw.push(b);
+      }
+      let padToggle = true;
+      while (dataCw.length < totalData) { dataCw.push(padToggle ? 0xEC : 0x11); padToggle = !padToggle; }
+
+      const EXP = new Uint8Array(512), LOG = new Uint8Array(256);
+      let x = 1;
+      for (let i = 0; i < 255; i++) { EXP[i] = x; LOG[x] = i; x <<= 1; if (x & 0x100) x ^= 0x11d; }
+      for (let i = 255; i < 512; i++) EXP[i] = EXP[i - 255];
+      const gfMul = (a, b) => (a === 0 || b === 0) ? 0 : EXP[LOG[a] + LOG[b]];
+
+      let gen = [1];
+      for (let i = 0; i < ecLen; i++) {
+        const next = new Array(gen.length + 1).fill(0);
+        for (let j = 0; j < gen.length; j++) {
+          next[j] ^= gen[j];
+          next[j + 1] ^= gfMul(gen[j], EXP[i]);
+        }
+        gen = next;
+      }
+      const rsEncode = (msg) => {
+        const rem = new Uint8Array(ecLen);
+        for (const b of msg) {
+          const factor = b ^ rem[0];
+          rem.copyWithin(0, 1);
+          rem[ecLen - 1] = 0;
+          if (factor !== 0) {
+            for (let j = 0; j < ecLen; j++) rem[j] ^= gfMul(gen[j + 1], factor);
+          }
+        }
+        return Array.from(rem);
+      };
+
+      const blocks = [], ecBlocks = [];
+      let offset = 0;
+      for (let i = 0; i < g1Blocks; i++) {
+        const blk = dataCw.slice(offset, offset + g1Cw); offset += g1Cw;
+        blocks.push(blk); ecBlocks.push(rsEncode(blk));
+      }
+      for (let i = 0; i < g2Blocks; i++) {
+        const blk = dataCw.slice(offset, offset + g2Cw); offset += g2Cw;
+        blocks.push(blk); ecBlocks.push(rsEncode(blk));
+      }
+      const finalCw = [];
+      const maxBlkLen = Math.max(g1Cw, g2Cw);
+      for (let i = 0; i < maxBlkLen; i++) {
+        for (const blk of blocks) if (i < blk.length) finalCw.push(blk[i]);
+      }
+      for (let i = 0; i < ecLen; i++) {
+        for (const eb of ecBlocks) finalCw.push(eb[i]);
+      }
+
+      const size = ver * 4 + 17;
+      const mat = Array.from({ length: size }, () => new Int8Array(size).fill(-1));
+      const isFunc = Array.from({ length: size }, () => new Uint8Array(size));
+      const setMod = (r, c, v, fn = true) => { mat[r][c] = v ? 1 : 0; if (fn) isFunc[r][c] = 1; };
+
+      const placeFinder = (oy, ox) => {
+        for (let dy = -1; dy <= 7; dy++) {
+          for (let dx = -1; dx <= 7; dx++) {
+            const y = oy + dy, x = ox + dx;
+            if (y < 0 || y >= size || x < 0 || x >= size) continue;
+            const inOuter = (dy >= 0 && dy <= 6 && (dx === 0 || dx === 6)) || (dx >= 0 && dx <= 6 && (dy === 0 || dy === 6));
+            const inInner = (dy >= 2 && dy <= 4 && dx >= 2 && dx <= 4);
+            setMod(y, x, inOuter || inInner, true);
+          }
+        }
+      };
+      placeFinder(0, 0); placeFinder(0, size - 7); placeFinder(size - 7, 0);
+
+      for (const cy of align) {
+        for (const cx of align) {
+          if ((cy <= 8 && cx <= 8) || (cy <= 8 && cx >= size - 9) || (cy >= size - 9 && cx <= 8)) continue;
+          for (let dy = -2; dy <= 2; dy++) {
+            for (let dx = -2; dx <= 2; dx++) {
+              setMod(cy + dy, cx + dx, Math.max(Math.abs(dy), Math.abs(dx)) !== 1, true);
+            }
+          }
+        }
+      }
+      for (let i = 8; i < size - 8; i++) {
+        if (!isFunc[6][i]) setMod(6, i, i % 2 === 0, true);
+        if (!isFunc[i][6]) setMod(i, 6, i % 2 === 0, true);
+      }
+      setMod(size - 8, 8, 1, true);
+
+      for (let i = 0; i < 9; i++) {
+        if (i < size) { isFunc[8][i] = 1; isFunc[i][8] = 1; }
+      }
+      for (let i = 0; i < 8; i++) {
+        isFunc[8][size - 1 - i] = 1; isFunc[size - 1 - i][8] = 1;
+      }
+      if (ver >= 7) {
+        for (let i = 0; i < 6; i++) {
+          for (let j = 0; j < 3; j++) {
+            isFunc[i][size - 11 + j] = 1; isFunc[size - 11 + j][i] = 1;
+          }
+        }
+      }
+
+      let bitIdx = 0, totalCwBits = finalCw.length * 8;
+      let upward = true;
+      for (let right = size - 1; right >= 1; right -= 2) {
+        if (right === 6) right = 5;
+        for (let vert = 0; vert < size; vert++) {
+          const y = upward ? size - 1 - vert : vert;
+          for (let j = 0; j < 2; j++) {
+            const x = right - j;
+            if (!isFunc[y][x]) {
+              let dark = 0;
+              if (bitIdx < totalCwBits) {
+                dark = (finalCw[bitIdx >>> 3] >>> (7 - (bitIdx & 7))) & 1;
+                bitIdx++;
+              }
+              if ((y + x) % 2 === 0) dark ^= 1;
+              mat[y][x] = dark;
+            }
+          }
+        }
+        upward = !upward;
+      }
+
+      const fmtBits = 0x77c4;
+      for (let i = 0; i <= 5; i++) setMod(i, 8, (fmtBits >>> i) & 1, true);
+      setMod(7, 8, (fmtBits >>> 6) & 1, true);
+      setMod(8, 8, (fmtBits >>> 7) & 1, true);
+      setMod(8, 7, (fmtBits >>> 8) & 1, true);
+      for (let i = 9; i < 15; i++) setMod(8, 14 - i, (fmtBits >>> i) & 1, true);
+      for (let i = 0; i < 8; i++) setMod(8, size - 1 - i, (fmtBits >>> i) & 1, true);
+      for (let i = 8; i < 15; i++) setMod(size - 15 + i, 8, (fmtBits >>> i) & 1, true);
+
+      if (ver >= 7) {
+        let rem = ver;
+        for (let i = 0; i < 12; i++) rem = (rem << 1) ^ ((rem >>> 11) * 0x1F25);
+        const vBits = (ver << 12) | rem;
+        for (let i = 0; i < 18; i++) {
+          const bit = (vBits >>> i) & 1;
+          const a = Math.floor(i / 3), b = i % 3 + size - 11;
+          setMod(a, b, bit, true); setMod(b, a, bit, true);
+        }
+      }
+      return { ver, size, mat };
+    }
+
     function drawQrMatrix(text) {
       const canvas = document.getElementById("qrCanvas");
+      if (!canvas) return;
       const ctx = canvas.getContext("2d");
-      const size = 25;
-      const cell = Math.floor(canvas.width / size);
+      const qr = encodeIsoQrMatrix(text || "");
+      const quietZone = 4;
+      const totalModules = qr.size + quietZone * 2;
+      const cell = Math.max(3, Math.floor(220 / totalModules));
+      const pxSize = totalModules * cell;
+      canvas.width = pxSize;
+      canvas.height = pxSize;
       ctx.fillStyle = "#ffffff";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      function drawFinder(ox, oy) {
-        ctx.fillStyle = "#0f172a"; ctx.fillRect(ox * cell, oy * cell, 7 * cell, 7 * cell);
-        ctx.fillStyle = "#ffffff"; ctx.fillRect((ox + 1) * cell, (oy + 1) * cell, 5 * cell, 5 * cell);
-        ctx.fillStyle = "#0f172a"; ctx.fillRect((ox + 2) * cell, (oy + 2) * cell, 3 * cell, 3 * cell);
-      }
-      drawFinder(0, 0); drawFinder(size - 7, 0); drawFinder(0, size - 7);
-      let hash = 2166136261;
-      for (let i = 0; i < text.length; i++) { hash ^= text.charCodeAt(i); hash = Math.imul(hash, 16777619); }
+      ctx.fillRect(0, 0, pxSize, pxSize);
       ctx.fillStyle = "#0f172a";
-      for (let y = 0; y < size; y++) {
-        for (let x = 0; x < size; x++) {
-          if ((x < 8 && y < 8) || (x >= size - 8 && y < 8) || (x < 8 && y >= size - 8)) continue;
-          const charCode = text.charCodeAt((x * size + y) % Math.max(1, text.length)) || 7;
-          if (((hash ^ (x * 31 + y * 17 + charCode * 13)) & 3) !== 0) ctx.fillRect(x * cell, y * cell, cell, cell);
+      for (let r = 0; r < qr.size; r++) {
+        for (let c = 0; c < qr.size; c++) {
+          if (qr.mat[r][c] === 1) {
+            ctx.fillRect((c + quietZone) * cell, (r + quietZone) * cell, cell, cell);
+          }
         }
       }
     }
@@ -6709,7 +7148,50 @@
       }
     }
 
+    // Android 物理返回键 & 侧滑返回手势统一拦截器
+    let __lastBackExitTryMs = 0;
+    window.handleAndroidBackButton = function() {
+      // 1. 优先关闭任何打开的弹窗 Modal
+      const openModalIds = ["nodeModal", "optionsModal", "addSourceModal", "convertModal", "mergeRecommendModal"];
+      for (const mId of openModalIds) {
+        const mEl = document.getElementById(mId);
+        if (mEl && mEl.classList.contains("open")) {
+          mEl.classList.remove("open");
+          return true;
+        }
+      }
+      // 2. 其次关闭左侧抽屉菜单
+      const drawer = document.getElementById("sidebarDrawer");
+      if (drawer && drawer.classList.contains("open")) {
+        closeSidebar();
+        return true;
+      }
+      // 3. 若当前不在首页 (tab-harvest)，按返回键优先回到首页
+      const activePane = document.querySelector(".tab-pane.active");
+      if (activePane && activePane.id !== "tab-harvest") {
+        switchTab("tab-harvest");
+        return true;
+      }
+      // 4. 在首页且位于「全网猎源」子页时，按返回键切回「已配订阅源池」
+      if (state.harvestSubMode === "hunter") {
+        switchHarvestSubMode("sources");
+        return true;
+      }
+      // 5. 处于根视图：2秒内连按两次最小化到后台（保持测速守护不中断）
+      const now = Date.now();
+      if (now - __lastBackExitTryMs < 2000) {
+        return false; // 交由 MainActivity 执行 moveTaskToBack(true)
+      }
+      __lastBackExitTryMs = now;
+      showToast("👋 再按一次返回键最小化到后台（测速与定时守护不中断）");
+      return true;
+    };
+
     window.addEventListener("DOMContentLoaded", () => {
+      if (localStorage.getItem("v2_onboarding_dismissed") === "1") {
+        const gEl = document.getElementById("newUserQuickGuide");
+        if (gEl) gEl.style.display = "none";
+      }
       loadPersistedBatches();
       loadCronConfig();
       initSeedPool();

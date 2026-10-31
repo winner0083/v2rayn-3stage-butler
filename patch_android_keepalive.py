@@ -1511,6 +1511,25 @@ public class MainActivity extends BridgeActivity {
     }
 
     @Override
+    public void onBackPressed() {
+        try {
+            if (getBridge() != null && getBridge().getWebView() != null) {
+                final WebView webView = getBridge().getWebView();
+                webView.evaluateJavascript(
+                    "(function(){ return window.handleAndroidBackButton ? String(window.handleAndroidBackButton()) : 'false'; })()",
+                    value -> {
+                        if (value == null || !value.contains("true")) {
+                            moveTaskToBack(true);
+                        }
+                    }
+                );
+                return;
+            }
+        } catch (Exception ignored) {}
+        moveTaskToBack(true);
+    }
+
+    @Override
     public void onDestroy() {
         if (bgPulseExecutor != null) {
             try { bgPulseExecutor.shutdownNow(); } catch (Exception ignored) {}
@@ -1695,6 +1714,13 @@ public class MainActivity extends BridgeActivity {
             if (keepAliveEnabled) {
                 startKeepAliveService(statusText);
             }
+        }
+
+        @JavascriptInterface
+        public void minimizeAppToBack() {
+            runOnUiThread(() -> {
+                try { moveTaskToBack(true); } catch (Exception ignored) {}
+            });
         }
 
         @JavascriptInterface
