@@ -494,11 +494,11 @@ public class XrayBenchEngine {
         node.put("protocol", proto);
 
         if ("vmess".equals(proto)) {
-            String b64 = rest.split("#")[0].trim();
+            String b64 = rest.split("#")[0].trim().replace('-', '+').replace('_', '/');
             byte[] decoded = Base64.decode(b64, Base64.DEFAULT);
             JSONObject j = new JSONObject(new String(decoded, StandardCharsets.UTF_8));
             String host = j.optString("add", "").trim();
-            int port = Integer.parseInt(j.optString("port", "443").split("/")[0].trim());
+            int port = Integer.parseInt(j.optString("port", "443").split("/")[0].replaceAll("[^0-9]", "").trim());
             node.put("host", host);
             node.put("port", port);
             node.put("uuid", j.optString("id", ""));
@@ -543,7 +543,7 @@ public class XrayBenchEngine {
             userPart = rest.substring(0, atIdx);
             hostPortPart = rest.substring(atIdx + 1);
         } else if ("ss".equals(proto)) {
-            byte[] dec = Base64.decode(rest, Base64.DEFAULT);
+            byte[] dec = Base64.decode(rest.replace('-', '+').replace('_', '/'), Base64.DEFAULT);
             String full = new String(dec, StandardCharsets.UTF_8);
             int at2 = full.lastIndexOf('@');
             if (at2 >= 0) {
@@ -552,27 +552,45 @@ public class XrayBenchEngine {
             }
         }
 
+        try {
+            userPart = URLDecoder.decode(userPart, "UTF-8");
+        } catch (Exception ignored) {}
+
         if ("ss".equals(proto)) {
-            if (!userPart.contains(":")) {
-                try {
-                    String padded = userPart;
-                    while (padded.length() % 4 != 0) padded += "=";
-                    byte[] dec = Base64.decode(padded, Base64.URL_SAFE | Base64.DEFAULT);
-                    userPart = new String(dec, StandardCharsets.UTF_8);
-                } catch (Exception ignored) {}
-            }
-            int cIdx = userPart.indexOf(':');
-            if (cIdx > 0) {
-                node.put("method", userPart.substring(0, cIdx));
-                node.put("password", userPart.substring(cIdx + 1));
-            } else {
-                node.put("method", "chacha20-ietf-poly1305");
+            boolean isSsVariant = "none".equals(params.optString("encryption", ""))
+                || !params.optString("security", "").isEmpty()
+                || (!params.optString("type", "").isEmpty() && !"tcp".equals(params.optString("type", "")));
+            if (isSsVariant && !userPart.contains(":")) {
+                node.put("protocol", "vless");
+                node.put("uuid", userPart);
                 node.put("password", userPart);
+            } else {
+                if (!userPart.contains(":")) {
+                    try {
+                        String padded = userPart.replace('-', '+').replace('_', '/');
+                        while (padded.length() % 4 != 0) padded += "=";
+                        byte[] dec = Base64.decode(padded, Base64.DEFAULT);
+                        userPart = new String(dec, StandardCharsets.UTF_8);
+                    } catch (Exception ignored) {}
+                }
+                int cIdx = userPart.indexOf(':');
+                if (cIdx > 0) {
+                    String mth = userPart.substring(0, cIdx).trim();
+                    String pw = userPart.substring(cIdx + 1);
+                    if ("none".equalsIgnoreCase(mth) && pw.length() >= 32) {
+                        node.put("protocol", "vless");
+                        node.put("uuid", pw);
+                        node.put("password", pw);
+                    } else {
+                        node.put("method", mth);
+                        node.put("password", pw);
+                    }
+                } else {
+                    node.put("method", "chacha20-ietf-poly1305");
+                    node.put("password", userPart);
+                }
             }
         } else {
-            try {
-                userPart = URLDecoder.decode(userPart, "UTF-8");
-            } catch (Exception ignored) {}
             node.put("uuid", userPart);
             node.put("password", userPart);
         }
