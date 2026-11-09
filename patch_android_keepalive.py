@@ -618,6 +618,13 @@ public class XrayBenchEngine {
         return node;
     }
 
+    // 真实订阅池存在残缺百分号转义（如 ws path "/TM%4"），
+    // Xray v26 按 URL 解析时会直接抛 invalid URL escape，统一把裸 % 编码为 %25。
+    private static String safeUrlPath(String p) {
+        if (p == null || p.isEmpty()) return "/";
+        return p.replaceAll("%(?![0-9A-Fa-f]{2})", "%25");
+    }
+
     public static JSONObject buildXrayConfig(JSONObject node, int listenPort) throws Exception {
         String proto = node.getString("protocol").toLowerCase();
         String host = node.getString("host");
@@ -669,7 +676,11 @@ public class XrayBenchEngine {
             JSONObject user = new JSONObject()
                 .put("id", idOrPass)
                 .put("encryption", "none");
-            String flow = params.optString("flow", "").trim();
+            // 非标准 flow（如 xtls-rprx-vision-udp443）会让 Xray v26 直接拒绝启动，
+            // 统一降级为标准 vision；其余自定义值一律丢弃。
+            String flow = params.optString("flow", "").trim().toLowerCase();
+            if (flow.startsWith("xtls-rprx-vision")) flow = "xtls-rprx-vision";
+            else flow = "";
             if (!flow.isEmpty() && ("tls".equals(sec) || "reality".equals(sec)) && ("tcp".equals(net) || "kcp".equals(net))) {
                 user.put("flow", flow);
             }
@@ -763,19 +774,19 @@ public class XrayBenchEngine {
         if ("ws".equals(net)) {
             String wsHost = params.optString("host", sni);
             stream.put("wsSettings", new JSONObject()
-                .put("path", params.optString("path", "/"))
+                .put("path", safeUrlPath(params.optString("path", "/")))
                 .put("headers", new JSONObject().put("Host", wsHost)));
         } else if ("grpc".equals(net)) {
             stream.put("grpcSettings", new JSONObject()
-                .put("serviceName", params.optString("serviceName", params.optString("path", ""))));
+                .put("serviceName", safeUrlPath(params.optString("serviceName", params.optString("path", "")))));
         } else if ("xhttp".equals(net)) {
             stream.put("xhttpSettings", new JSONObject()
-                .put("path", params.optString("path", "/"))
+                .put("path", safeUrlPath(params.optString("path", "/")))
                 .put("host", params.optString("host", sni))
                 .put("mode", params.optString("mode", "auto")));
         } else if ("httpupgrade".equals(net)) {
             stream.put("httpupgradeSettings", new JSONObject()
-                .put("path", params.optString("path", "/"))
+                .put("path", safeUrlPath(params.optString("path", "/")))
                 .put("host", params.optString("host", sni)));
         }
 

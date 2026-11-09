@@ -3540,7 +3540,7 @@
       const wsHost = String((p["ws-opts"] && p["ws-opts"].headers && p["ws-opts"].headers.Host) || (p.transport && p.transport.headers && p.transport.headers.Host) || p.host || "").trim();
       const grpcSvc = String((p["grpc-opts"] && p["grpc-opts"]["grpc-service-name"]) || (p.transport && p.transport.service_name) || "").trim();
       const fp = String(p["client-fingerprint"] || (p.tls && p.tls.utls && p.tls.utls.fingerprint) || "chrome").trim();
-      const flow = String(p.flow || "").trim();
+      const flow = normalizeFlowValue(p.flow);
 
       if (type === "vmess") {
         const vmessJson = {
@@ -4586,6 +4586,16 @@
     // 解析 raw URI → 结构化参数（支持 vmess/vless/trojan/ss/hysteria2/tuic/wireguard）
     let convertCtx = { nodes: [], format: "uri" };
 
+    // 统一 flow 归一化（公共入口）：真实订阅池常混入 xtls-rprx-vision-udp443 /
+    // xtls-rprx-direct 等客户端自定义变体，sing-box v1.11 与 Xray v26 均不支持，
+    // 会导致配置校验 / 测速核心直接崩溃。此处统一降级为标准 vision 或丢弃。
+    function normalizeFlowValue(rawFlow) {
+      const f = String(rawFlow || "").trim().toLowerCase();
+      if (!f) return "";
+      if (f.indexOf("xtls-rprx-vision") === 0) return "xtls-rprx-vision";
+      return "";
+    }
+
     function parseNodeUri(raw) {
       const node = { raw: raw, proto: "", name: "", host: "", port: "", params: {} };
       try {
@@ -4728,6 +4738,16 @@
         }
         // fallback name
         if (!node.name) node.name = `${node.proto.toUpperCase()}-${node.host}`;
+        // 所有解析路径统一归一化 flow，保证下游 Clash / sing-box / 原生 URI 输出合法
+        if (node.params.flow) {
+          const nf = normalizeFlowValue(node.params.flow);
+          if (nf) node.params.flow = nf; else delete node.params.flow;
+        }
+        // 真实订阅池存在残缺百分号转义的 ws path（如 "/TM%4"），
+        // sing-box / Xray 会按 URL 解析并直接报错，统一把裸 % 编码为 %25。
+        ["path", "serviceName"].forEach(k => {
+          if (node.params[k]) node.params[k] = String(node.params[k]).replace(/%(?![0-9A-Fa-f]{2})/g, "%25");
+        });
       } catch (_) {}
       return node;
     }
