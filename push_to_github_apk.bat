@@ -15,7 +15,7 @@ if not exist .git (
 )
 
 echo [2/3] Staging all project files...
-git add index.html www/index.html manifest.json www/manifest.json package.json capacitor.config.json pc_bridge_server.py build_apk.bat push_to_github_apk.bat .github/workflows/build-apk.yml
+git add index.html www/index.html manifest.json www/manifest.json package.json capacitor.config.json pc_bridge_server.py patch_android_keepalive.py build_apk.bat push_to_github_apk.bat .github/workflows/build-apk.yml
 git commit -m "feat: v2rayN 3-stage butler v2.0 extensible sources, dual-channel probe, 90-day purge"
 
 echo.

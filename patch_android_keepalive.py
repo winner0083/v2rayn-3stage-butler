@@ -274,7 +274,7 @@ public class KeepAliveService extends Service {
             builder = new Notification.Builder(ctx);
         }
 
-        builder.setContentTitle("v2rayN 三段式管家 V2.1 (Xray真核)")
+        builder.setContentTitle("v2rayN 三段式管家 V2.0 (Xray真核)")
                .setContentText(contentText)
                .setSmallIcon(android.R.drawable.stat_notify_sync)
                .setContentIntent(pendingIntent)
@@ -376,6 +376,10 @@ public class XrayBenchEngine {
     private static final AtomicInteger batchTotal = new AtomicInteger(0);
     private static final AtomicInteger batchDone = new AtomicInteger(0);
     private static final AtomicInteger batchAlive = new AtomicInteger(0);
+    // 2026-11-09 修复批量测速端口冲突：原公式按 idx%(nWorkers*6) 取模，
+    // 节点数超过 nWorkers*6 时端口重复，就绪探测会连到别的节点的 SOCKS 端口，
+    // 导致 A 节点流量被静默记到 B 名下。改为批次内全局自增分配，绝不重复。
+    private static final AtomicInteger batchPortSeq = new AtomicInteger(0);
     private static final CopyOnWriteArrayList<JSONObject> batchResults = new CopyOnWriteArrayList<>();
     private static final CopyOnWriteArrayList<String> batchLogs = new CopyOnWriteArrayList<>();
 
@@ -1088,6 +1092,7 @@ public class XrayBenchEngine {
             batchTotal.set(total);
             batchDone.set(0);
             batchAlive.set(0);
+            batchPortSeq.set(0);
             batchResults.clear();
             batchLogs.clear();
             batchCancel.set(false);
@@ -1116,7 +1121,8 @@ public class XrayBenchEngine {
                         }
                         return;
                     }
-                    int port = 32200 + (idx % (nWorkers * 6)) * 2 + (int) (Thread.currentThread().getId() % 2);
+                    // 端口批次内全局唯一（32200 起每次 +2），不再按 idx 取模，避免并发碰撞
+                    int port = 32200 + batchPortSeq.getAndIncrement() * 2;
                     JSONObject res = benchOneNodeObj(appCtx != null ? appCtx : ctx, uri, port, doSpeed);
                     if (batchCancel.get()) {
                         int dNow = batchDone.incrementAndGet();
@@ -2205,7 +2211,7 @@ def patch_build_gradle():
 
     # Monotonically increasing versionCode (minutes since epoch offset -> strictly increases on every build)
     version_code = max(200, int(time.time() // 60) - 29000000)
-    version_name = f"2.1.{version_code}"
+    version_name = f"2.0.{version_code}"
     txt = txt.replace("versionCode 1", f"versionCode {version_code}", 1)
     txt = txt.replace('versionName "1.0"', f'versionName "{version_name}"', 1)
 

@@ -4734,6 +4734,14 @@
             node.params.id = idPart;
             node.params.encryption = node.params.encryption || "none";
             if (node.proto === "hysteria2") node.params.password = idPart;
+            if (node.proto === "tuic") {
+              // tuic://uuid:password@host:port —— 拆分 uuid / password
+              const sep = String(idPart).indexOf(":");
+              if (sep > 0) {
+                node.params.id = String(idPart).slice(0, sep);
+                node.params.password = String(idPart).slice(sep + 1);
+              }
+            }
           }
         }
         // fallback name
@@ -4908,6 +4916,17 @@
             if (p.params.sni) lines.push(`    sni: ${yamlStr(p.params.sni)}`);
             if (p.params.insecure) lines.push(`    skip-cert-verify: ${p.params.insecure === "1" || p.params.insecure === "true" ? "true" : "false"}`);
             break;
+          case "tuic":
+            lines.push(`  - name: ${yamlStr(name)}`);
+            lines.push(`    type: tuic`);
+            lines.push(`    server: ${yamlStr(host)}`);
+            lines.push(`    port: ${port}`);
+            lines.push(`    uuid: ${yamlStr(p.params.id || "")}`);
+            if (p.params.password) lines.push(`    password: ${yamlStr(p.params.password)}`);
+            lines.push(`    tls: true`);
+            if (p.params.sni) lines.push(`    sni: ${yamlStr(p.params.sni)}`);
+            if (p.params.insecure) lines.push(`    skip-cert-verify: true`);
+            break;
           case "vmess": {
             lines.push(`  - name: ${yamlStr(name)}`);
             lines.push(`    type: vmess`);
@@ -5058,8 +5077,17 @@
           }
           case "hysteria2": {
             const o = { ...base, type: "hysteria2", password: p.params.password || p.params.id || "" };
-            if (p.params.sni) o.tls = { enabled: true, server_name: p.params.sni };
-            if (p.params.insecure) o.tls = { ...(o.tls || {}), insecure: true };
+            // 2026-11-09 真实池回归：hysteria2/tuic 缺 sni 时也必须带 tls，
+            // 否则 sing-box 直接 FATAL "TLS required"
+            o.tls = { enabled: true, server_name: p.params.sni || p.params.host || "" };
+            if (p.params.insecure) o.tls.insecure = true;
+            outs.push(o);
+            return;
+          }
+          case "tuic": {
+            const o = { ...base, type: "tuic", uuid: p.params.id || "", password: p.params.password || "" };
+            o.tls = { enabled: true, server_name: p.params.sni || p.params.host || "" };
+            if (p.params.insecure) o.tls.insecure = true;
             outs.push(o);
             return;
           }
