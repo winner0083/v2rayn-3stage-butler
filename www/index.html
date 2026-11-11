@@ -1346,6 +1346,16 @@
               <button class="btn btn-emerald btn-sm" onclick="runSourceHunter('web')">🌐 扫全网聚合/TG网页</button>
             </div>
 
+            <!-- 2026-11-11 扩容：PC 已发现源导入 + 深度扫描开关 -->
+            <div class="btn-grid-2 stack-sm" style="margin-bottom:10px;">
+              <button class="btn btn-ghost btn-sm" onclick="importPcDiscoveredSources()">🧠 导入 PC 已发现源</button>
+              <button class="btn btn-ghost btn-sm" onclick="importPcSources()">💻 导入 PC 订阅源</button>
+            </div>
+            <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-secondary);margin-bottom:8px;">
+              <input type="checkbox" id="hunterDeepMode" />
+              深度扫描（默认按天轮换 40 个候选；勾选后扫描全量 200+ 候选，耗时较长）
+            </label>
+
             <!-- Custom URL / Webpage / Video Link Deep Sniffer -->
             <div style="border-top:1px solid var(--border-subtle);padding-top:10px;margin-top:4px;">
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;flex-wrap:wrap;gap:6px;">
@@ -1585,6 +1595,7 @@
               <div class="card-sub">切换任意榜单均可直接复制、转 Clash/sing-box 或导入客户端</div>
             </div>
             <button class="btn btn-ghost btn-xs" onclick="openMergeRecommendModal()">🎯 合并推荐</button>
+            <button class="btn btn-violet btn-xs" onclick="openTop500Library()">📚 Top500库</button>
           </div>
 
           <div class="seg-bar" style="margin-bottom:8px;">
@@ -1660,6 +1671,10 @@
           </div>
 
           <div class="node-list" id="aggNodeList"></div>
+          <div class="btn-grid-2 stack-sm" style="margin-top:8px;">
+            <button class="btn btn-emerald btn-xs" onclick="sendActiveRankToTest('standalone')">🧪 单轮送测此榜</button>
+            <button class="btn btn-amber btn-xs" onclick="sendActiveRankToTest('3stage')">⚡ 三段式送测此榜</button>
+          </div>
 
           <div class="btn-grid-3" style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border-subtle);">
             <button class="btn btn-ghost btn-xs" onclick="exportActiveRankTxt()">📥 导出此榜.txt</button>
@@ -1816,6 +1831,14 @@
               🗑️ 清理满3个月节点 (<span id="btnExpiredCnt">4</span>)
             </button>
           </div>
+          <div class="btn-grid-2 stack-sm" style="margin-top:8px;">
+            <button class="btn btn-rose" onclick="purgeExpiredSources()">
+              🧹 清理3个月无成功源 (<span id="btnExpiredSrcCnt">0</span>)
+            </button>
+            <button class="btn btn-ghost" onclick="importPcDiscoveredSources()">
+              📥 导入 PC 已发现源
+            </button>
+          </div>
         </div>
 
         <!-- Switchable Sub-View so tables don't stack clutter -->
@@ -1839,7 +1862,7 @@
               <table class="data-table">
                 <thead>
                   <tr>
-                    <th>订阅源名称</th><th>直连状态</th><th>代理状态</th><th>拉取数</th><th>操作</th>
+                    <th>订阅源名称</th><th>直连状态</th><th>代理状态</th><th>拉取数</th><th>最后成功</th><th>连续失败</th><th>操作</th>
                   </tr>
                 </thead>
                 <tbody id="weeklySourceReviewBody"></tbody>
@@ -1929,6 +1952,32 @@
         <textarea class="textarea" id="customPasteInput" placeholder="新发现源A|https://example.com/sub1.txt&#10;新发现源B|https://example.com/sub2.yaml" style="min-height:90px;margin-bottom:8px;"></textarea>
         <button class="btn btn-primary btn-block btn-sm" onclick="handleCustomImport()">📥 批量解析并合入收集体系</button>
       </div>
+      <div style="border-top:1px solid var(--border-subtle);padding-top:10px;margin-top:6px;">
+        <div style="font-size:12.5px;font-weight:700;margin-bottom:6px;">💻 PC 端已发现的源（需电脑运行 pc_bridge_server.py）：</div>
+        <div class="btn-grid-2">
+          <button class="btn btn-ghost btn-sm" onclick="importPcSources()">📥 导入 PC 订阅源</button>
+          <button class="btn btn-ghost btn-sm" onclick="importPcDiscoveredSources()">🧠 导入 PC 已发现源</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Top500 库（每日自动入库 · 可重测） -->
+  <div class="modal-backdrop" id="top500LibraryModal" onclick="if(event.target===this)closeTop500Library()">
+    <div class="modal-card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <div style="font-size:15px;font-weight:800;">📚 Top500 库（每日自动入库 · 可重测）</div>
+        <button class="btn btn-ghost btn-xs" onclick="closeTop500Library()">✕ 关闭</button>
+      </div>
+      <div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px;">
+        跑满「三段式 3 轮」后，当日 Top500 自动入库并按 raw 去重；可跨日查看、复制、转换，或直接重新测试。
+      </div>
+      <div id="top500LibraryList" style="max-height:42vh;overflow-y:auto;display:flex;flex-direction:column;gap:6px;"></div>
+      <div id="top500LibraryDetail" style="margin-top:10px;"></div>
+      <div class="btn-grid-2" style="margin-top:10px;">
+        <button class="btn btn-ghost btn-sm" onclick="exportTop500Library()">⬇️ 导出库 JSON</button>
+        <button class="btn btn-ghost btn-sm" onclick="closeTop500Library()">关闭</button>
+      </div>
     </div>
   </div>
 
@@ -2001,8 +2050,8 @@
           </div>
           <div class="btn-grid-2">
             <select class="select" id="cronSel-review" onchange="saveCronConfig()">
-              <option value="sun_20" selected>每周日 20:00</option>
-              <option value="mon_09">每周一 09:00</option>
+              <option value="sun_20">每周日 20:00</option>
+              <option value="mon_09" selected>每周一 09:00</option>
             </select>
             <button class="btn btn-primary btn-sm" onclick="closeOptionsModal(); triggerCronNow('review');">▶ 立即运行</button>
           </div>
@@ -2306,8 +2355,60 @@
       selectedThreeStageSnapId: "pool_all",
       selectedStandaloneSnapId: "pool_all",
       currentModalNode: null,
-      bridgeConnected: false
+      bridgeConnected: false,
+      rankWeights: Object.assign({ lat: 35, stab: 35, spd: 30 },
+        JSON.parse(localStorage.getItem("v2_rank_weights") || "{}")),
+      top500LibDate: ""
     };
+
+    // 2026-11-11 持久化加固：源/设置优先保存 + 原生文件兜底 + PC 桥接同步
+    function normalizeSourceUrl(u) { try { return normalizeSubscriptionUrl(u); } catch (_) { return String(u || ""); } }
+    function mergeSourceLists(primary, secondary) {
+      const out = [], seen = new Set();
+      (primary || []).concat(secondary || []).forEach(s => {
+        if (!s || !s.url) return;
+        const k = normalizeSourceUrl(s.url);
+        if (!k || seen.has(k)) return;
+        seen.add(k);
+        out.push(s);
+      });
+      return out;
+    }
+    function nativeSaveAppState() {
+      try {
+        if (window.AndroidKeepAlive && typeof window.AndroidKeepAlive.saveAppState === "function") {
+          window.AndroidKeepAlive.saveAppState(JSON.stringify({
+            sources: state.sources,
+            deprecatedNodes: state.deprecatedNodes,
+            rankWeights: state.rankWeights,
+            ts: Date.now()
+          }));
+          return true;
+        }
+      } catch (_) {}
+      return false;
+    }
+    function nativeLoadAppState() {
+      try {
+        if (window.AndroidKeepAlive && typeof window.AndroidKeepAlive.loadAppState === "function") {
+          const raw = window.AndroidKeepAlive.loadAppState();
+          if (raw) return JSON.parse(raw);
+        }
+      } catch (_) {}
+      return null;
+    }
+    function applyNativeState() {
+      const ns = nativeLoadAppState();
+      if (!ns) return false;
+      if (Array.isArray(ns.sources) && ns.sources.length) {
+        state.sources = mergeSourceLists(ns.sources, state.sources);
+      }
+      if (Array.isArray(ns.deprecatedNodes)) state.deprecatedNodes = ns.deprecatedNodes;
+      if (ns.rankWeights && typeof ns.rankWeights === "object") {
+        state.rankWeights = Object.assign({ lat: 35, stab: 35, spd: 30 }, ns.rankWeights);
+      }
+      return true;
+    }
 
     // =========================================================================
     // 2. UNIFIED GLOBAL TASK CONTROLLER (PAUSE / RESUME / STOP + SCREEN-OFF SAFE)
@@ -2504,13 +2605,21 @@
     // ---- 跨轮合并汇总数据库 SUMMARY_DB + 拉取批次采集账本 harvestedBatches ----
     const SUMMARY_DB = JSON.parse(localStorage.getItem("v2_summary_db_v1") || "{}");
     const harvestedBatches = JSON.parse(localStorage.getItem("v2_harvested_batches_v1") || "{}");
+    // 2026-11-11 新增「Top500 库」：每日 Top500 自动入库（含日期/去重/可重测）
+    let TOP500_DB = {};
+    try { TOP500_DB = JSON.parse(localStorage.getItem("v2_top500_db_v1") || "{}"); } catch (_) { TOP500_DB = {}; }
+
+    function saveTop500Db() {
+      safeSetLocalStorage("v2_top500_db_v1", JSON.stringify(TOP500_DB));
+    }
 
     function safeSetLocalStorage(key, valStr) {
       try {
         localStorage.setItem(key, valStr);
         return true;
       } catch (e) {
-        // QuotaExceededError 自动瘦身保护：按时间淘汰最早的历史拉取快照或非内置批次释放空间
+        // QuotaExceededError 自动瘦身保护：按时间淘汰最早的历史拉取快照/批次/汇总，
+        // 优先保证「源列表」与「Top500 库」写入成功（2026-11-11 加固）
         try {
           const hbKeys = Object.keys(harvestedBatches);
           if (hbKeys.length > 3) {
@@ -2521,6 +2630,16 @@
           if (bKeys.length > 4) {
             bKeys.slice(0, bKeys.length - 4).forEach(k => delete BATCH_DB[k]);
             localStorage.setItem("v2_batches_v2", JSON.stringify(BATCH_DB));
+          }
+          const sKeys = Object.keys(SUMMARY_DB).sort().reverse();
+          if (sKeys.length > 30) {
+            sKeys.slice(30).forEach(k => delete SUMMARY_DB[k]);
+            localStorage.setItem("v2_summary_db_v1", JSON.stringify(SUMMARY_DB));
+          }
+          const tKeys = Object.keys(TOP500_DB).sort().reverse();
+          if (tKeys.length > 60) {
+            tKeys.slice(60).forEach(k => delete TOP500_DB[k]);
+            localStorage.setItem("v2_top500_db_v1", JSON.stringify(TOP500_DB));
           }
           localStorage.setItem(key, valStr);
           return true;
@@ -2538,12 +2657,247 @@
     }
 
     function saveState() {
-      safeSetLocalStorage("v2_sources_v2", JSON.stringify(state.sources));
+      // 源列表优先写入（含备份键），失败时给出可见提示，避免「新增源隔天消失」无感知
+      const srcOk = safeSetLocalStorage("v2_sources_v2", JSON.stringify(state.sources));
+      safeSetLocalStorage("v2_sources_v2_bak", JSON.stringify(state.sources));
+      safeSetLocalStorage("v2_rank_weights", JSON.stringify(state.rankWeights));
       safeSetLocalStorage("v2_deprecated_v2", JSON.stringify(state.deprecatedNodes));
       safeSetLocalStorage("v2_purged_cnt", String(state.purgedHistoryCount));
       safeSetLocalStorage("v2_batches_v2", JSON.stringify(BATCH_DB));
       saveSummaryDb();
       saveHarvestedBatches();
+      nativeSaveAppState();   // 原生文件兜底（Android，容量不受 localStorage 配额限制）
+      if (!srcOk) showToast("⚠️ 存储空间不足，源列表可能未保存，请先到「每周检讨」清理历史数据");
+    }
+
+    // =========================================================================
+    // 2026-11-11 新增能力：Top500 库 / 源健康 3 个月规则 / PC 互通 / 榜单送测
+    // =========================================================================
+
+    // ---- Top500 库：每日 Top500 自动入库、按日去重、可随时重测 ----
+    function saveTop500ToLibrary(batchKey, merged) {
+      try {
+        if (!merged || !merged.nodes || !merged.nodes.length) return;
+        const dateStr = merged.dateStr || getNowDateStr();
+        const top = computeBalancedTop500(merged);
+        if (!top.confirmed.length) return;
+        const seen = new Set();
+        const nodes = [];
+        top.confirmed.slice(0, 500).forEach(n => {
+          if (!n.raw || seen.has(n.raw)) return;
+          seen.add(n.raw);
+          nodes.push({ name: n.name, proto: n.proto, host: n.host, raw: n.raw,
+                       lat: n.lat_avg, spd: n.spd_avg, score: n.bal });
+        });
+        TOP500_DB[dateStr] = {
+          date: dateStr, time: merged.timeStr || nowTimeStr(),
+          nodes, count: nodes.length,
+          source: merged.poolSource || batchKey,
+          updated: Date.now()
+        };
+        saveTop500Db();
+      } catch (_) {}
+    }
+    function renderTop500Library() {
+      const box = document.getElementById("top500LibraryList");
+      if (!box) return;
+      const dates = Object.keys(TOP500_DB).sort().reverse();
+      if (!dates.length) {
+        box.innerHTML = `<div style="padding:18px;text-align:center;color:#94a3b8;font-size:13px;">暂无记录。<br>跑满「三段式 3 轮」后，当日 Top500 会自动入库。</div>`;
+        return;
+      }
+      box.innerHTML = dates.map(d => {
+        const e = TOP500_DB[d];
+        return `<div class="node-card" style="flex-direction:row;align-items:center;gap:8px;">
+          <div style="flex:1;">
+            <div class="node-title">📅 ${d} <span class="node-meta">${e.time || ""} · ${e.count} 条</span></div>
+            <div class="node-meta">来源: ${escapeHtml(e.source || "")}</div>
+          </div>
+          <button class="btn btn-primary btn-xs" onclick="loadTop500Date('${d}')">查看</button>
+          <button class="btn btn-rose btn-xs" onclick="deleteTop500Date('${d}')">删除</button>
+        </div>`;
+      }).join("");
+    }
+    function openTop500Library() { renderTop500Library(); document.getElementById("top500LibraryModal").classList.add("open"); }
+    function closeTop500Library() { document.getElementById("top500LibraryModal").classList.remove("open"); }
+    function loadTop500Date(dateStr) {
+      const e = TOP500_DB[dateStr];
+      if (!e) return;
+      state.top500LibDate = dateStr;
+      const detail = document.getElementById("top500LibraryDetail");
+      if (!detail) return;
+      detail.innerHTML = `
+        <div style="font-size:13px;font-weight:800;margin-bottom:6px;">📅 ${dateStr} · ${e.count} 条</div>
+        <div class="btn-grid-2" style="margin-bottom:8px;">
+          <button class="btn btn-primary btn-xs" onclick="copyTop500Date('${dateStr}')">📋 复制链接</button>
+          <button class="btn btn-ghost btn-xs" onclick="exportTop500Date('${dateStr}')">⬇️ 导出 txt</button>
+          <button class="btn btn-violet btn-xs" onclick="convertTop500Date('${dateStr}')">🔄 转 Clash/sing-box</button>
+          <button class="btn btn-emerald btn-xs" onclick="retestTop500('${dateStr}','standalone')">🧪 单轮重测</button>
+          <button class="btn btn-amber btn-xs" onclick="retestTop500('${dateStr}','3stage')">⚡ 三段式重测</button>
+        </div>
+        <div style="max-height:30vh;overflow-y:auto;font-size:12px;color:#94a3b8;">
+          ${e.nodes.slice(0, 200).map(n => `<div>${escapeHtml(n.name)} · ${n.proto} ${n.host} · ${n.lat >= 0 ? n.lat + "ms" : "未测"}${n.spd > 0 ? " · " + n.spd + "Mbps" : ""}</div>`).join("")}
+          ${e.nodes.length > 200 ? `<div>… 其余 ${e.nodes.length - 200} 条已折叠</div>` : ""}
+        </div>`;
+    }
+    function copyTop500Date(dateStr) {
+      const e = TOP500_DB[dateStr];
+      if (!e) return;
+      copyText(e.nodes.map(n => n.raw).join("\n"), `已复制 ${dateStr} Top500（${e.count} 条）`);
+    }
+    function exportTop500Date(dateStr) {
+      const e = TOP500_DB[dateStr];
+      if (!e) return;
+      downloadBlob(e.nodes.map(n => n.raw).join("\n") + "\n", `Top500_${dateStr}.txt`, "text/plain;charset=utf-8");
+    }
+    function convertTop500Date(dateStr) {
+      const e = TOP500_DB[dateStr];
+      if (!e) return;
+      const nodes = e.nodes.map(n => parseNodeUri(n.raw)).filter(n => n.host && n.port);
+      if (!nodes.length) return showToast("解析失败，无法转换");
+      openStandaloneConverterWithNodes(nodes, `Top500_${dateStr}`);
+    }
+    async function retestTop500(dateStr, mode) {
+      const e = TOP500_DB[dateStr];
+      if (!e || !e.nodes || !e.nodes.length) return showToast("该日 Top500 库无节点");
+      const nodes = e.nodes.map(n => {
+        const p = parseNodeUri(n.raw);
+        return Object.assign({}, p, { name: n.name || p.name, lat_avg: n.lat, spd_avg: n.spd });
+      }).filter(n => n.host && n.port);
+      if (!nodes.length) return showToast("解析失败，无法重测");
+      if (mode === "3stage") {
+        switchTab("tab-test"); switchTestSubMode("3stage");
+        await startThreeStageRun("all", {
+          id: "top500_" + dateStr, mode: "top500",
+          title: `Top500库 ${dateStr}`, sourceDesc: `Top500 库重新测试 (${nodes.length}条)`,
+          nodes
+        });
+      } else {
+        switchTab("tab-test"); switchTestSubMode("standalone");
+        await executeStandaloneTestBatch(nodes, `【Top500库重测 ${dateStr}】`, `Top500 库 (${nodes.length}条)`, nowTimeStr());
+      }
+    }
+    function deleteTop500Date(dateStr) {
+      if (!confirm(`确定删除 ${dateStr} 的 Top500 库记录？`)) return;
+      delete TOP500_DB[dateStr];
+      saveTop500Db();
+      renderTop500Library();
+      showToast(`已删除 ${dateStr} 的 Top500 记录`);
+    }
+    function exportTop500Library() {
+      downloadBlob(JSON.stringify(TOP500_DB, null, 1), `Top500库_${getNowDateStr()}.json`, "application/json");
+    }
+
+    // ---- 源健康：记录成功/失败、3 个月无效自动标记与清理 ----
+    function markSourceSuccess(src) {
+      if (!src) return;
+      src.lastSuccessDate = getNowDateStr();
+      src.failStreak = 0;
+      if (!src.firstSeenDate) src.firstSeenDate = getNowDateStr();
+    }
+    function markSourceFail(src) {
+      if (!src) return;
+      src.failStreak = (src.failStreak || 0) + 1;
+      if (!src.firstSeenDate) src.firstSeenDate = getNowDateStr();
+    }
+    function sourceHealthInfo(src) {
+      const ref = src.lastSuccessDate || src.firstSeenDate || "";
+      const days = ref ? daysBetween(ref) : 0;
+      const retention = Number(document.getElementById("purgeRetentionDays")?.value) || 90;
+      return { ref, days, expired: ref && days >= retention, retention };
+    }
+    function purgeExpiredSources() {
+      const expired = state.sources.filter(s => sourceHealthInfo(s).expired);
+      if (!expired.length) return showToast("没有超过 3 个月无成功的源");
+      if (!confirm(`将移除 ${expired.length} 个「${expired.map(s => s.name).join("、")}」中超过 3 个月无成功的源，确定？`)) return;
+      const expiredUrls = new Set(expired.map(s => normalizeSourceUrl(s.url)));
+      state.sources = state.sources.filter(s => !expiredUrls.has(normalizeSourceUrl(s.url)));
+      saveState(); renderSources(); renderWeeklyReview();
+      showToast(`✅ 已清理 ${expired.length} 个过期源`);
+    }
+
+    // ---- PC 桥接互通：新增/删除源同步到 PC 订阅源库；导入 PC 已发现源 ----
+    function getBridgeBase() {
+      return (document.getElementById("bridgeUrlInput")?.value || "http://127.0.0.1:18088").replace(/\/$/, "");
+    }
+    async function syncSourceToPcBridge(src, action) {
+      try {
+        const base = getBridgeBase();
+        const payload = action === "add" ? { name: src.name, url: src.url } : { urls: [src.url] };
+        await fetch(`${base}/api/sources/${action}`, {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+      } catch (_) {}
+    }
+    async function importPcSources(silent = false) {
+      try {
+        const base = getBridgeBase();
+        const r = await fetch(`${base}/api/sources`);
+        const j = await r.json();
+        let n = 0;
+        (j.sources || []).forEach(s => {
+          const u = normalizeSourceUrl(s.url);
+          if (!u || state.sources.some(x => normalizeSourceUrl(x.url) === u)) return;
+          state.sources.push({
+            id: Date.now() + n, name: s.name || "PC源", group: "PC订阅源",
+            url: u, enabled: true, lastCount: 60,
+            directOk: true, directMs: 200, proxyOk: true, proxyMs: 120,
+            firstSeenDate: getNowDateStr(),
+            lastSuccessDate: "",
+            failStreak: 0
+          });
+          n++;
+        });
+        if (n) { saveState(); renderSources(); renderWeeklyReview(); }
+        if (!silent) showToast(n ? `✅ 已从 PC 导入 ${n} 条订阅源` : "PC 源已全部存在，无新增");
+      } catch (_) {
+        if (!silent) showToast("⚠️ 无法连接 PC 桥接（请先在电脑运行 pc_bridge_server.py）");
+      }
+    }
+    async function importPcDiscoveredSources() {
+      try {
+        const base = getBridgeBase();
+        const r = await fetch(`${base}/api/discovered_sources`);
+        const j = await r.json();
+        const list = j.sources || [];
+        let n = 0;
+        list.forEach(s => {
+          const u = normalizeSourceUrl(s.url);
+          if (!u || state.sources.some(x => normalizeSourceUrl(x.url) === u)) return;
+          state.sources.push({
+            id: Date.now() + n, name: s.name || "PC发现源", group: "PC发现",
+            url: u, enabled: true, lastCount: s.count || 60,
+            directOk: true, directMs: 200, proxyOk: true, proxyMs: 120,
+            firstSeenDate: getNowDateStr()
+          });
+          syncSourceToPcBridge({ name: s.name || "PC发现源", url: u }, "add");
+          n++;
+        });
+        if (n) { saveState(); renderSources(); renderWeeklyReview(); }
+        showToast(n ? `✅ 已导入 PC 已发现源 ${n} 条` : "PC 发现源已全部存在，无新增");
+      } catch (_) {
+        showToast("⚠️ 无法连接 PC 桥接或接口不存在（请更新 pc_bridge_server.py）");
+      }
+    }
+
+    // ---- 榜单送测：把当前榜单/Top500 直接送入测试中心 ----
+    async function sendActiveRankToTest(mode) {
+      const batch = BATCH_DB[state.currentBatchKey];
+      if (!batch) return showToast("当前无批次");
+      const nodes = getNodesByRankMode(batch, state.aggRankMode) || [];
+      if (!nodes.length) return showToast("当前榜单无节点");
+      if (mode === "3stage") {
+        switchTab("tab-test"); switchTestSubMode("3stage");
+        await startThreeStageRun("all", {
+          id: "rank_" + Date.now(), mode: "rank",
+          title: `榜单送测:${state.aggRankMode}`, sourceDesc: `榜单送测 (${nodes.length}条)`,
+          nodes
+        });
+      } else {
+        switchTab("tab-test"); switchTestSubMode("standalone");
+        await executeStandaloneTestBatch(nodes, `【榜单送测】${state.aggRankMode}`, `榜单 (${nodes.length}条)`, nowTimeStr());
+      }
     }
 
     function dismissOnboardingGuide() {
@@ -2912,6 +3266,7 @@
         if (parsed.valid.length > 0) {
           s.lastCount = parsed.valid.length;
           s.lastPullTime = new Date().toTimeString().slice(0, 8);
+          markSourceSuccess(s);
           state.lastPulledSourceId = s.id;
           mergeNodesIntoPool(parsed.valid);
 
@@ -2933,6 +3288,7 @@
       }
 
       saveState();
+      markSourceFail(s);
       if (!document.hidden) renderSources();
       showToast(`❌「${s.name}」直连与代理均未抓到有效节点`);
     }
@@ -2974,9 +3330,12 @@
             if (parsed.valid.length > 0) {
               s.lastCount = parsed.valid.length;
               s.lastPullTime = new Date().toTimeString().slice(0, 8);
+              markSourceSuccess(s);
               successSources++;
               batchCollected.push(...parsed.valid);
               mergeNodesIntoPool(parsed.valid);
+            } else {
+              markSourceFail(s);
             }
           }
         }
@@ -3034,6 +3393,7 @@
           s.directMs = r.directMs || -1;
           s.proxyOk = Boolean(r.proxyOk);
           s.proxyMs = r.proxyMs || -1;
+          if (r.directOk || r.proxyOk) markSourceSuccess(s); else markSourceFail(s);
         }
       }
 
@@ -3062,6 +3422,7 @@
       s.directMs = res.directMs;
       s.proxyOk = res.proxyOk;
       s.proxyMs = res.proxyMs;
+      if (res.directOk || res.proxyOk) markSourceSuccess(s); else markSourceFail(s);
       saveState();
       if (!document.hidden) {
         renderSources();
@@ -3903,6 +4264,7 @@
       const removed = state.sources.splice(idx, 1)[0];
       if (!removed) return;
       saveState();
+      syncSourceToPcBridge(removed, "delete");
       renderSources();
       renderWeeklyReview();
       showToast(`🗑️ 已删除订阅源：${removed.name}`);
@@ -3917,6 +4279,7 @@
       }
       state.sources = state.sources.filter(s => !s.enabled);
       saveState();
+      selected.forEach(s => syncSourceToPcBridge(s, "delete"));
       renderSources();
       renderWeeklyReview();
       showToast(`🗑️ 已批量删除 ${selected.length} 个勾选源`);
@@ -3930,6 +4293,7 @@
       }
       state.sources = state.sources.filter(s => s.directOk || s.proxyOk);
       saveState();
+      dead.forEach(s => syncSourceToPcBridge(s, "delete"));
       renderSources();
       renderWeeklyReview();
       showToast(`🧹 已清理 ${dead.length} 个异常死源`);
@@ -3980,11 +4344,15 @@
         enabled: true,
         lastCount: 60,
         directOk: true,
+        firstSeenDate: getNowDateStr(),
+        lastSuccessDate: "",
+        failStreak: 0,
         directMs: 215,
         proxyOk: true,
         proxyMs: 145
       });
       saveState();
+      syncSourceToPcBridge(state.sources[0], "add");
       renderSources();
       renderWeeklyReview();
       nameInput.value = "";
@@ -4015,7 +4383,10 @@
             directOk: true,
             directMs: 240,
             proxyOk: true,
-            proxyMs: 150
+            proxyMs: 150,
+            firstSeenDate: getNowDateStr(),
+            lastSuccessDate: "",
+            failStreak: 0
           });
           addedSources++;
         } else {
@@ -4025,6 +4396,7 @@
 
       if (addedSources > 0) {
         saveState();
+        state.sources.slice(0, addedSources).forEach(s => syncSourceToPcBridge(s, "add"));
         renderSources();
         renderWeeklyReview();
       }
@@ -4172,6 +4544,9 @@
         enabled: true,
         lastCount: info.valid.length,
         directOk: true,
+        firstSeenDate: getNowDateStr(),
+        lastSuccessDate: "",
+        failStreak: 0,
         directMs: 5,
         proxyOk: true,
         proxyMs: 5
@@ -4371,9 +4746,12 @@
         const spdS = spdScore(n.spd_avg);
         const jitterPenalty = n.lat_std > 0 ? Math.min(25, n.lat_std * 0.5) : 0;
         const stbS = Math.round(attRatio * 75 + (25 - jitterPenalty));
+        // 2026-11-11：权重与 UI「细筛权重」统一（延迟/稳定性/速度），不再硬编码
+        const w = (state.rankWeights && state.rankWeights.lat) ? state.rankWeights : { lat: 35, stab: 35, spd: 30 };
+        const wSum = (w.lat + w.stab + w.spd) || 100;
         const bal = hasAnySpeed
-          ? Number((latS * 0.35 + stbS * 0.35 + spdS * 0.30).toFixed(1))
-          : Number((latS * 0.55 + stbS * 0.45).toFixed(1));
+          ? Number(((latS * w.lat + stbS * w.stab + spdS * w.spd) / wSum).toFixed(1))
+          : Number(((latS * w.lat + stbS * w.stab) / (w.lat + w.stab || 1)).toFixed(1));
 
         // 偏科判定：有测速数据的批次中速度<=0、或超高延迟且极慢、或3轮测试仅通1轮
         const zeroSpdSkew = hasAnySpeed && (n.spd_avg === undefined || n.spd_avg <= 0);
@@ -4456,6 +4834,10 @@
       merged.confirmedNodes = top.confirmed.map(n => n.raw);
       SUMMARY_DB[batchKey] = merged;
       saveSummaryDb();
+      // 2026-11-11：跑满 3 轮自动把当日 Top500 入库（可跨日查看/重测）
+      if (rounds.length >= 3) {
+        try { saveTop500ToLibrary(batchKey, merged); } catch (_) {}
+      }
       return merged;
     }
 
@@ -5766,6 +6148,9 @@
         enabled: true,
         lastCount: nodes.length,
         directOk: true,
+        firstSeenDate: getNowDateStr(),
+        lastSuccessDate: "",
+        failStreak: 0,
         directMs: 5,
         proxyOk: true,
         proxyMs: 5
@@ -5798,30 +6183,222 @@
     // =========================================================================
     // 9.8 🌐 全网智能猎源扫描器 (GitHub / YouTube / 全网聚合 -> 转换成 App 源入库)
     // =========================================================================
+    // 2026-11-11 扩容：GitHub 原始订阅 + Telegram 频道（来源：PC 端 v2rayn-auto 每日发现）
+    const HUNTER_GITHUB_QUERIES = ["v2ray free config", "free v2ray nodes", "clash subscription free", "sing-box free nodes", "v2ray 订阅", "免费节点", "vless subscription", "proxy nodes daily"];
+    const HUNTER_YOUTUBE_QUERIES = ["v2ray free config github", "v2ray 节点 订阅 每日更新", "clash subscription free nodes", "free v2ray nodes daily", "sing-box free config", "v2rayN 订阅链接 分享", "免费节点 高速 稳定 2026", "vless trojan free subscription"];
     const HUNTER_CANDIDATE_POOL = [
-      // GitHub 高活性免费节点/订阅源（均经真实外网实测 200 OK 高产）
-      { channel: "github", name: "GitHub-Subseek全网聚合池", url: "https://raw.githubusercontent.com/twj0/subseek/refs/heads/master/data/sub_github.txt", group: "GitHub挖掘" },
-      { channel: "github", name: "GitHub-Zixf高频日更池", url: "https://raw.githubusercontent.com/chenzhihan1751-cyber/node-sub-zixf/main/sub/v2ray.txt", group: "GitHub挖掘" },
-      { channel: "github", name: "GitHub-WLget每日更新池", url: "https://raw.githubusercontent.com/WLget/V2Ray_configs_64/refs/heads/master/ConfigSub_list.txt", group: "GitHub挖掘" },
-      { channel: "github", name: "GitHub-SSNN大池Base64", url: "https://raw.githubusercontent.com/ssnn20012001-bot/v2ray-sub/main/nodes_base64.txt", group: "GitHub挖掘" },
-      { channel: "github", name: "GitHub-Au1rxx多协议聚合", url: "https://raw.githubusercontent.com/Au1rxx/free-vpn-subscriptions/main/output/v2ray-base64.txt", group: "GitHub挖掘" },
-      { channel: "github", name: "GitHub-Surfboard-Eternity", url: "https://raw.githubusercontent.com/Surfboardv2ray/v2ray-worker-sub/master/Eternity.txt", group: "GitHub挖掘" },
-      { channel: "github", name: "GitHub-NiREvil-VLESS", url: "https://raw.githubusercontent.com/NiREvil/vless/main/sub/SSTime", group: "GitHub挖掘" },
-      { channel: "github", name: "GitHub-Ndsphonemy-Sub", url: "https://raw.githubusercontent.com/ndsphonemy/proxy-sub/main/default.txt", group: "GitHub挖掘" },
-      { channel: "github", name: "GitHub-Snakem982-ProxyPool", url: "https://raw.githubusercontent.com/snakem982/proxypool/main/source/v2ray-2.txt", group: "GitHub挖掘" },
-      { channel: "github", name: "GitHub-AzadNet-Sub", url: "https://raw.githubusercontent.com/AzadNetCH/Clash/main/AzadNet_iOS.txt", group: "GitHub挖掘" },
-      // YouTube 免费节点博主同步日更源与频道仓库（均经真实 YouTube 视频简介顺藤摸瓜实测高产）
-      { channel: "youtube", name: "YouTube日更-Ripaojiedian免费节点", url: "https://raw.githubusercontent.com/ripaojiedian/freenode/main/sub", group: "YouTube猎源" },
-      { channel: "youtube", name: "YouTube日更-FreeFQ节点合集", url: "https://raw.githubusercontent.com/freefq/free/master/v2", group: "YouTube猎源" },
-      { channel: "youtube", name: "YouTube日更-Pawdroid免费池", url: "https://raw.githubusercontent.com/Pawdroid/Free-servers/main/sub", group: "YouTube猎源" },
-      { channel: "youtube", name: "YouTube博主-SoliSpirit-VLESS池", url: "https://raw.githubusercontent.com/SoliSpirit/v2ray-configs/refs/heads/main/Protocols/vless.txt", group: "YouTube猎源" },
-      { channel: "youtube", name: "YouTube博主-Kobabi日更聚合", url: "https://raw.githubusercontent.com/liketolivefree/kobabi/main/sub.txt", group: "YouTube猎源" },
-      { channel: "youtube", name: "YouTube日更-WLget频道README", url: "https://raw.githubusercontent.com/WLget/V2Ray_configs_64/HEAD/README.md", group: "YouTube猎源", isHtmlPage: true },
-      // 全网公开节点网页 & Telegram 公开 Web 预览页（实测单页可抓 12~73 条散装节点并自动转 App 内联源）
-      { channel: "web", name: "全网TG网页-Hope_Net节点池", url: "https://t.me/s/Hope_Net", group: "全网猎源", isHtmlPage: true },
-      { channel: "web", name: "全网TG网页-ConfigV2rayForFree", url: "https://t.me/s/ConfigV2rayForFree", group: "全网猎源", isHtmlPage: true },
-      { channel: "web", name: "全网TG网页-v2ray_free_conf", url: "https://t.me/s/v2ray_free_conf", group: "全网猎源", isHtmlPage: true },
-      { channel: "web", name: "全网TG网页-PrivateVPNs", url: "https://t.me/s/PrivateVPNs", group: "全网猎源", isHtmlPage: true }
+      { channel: "github", name: "GH-1:mahdibland/V2RayAggregator/HEAD/sub/sub_merge.txt", url: "https://raw.githubusercontent.com/mahdibland/V2RayAggregator/HEAD/sub/sub_merge.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-2:peasoft/NoMoreWalls/HEAD/list.txt", url: "https://raw.githubusercontent.com/peasoft/NoMoreWalls/HEAD/list.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-3:ermaozi/get_subscribe/HEAD/subscribe/v2ray.txt", url: "https://raw.githubusercontent.com/ermaozi/get_subscribe/HEAD/subscribe/v2ray.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-4:aiboboxx/v2rayfree/HEAD/sub", url: "https://raw.githubusercontent.com/aiboboxx/v2rayfree/HEAD/sub", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-5:mfuu/v2ray/HEAD/sub", url: "https://raw.githubusercontent.com/mfuu/v2ray/HEAD/sub", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-6:chengaopan/AutoMergePublicNodes/HEAD/list.txt", url: "https://raw.githubusercontent.com/chengaopan/AutoMergePublicNodes/HEAD/list.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-7:SoliSpirit/v2ray-configs/HEAD/Protocols/vless.txt", url: "https://raw.githubusercontent.com/SoliSpirit/v2ray-configs/HEAD/Protocols/vless.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-8:Barabama/FreeNodes/HEAD/nodes/merged.txt", url: "https://raw.githubusercontent.com/Barabama/FreeNodes/HEAD/nodes/merged.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-9:Delta-Kronecker/V2ray-Config/HEAD/config/all_configs.txt", url: "https://raw.githubusercontent.com/Delta-Kronecker/V2ray-Config/HEAD/config/all_configs.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-10:itsyebekhe/PSG/HEAD/config.txt", url: "https://raw.githubusercontent.com/itsyebekhe/PSG/HEAD/config.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-11:free18/v2ray/HEAD/v.txt", url: "https://raw.githubusercontent.com/free18/v2ray/HEAD/v.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-12:roosterkid/openproxylist/HEAD/V2RAY_RAW.txt", url: "https://raw.githubusercontent.com/roosterkid/openproxylist/HEAD/V2RAY_RAW.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-13:4n0nymou3/multi-proxy-config-fetcher/HEAD/configs/proxy_configs.", url: "https://raw.githubusercontent.com/4n0nymou3/multi-proxy-config-fetcher/HEAD/configs/proxy_configs.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-14:ALIILAPRO/v2rayNG-Config/HEAD/sub.txt", url: "https://raw.githubusercontent.com/ALIILAPRO/v2rayNG-Config/HEAD/sub.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-15:Leon406/SubCrawler/HEAD/sub/share/a11", url: "https://raw.githubusercontent.com/Leon406/SubCrawler/HEAD/sub/share/a11", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-16:MatinGhanbari/v2ray-configs/HEAD/subscriptions/v2ray/all_sub.txt", url: "https://raw.githubusercontent.com/MatinGhanbari/v2ray-configs/HEAD/subscriptions/v2ray/all_sub.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-17:MhdiTaheri/V2rayCollector/HEAD/sub/mix", url: "https://raw.githubusercontent.com/MhdiTaheri/V2rayCollector/HEAD/sub/mix", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-18:Pawdroid/Free-servers/HEAD/sub", url: "https://raw.githubusercontent.com/Pawdroid/Free-servers/HEAD/sub", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-19:Rayan-Config/C-Sub/HEAD/configs/proxy.txt", url: "https://raw.githubusercontent.com/Rayan-Config/C-Sub/HEAD/configs/proxy.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-20:Ruk1ng001/freeSub/HEAD/v2ray", url: "https://raw.githubusercontent.com/Ruk1ng001/freeSub/HEAD/v2ray", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-21:SoliSpirit/v2ray-configs/HEAD/Protocols/ss.txt", url: "https://raw.githubusercontent.com/SoliSpirit/v2ray-configs/HEAD/Protocols/ss.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-22:SoliSpirit/v2ray-configs/HEAD/Protocols/trojan.txt", url: "https://raw.githubusercontent.com/SoliSpirit/v2ray-configs/HEAD/Protocols/trojan.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-23:SoliSpirit/v2ray-configs/HEAD/Protocols/vmess.txt", url: "https://raw.githubusercontent.com/SoliSpirit/v2ray-configs/HEAD/Protocols/vmess.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-24:Surfboardv2ray/TGParse/HEAD/configtg.txt", url: "https://raw.githubusercontent.com/Surfboardv2ray/TGParse/HEAD/configtg.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-25:anaer/Sub/HEAD/proxies.yaml", url: "https://raw.githubusercontent.com/anaer/Sub/HEAD/proxies.yaml", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-26:awesome-vpn/awesome-vpn/HEAD/all", url: "https://raw.githubusercontent.com/awesome-vpn/awesome-vpn/HEAD/all", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-27:barry-far/V2ray-Config/HEAD/All_Configs_Sub.txt", url: "https://raw.githubusercontent.com/barry-far/V2ray-Config/HEAD/All_Configs_Sub.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-28:ebrasha/free-v2ray-public-list/HEAD/all_extracted_configs.txt", url: "https://raw.githubusercontent.com/ebrasha/free-v2ray-public-list/HEAD/all_extracted_configs.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-29:mheidari98/.proxy/HEAD/all", url: "https://raw.githubusercontent.com/mheidari98/.proxy/HEAD/all", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-30:snakem982/proxypool/HEAD/source/v2ray-2.txt", url: "https://raw.githubusercontent.com/snakem982/proxypool/HEAD/source/v2ray-2.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-31:ts-sf/fly/HEAD/v2", url: "https://raw.githubusercontent.com/ts-sf/fly/HEAD/v2", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-32:zhuhaiuk/free-nodes/HEAD/nodes.txt", url: "https://raw.githubusercontent.com/zhuhaiuk/free-nodes/HEAD/nodes.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-33:yy1588133/proxy-pool/HEAD/.github/workflows/update.yml", url: "https://raw.githubusercontent.com/yy1588133/proxy-pool/HEAD/.github/workflows/update.yml", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-34:yy1588133/proxy-pool/HEAD/README.md", url: "https://raw.githubusercontent.com/yy1588133/proxy-pool/HEAD/README.md", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-35:yy1588133/proxy-pool/HEAD/clash.yaml", url: "https://raw.githubusercontent.com/yy1588133/proxy-pool/HEAD/clash.yaml", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-36:yy1588133/proxy-pool/HEAD/v2ray.txt", url: "https://raw.githubusercontent.com/yy1588133/proxy-pool/HEAD/v2ray.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-37:cbusifabcap/daily_free_vpn/HEAD/README.md", url: "https://raw.githubusercontent.com/cbusifabcap/daily_free_vpn/HEAD/README.md", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-38:cbusifabcap/daily_free_vpn/HEAD/Z.txt", url: "https://raw.githubusercontent.com/cbusifabcap/daily_free_vpn/HEAD/Z.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-39:cbusifabcap/daily_free_vpn/HEAD/sub/Clash.yml", url: "https://raw.githubusercontent.com/cbusifabcap/daily_free_vpn/HEAD/sub/Clash.yml", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-40:cbusifabcap/daily_free_vpn/HEAD/sub/ClashMeta.yml", url: "https://raw.githubusercontent.com/cbusifabcap/daily_free_vpn/HEAD/sub/ClashMeta.yml", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-41:cbusifabcap/daily_free_vpn/HEAD/sub/QX.yml", url: "https://raw.githubusercontent.com/cbusifabcap/daily_free_vpn/HEAD/sub/QX.yml", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-42:cbusifabcap/daily_free_vpn/HEAD/sub/ShadowRocket.yml", url: "https://raw.githubusercontent.com/cbusifabcap/daily_free_vpn/HEAD/sub/ShadowRocket.yml", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-43:cbusifabcap/daily_free_vpn/HEAD/sub/Surfboard.yml", url: "https://raw.githubusercontent.com/cbusifabcap/daily_free_vpn/HEAD/sub/Surfboard.yml", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-44:cbusifabcap/daily_free_vpn/HEAD/sub/Surge.yml", url: "https://raw.githubusercontent.com/cbusifabcap/daily_free_vpn/HEAD/sub/Surge.yml", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-45:myominn062-svg/mk-studio-vpn-service/HEAD/.github/workflows/upda", url: "https://raw.githubusercontent.com/myominn062-svg/mk-studio-vpn-service/HEAD/.github/workflows/update.yml", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-46:myominn062-svg/mk-studio-vpn-service/HEAD/MK-Studio-VPN.txt", url: "https://raw.githubusercontent.com/myominn062-svg/mk-studio-vpn-service/HEAD/MK-Studio-VPN.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-47:myominn062-svg/mk-studio-vpn-service/HEAD/README.md", url: "https://raw.githubusercontent.com/myominn062-svg/mk-studio-vpn-service/HEAD/README.md", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-48:myominn062-svg/mk-studio-vpn-service/HEAD/countries/AE.sub.txt", url: "https://raw.githubusercontent.com/myominn062-svg/mk-studio-vpn-service/HEAD/countries/AE.sub.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-49:myominn062-svg/mk-studio-vpn-service/HEAD/countries/AE.txt", url: "https://raw.githubusercontent.com/myominn062-svg/mk-studio-vpn-service/HEAD/countries/AE.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-50:myominn062-svg/mk-studio-vpn-service/HEAD/countries/AF.sub.txt", url: "https://raw.githubusercontent.com/myominn062-svg/mk-studio-vpn-service/HEAD/countries/AF.sub.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-51:myominn062-svg/mk-studio-vpn-service/HEAD/countries/AF.txt", url: "https://raw.githubusercontent.com/myominn062-svg/mk-studio-vpn-service/HEAD/countries/AF.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-52:myominn062-svg/mk-studio-vpn-service/HEAD/countries/AL.sub.txt", url: "https://raw.githubusercontent.com/myominn062-svg/mk-studio-vpn-service/HEAD/countries/AL.sub.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-53:mhmdxahmd/mafly/HEAD/MAfly1/README.MD", url: "https://raw.githubusercontent.com/mhmdxahmd/mafly/HEAD/MAfly1/README.MD", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-54:mhmdxahmd/mafly/HEAD/MAfly1/cf/warp.txt", url: "https://raw.githubusercontent.com/mhmdxahmd/mafly/HEAD/MAfly1/cf/warp.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-55:mhmdxahmd/mafly/HEAD/MAfly1/cf/warp.yaml", url: "https://raw.githubusercontent.com/mhmdxahmd/mafly/HEAD/MAfly1/cf/warp.yaml", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-56:mhmdxahmd/mafly/HEAD/MAfly1/f.txt", url: "https://raw.githubusercontent.com/mhmdxahmd/mafly/HEAD/MAfly1/f.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-57:mhmdxahmd/mafly/HEAD/MAfly1/f1.txt", url: "https://raw.githubusercontent.com/mhmdxahmd/mafly/HEAD/MAfly1/f1.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-58:mhmdxahmd/mafly/HEAD/MAfly1/fb.txt", url: "https://raw.githubusercontent.com/mhmdxahmd/mafly/HEAD/MAfly1/fb.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-59:mhmdxahmd/mafly/HEAD/MAfly1/iptv/yiyifafa.txt", url: "https://raw.githubusercontent.com/mhmdxahmd/mafly/HEAD/MAfly1/iptv/yiyifafa.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-60:mhmdxahmd/mafly/HEAD/MAfly1/mao/Android/readme.MD", url: "https://raw.githubusercontent.com/mhmdxahmd/mafly/HEAD/MAfly1/mao/Android/readme.MD", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-61:0xAKIRAVX/DNC-VPN/HEAD/.github/workflows/update-sub.yml", url: "https://raw.githubusercontent.com/0xAKIRAVX/DNC-VPN/HEAD/.github/workflows/update-sub.yml", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-62:0xAKIRAVX/DNC-VPN/HEAD/CR.md", url: "https://raw.githubusercontent.com/0xAKIRAVX/DNC-VPN/HEAD/CR.md", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-63:0xAKIRAVX/DNC-VPN/HEAD/README.md", url: "https://raw.githubusercontent.com/0xAKIRAVX/DNC-VPN/HEAD/README.md", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-64:0xAKIRAVX/DNC-VPN/HEAD/list/proxy.txt", url: "https://raw.githubusercontent.com/0xAKIRAVX/DNC-VPN/HEAD/list/proxy.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-65:0xAKIRAVX/DNC-VPN/HEAD/sub-extra.txt", url: "https://raw.githubusercontent.com/0xAKIRAVX/DNC-VPN/HEAD/sub-extra.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-66:0xAKIRAVX/DNC-VPN/HEAD/sub.txt", url: "https://raw.githubusercontent.com/0xAKIRAVX/DNC-VPN/HEAD/sub.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-67:bily1258-design/beimi/HEAD/.gitguardian.yml", url: "https://raw.githubusercontent.com/bily1258-design/beimi/HEAD/.gitguardian.yml", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-68:bily1258-design/beimi/HEAD/.github/workflows/update-subscription", url: "https://raw.githubusercontent.com/bily1258-design/beimi/HEAD/.github/workflows/update-subscription.yml", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-69:bily1258-design/beimi/HEAD/README.md", url: "https://raw.githubusercontent.com/bily1258-design/beimi/HEAD/README.md", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-70:bily1258-design/beimi/HEAD/crawler_status.json", url: "https://raw.githubusercontent.com/bily1258-design/beimi/HEAD/crawler_status.json", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-71:bily1258-design/beimi/HEAD/last_updated.txt", url: "https://raw.githubusercontent.com/bily1258-design/beimi/HEAD/last_updated.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-72:bily1258-design/beimi/HEAD/output/clash.yaml", url: "https://raw.githubusercontent.com/bily1258-design/beimi/HEAD/output/clash.yaml", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-73:bily1258-design/beimi/HEAD/output/subscribe.txt", url: "https://raw.githubusercontent.com/bily1258-design/beimi/HEAD/output/subscribe.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-74:bily1258-design/beimi/HEAD/output/subscribe_b64.txt", url: "https://raw.githubusercontent.com/bily1258-design/beimi/HEAD/output/subscribe_b64.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-75:awesome-vpn/awesome-vpn/HEAD/README.md", url: "https://raw.githubusercontent.com/awesome-vpn/awesome-vpn/HEAD/README.md", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-76:awesome-vpn/awesome-vpn/HEAD/sub.txt", url: "https://raw.githubusercontent.com/awesome-vpn/awesome-vpn/HEAD/sub.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-77:awesome-vpn/awesome-vpn/HEAD/list.txt", url: "https://raw.githubusercontent.com/awesome-vpn/awesome-vpn/HEAD/list.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-78:awesome-vpn/awesome-vpn/HEAD/nodes.txt", url: "https://raw.githubusercontent.com/awesome-vpn/awesome-vpn/HEAD/nodes.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-79:awesome-vpn/awesome-vpn/HEAD/v2ray.txt", url: "https://raw.githubusercontent.com/awesome-vpn/awesome-vpn/HEAD/v2ray.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-80:awesome-vpn/awesome-vpn/HEAD/node.txt", url: "https://raw.githubusercontent.com/awesome-vpn/awesome-vpn/HEAD/node.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-81:awesome-vpn/awesome-vpn/HEAD/sub/sub.txt", url: "https://raw.githubusercontent.com/awesome-vpn/awesome-vpn/HEAD/sub/sub.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-82:awesome-vpn/awesome-vpn/HEAD/sub/list.txt", url: "https://raw.githubusercontent.com/awesome-vpn/awesome-vpn/HEAD/sub/list.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-83:Joey1444/v2ray-nodes/HEAD/.github/workflows/ci.yml", url: "https://raw.githubusercontent.com/Joey1444/v2ray-nodes/HEAD/.github/workflows/ci.yml", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-84:Joey1444/v2ray-nodes/HEAD/.github/workflows/update.yml", url: "https://raw.githubusercontent.com/Joey1444/v2ray-nodes/HEAD/.github/workflows/update.yml", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-85:Joey1444/v2ray-nodes/HEAD/README.md", url: "https://raw.githubusercontent.com/Joey1444/v2ray-nodes/HEAD/README.md", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-86:Joey1444/v2ray-nodes/HEAD/sources-status.json", url: "https://raw.githubusercontent.com/Joey1444/v2ray-nodes/HEAD/sources-status.json", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-87:Joey1444/v2ray-nodes/HEAD/sources.txt", url: "https://raw.githubusercontent.com/Joey1444/v2ray-nodes/HEAD/sources.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-88:Joey1444/v2ray-nodes/HEAD/sub-plain.txt", url: "https://raw.githubusercontent.com/Joey1444/v2ray-nodes/HEAD/sub-plain.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-89:Joey1444/v2ray-nodes/HEAD/sub.txt", url: "https://raw.githubusercontent.com/Joey1444/v2ray-nodes/HEAD/sub.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-90:zhangdunlong/free-v2ray-nodes/HEAD/README.md", url: "https://raw.githubusercontent.com/zhangdunlong/free-v2ray-nodes/HEAD/README.md", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-91:zhangdunlong/free-v2ray-nodes/HEAD/nodes_base64.txt", url: "https://raw.githubusercontent.com/zhangdunlong/free-v2ray-nodes/HEAD/nodes_base64.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-92:zhangdunlong/free-v2ray-nodes/HEAD/subscription.txt", url: "https://raw.githubusercontent.com/zhangdunlong/free-v2ray-nodes/HEAD/subscription.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-93:zhangdunlong/free-v2ray-nodes/HEAD/unique_nodes.txt", url: "https://raw.githubusercontent.com/zhangdunlong/free-v2ray-nodes/HEAD/unique_nodes.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-94:v2raynnodes/v2rayfree/HEAD/.github/workflows/main.yml", url: "https://raw.githubusercontent.com/v2raynnodes/v2rayfree/HEAD/.github/workflows/main.yml", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-95:v2raynnodes/v2rayfree/HEAD/README.md", url: "https://raw.githubusercontent.com/v2raynnodes/v2rayfree/HEAD/README.md", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-96:v2raynnodes/v2rayfree/HEAD/config.json", url: "https://raw.githubusercontent.com/v2raynnodes/v2rayfree/HEAD/config.json", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-97:v2raynnodes/v2rayfree/HEAD/nodes/blues.txt", url: "https://raw.githubusercontent.com/v2raynnodes/v2rayfree/HEAD/nodes/blues.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-98:v2raynnodes/v2rayfree/HEAD/nodes/blues.yaml", url: "https://raw.githubusercontent.com/v2raynnodes/v2rayfree/HEAD/nodes/blues.yaml", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-99:v2raynnodes/v2rayfree/HEAD/nodes/clashmeta.txt", url: "https://raw.githubusercontent.com/v2raynnodes/v2rayfree/HEAD/nodes/clashmeta.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-100:v2raynnodes/v2rayfree/HEAD/nodes/clashmeta.yaml", url: "https://raw.githubusercontent.com/v2raynnodes/v2rayfree/HEAD/nodes/clashmeta.yaml", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-101:v2raynnodes/v2rayfree/HEAD/nodes/ndnode.txt", url: "https://raw.githubusercontent.com/v2raynnodes/v2rayfree/HEAD/nodes/ndnode.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-102:nichecer/v2ray-node-share/HEAD/README.md", url: "https://raw.githubusercontent.com/nichecer/v2ray-node-share/HEAD/README.md", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-103:nichecer/v2ray-node-share/HEAD/latency.json", url: "https://raw.githubusercontent.com/nichecer/v2ray-node-share/HEAD/latency.json", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-104:nichecer/v2ray-node-share/HEAD/nodes.txt", url: "https://raw.githubusercontent.com/nichecer/v2ray-node-share/HEAD/nodes.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-105:nichecer/v2ray-node-share/HEAD/sub.txt", url: "https://raw.githubusercontent.com/nichecer/v2ray-node-share/HEAD/sub.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-106:fushuain-collab/free-nodes/HEAD/README.md", url: "https://raw.githubusercontent.com/fushuain-collab/free-nodes/HEAD/README.md", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-107:fushuain-collab/free-nodes/HEAD/sub.txt", url: "https://raw.githubusercontent.com/fushuain-collab/free-nodes/HEAD/sub.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-108:fushuain-collab/free-nodes/HEAD/list.txt", url: "https://raw.githubusercontent.com/fushuain-collab/free-nodes/HEAD/list.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-109:fushuain-collab/free-nodes/HEAD/nodes.txt", url: "https://raw.githubusercontent.com/fushuain-collab/free-nodes/HEAD/nodes.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-110:fushuain-collab/free-nodes/HEAD/v2ray.txt", url: "https://raw.githubusercontent.com/fushuain-collab/free-nodes/HEAD/v2ray.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-111:fushuain-collab/free-nodes/HEAD/node.txt", url: "https://raw.githubusercontent.com/fushuain-collab/free-nodes/HEAD/node.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-112:fushuain-collab/free-nodes/HEAD/sub/sub.txt", url: "https://raw.githubusercontent.com/fushuain-collab/free-nodes/HEAD/sub/sub.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-113:fushuain-collab/free-nodes/HEAD/sub/list.txt", url: "https://raw.githubusercontent.com/fushuain-collab/free-nodes/HEAD/sub/list.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-114:vincent20240707/free-v2ray-nodes/HEAD/.github/workflows/validate", url: "https://raw.githubusercontent.com/vincent20240707/free-v2ray-nodes/HEAD/.github/workflows/validate-nodes.yml", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-115:vincent20240707/free-v2ray-nodes/HEAD/README.md", url: "https://raw.githubusercontent.com/vincent20240707/free-v2ray-nodes/HEAD/README.md", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-116:vincent20240707/free-v2ray-nodes/HEAD/last-validation.json", url: "https://raw.githubusercontent.com/vincent20240707/free-v2ray-nodes/HEAD/last-validation.json", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-117:vincent20240707/free-v2ray-nodes/HEAD/nodes.txt", url: "https://raw.githubusercontent.com/vincent20240707/free-v2ray-nodes/HEAD/nodes.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-118:vincent20240707/free-v2ray-nodes/HEAD/subscriptions.txt", url: "https://raw.githubusercontent.com/vincent20240707/free-v2ray-nodes/HEAD/subscriptions.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-119:grisha-seleznev/free-vless-keys-russia/HEAD/.github/workflows/up", url: "https://raw.githubusercontent.com/grisha-seleznev/free-vless-keys-russia/HEAD/.github/workflows/update.yml", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-120:grisha-seleznev/free-vless-keys-russia/HEAD/README.md", url: "https://raw.githubusercontent.com/grisha-seleznev/free-vless-keys-russia/HEAD/README.md", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-121:grisha-seleznev/free-vless-keys-russia/HEAD/keys.txt", url: "https://raw.githubusercontent.com/grisha-seleznev/free-vless-keys-russia/HEAD/keys.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-122:grisha-seleznev/free-vless-keys-russia/HEAD/polymarket.txt", url: "https://raw.githubusercontent.com/grisha-seleznev/free-vless-keys-russia/HEAD/polymarket.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-123:grisha-seleznev/free-vless-keys-russia/HEAD/stage/result.txt", url: "https://raw.githubusercontent.com/grisha-seleznev/free-vless-keys-russia/HEAD/stage/result.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-124:grisha-seleznev/free-vless-keys-russia/HEAD/sub.txt", url: "https://raw.githubusercontent.com/grisha-seleznev/free-vless-keys-russia/HEAD/sub.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-125:grisha-seleznev/free-vless-keys-russia/HEAD/sub_base64.txt", url: "https://raw.githubusercontent.com/grisha-seleznev/free-vless-keys-russia/HEAD/sub_base64.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-126:grisha-seleznev/free-vless-keys-russia/HEAD/tg/01.txt", url: "https://raw.githubusercontent.com/grisha-seleznev/free-vless-keys-russia/HEAD/tg/01.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-127:TheHunterX/oneforallhub-v2ray-configs/HEAD/.github/workflows/v2r", url: "https://raw.githubusercontent.com/TheHunterX/oneforallhub-v2ray-configs/HEAD/.github/workflows/v2ray-auto.yml", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-128:TheHunterX/oneforallhub-v2ray-configs/HEAD/POSTS.txt", url: "https://raw.githubusercontent.com/TheHunterX/oneforallhub-v2ray-configs/HEAD/POSTS.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-129:TheHunterX/oneforallhub-v2ray-configs/HEAD/README.md", url: "https://raw.githubusercontent.com/TheHunterX/oneforallhub-v2ray-configs/HEAD/README.md", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-130:TheHunterX/oneforallhub-v2ray-configs/HEAD/VPN.md", url: "https://raw.githubusercontent.com/TheHunterX/oneforallhub-v2ray-configs/HEAD/VPN.md", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-131:TheHunterX/oneforallhub-v2ray-configs/HEAD/auto-status.json", url: "https://raw.githubusercontent.com/TheHunterX/oneforallhub-v2ray-configs/HEAD/auto-status.json", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-132:TheHunterX/oneforallhub-v2ray-configs/HEAD/auto-subscription.txt", url: "https://raw.githubusercontent.com/TheHunterX/oneforallhub-v2ray-configs/HEAD/auto-subscription.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-133:TheHunterX/oneforallhub-v2ray-configs/HEAD/countries/CA.txt", url: "https://raw.githubusercontent.com/TheHunterX/oneforallhub-v2ray-configs/HEAD/countries/CA.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-134:TheHunterX/oneforallhub-v2ray-configs/HEAD/countries/FI.txt", url: "https://raw.githubusercontent.com/TheHunterX/oneforallhub-v2ray-configs/HEAD/countries/FI.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-135:Andrejewild/hiddify-singbox-configs-ru/HEAD/README.md", url: "https://raw.githubusercontent.com/Andrejewild/hiddify-singbox-configs-ru/HEAD/README.md", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-136:Andrejewild/hiddify-singbox-configs-ru/HEAD/base64.txt", url: "https://raw.githubusercontent.com/Andrejewild/hiddify-singbox-configs-ru/HEAD/base64.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-137:Andrejewild/hiddify-singbox-configs-ru/HEAD/robots.txt", url: "https://raw.githubusercontent.com/Andrejewild/hiddify-singbox-configs-ru/HEAD/robots.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-138:Andrejewild/hiddify-singbox-configs-ru/HEAD/sub.txt", url: "https://raw.githubusercontent.com/Andrejewild/hiddify-singbox-configs-ru/HEAD/sub.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-139:Andrejewild/happ-v2rayng-configs/HEAD/README.md", url: "https://raw.githubusercontent.com/Andrejewild/happ-v2rayng-configs/HEAD/README.md", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-140:Andrejewild/happ-v2rayng-configs/HEAD/base64.txt", url: "https://raw.githubusercontent.com/Andrejewild/happ-v2rayng-configs/HEAD/base64.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-141:Andrejewild/happ-v2rayng-configs/HEAD/robots.txt", url: "https://raw.githubusercontent.com/Andrejewild/happ-v2rayng-configs/HEAD/robots.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-142:Andrejewild/happ-v2rayng-configs/HEAD/sub.txt", url: "https://raw.githubusercontent.com/Andrejewild/happ-v2rayng-configs/HEAD/sub.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-143:longyang1233/free-nodes-sub/HEAD/README.md", url: "https://raw.githubusercontent.com/longyang1233/free-nodes-sub/HEAD/README.md", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-144:longyang1233/free-nodes-sub/HEAD/clash.yaml", url: "https://raw.githubusercontent.com/longyang1233/free-nodes-sub/HEAD/clash.yaml", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-145:longyang1233/free-nodes-sub/HEAD/qx.txt", url: "https://raw.githubusercontent.com/longyang1233/free-nodes-sub/HEAD/qx.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-146:longyang1233/free-nodes-sub/HEAD/shadowrocket.txt", url: "https://raw.githubusercontent.com/longyang1233/free-nodes-sub/HEAD/shadowrocket.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-147:radiobz/my_free_node/HEAD/.github/workflows/update.yml", url: "https://raw.githubusercontent.com/radiobz/my_free_node/HEAD/.github/workflows/update.yml", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-148:radiobz/my_free_node/HEAD/README.md", url: "https://raw.githubusercontent.com/radiobz/my_free_node/HEAD/README.md", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-149:radiobz/my_free_node/HEAD/clash.yaml", url: "https://raw.githubusercontent.com/radiobz/my_free_node/HEAD/clash.yaml", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-150:radiobz/my_free_node/HEAD/sub.txt", url: "https://raw.githubusercontent.com/radiobz/my_free_node/HEAD/sub.txt", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-151:nodesradar/nodesradar-zh/HEAD/README.md", url: "https://raw.githubusercontent.com/nodesradar/nodesradar-zh/HEAD/README.md", group: "GitHub挖掘" },
+      { channel: "github", name: "GH-152:nodesradar/nodesradar-en/HEAD/README.md", url: "https://raw.githubusercontent.com/nodesradar/nodesradar-en/HEAD/README.md", group: "GitHub挖掘" },
+      { channel: "web", name: "TG-jisou2", url: "https://t.me/s/jisou2", group: "TG频道聚合", isHtmlPage: true },
+      { channel: "web", name: "TG-qandshekannn", url: "https://t.me/s/qandshekannn", group: "TG频道聚合", isHtmlPage: true },
+      { channel: "web", name: "TG-webproxy", url: "https://t.me/s/webproxy", group: "TG频道聚合", isHtmlPage: true },
+      { channel: "web", name: "TG-miladtahanian", url: "https://t.me/s/miladtahanian", group: "TG频道聚合", isHtmlPage: true },
+      { channel: "web", name: "TG-v2raycollector", url: "https://t.me/s/v2raycollector", group: "TG频道聚合", isHtmlPage: true },
+      { channel: "web", name: "TG-cyberhandymancngroup", url: "https://t.me/s/cyberhandymancngroup", group: "TG频道聚合", isHtmlPage: true },
+      { channel: "web", name: "TG-github_2dust", url: "https://t.me/s/github_2dust", group: "TG频道聚合", isHtmlPage: true },
+      { channel: "web", name: "TG-v2rayN", url: "https://t.me/s/v2rayN", group: "TG频道聚合", isHtmlPage: true },
+      { channel: "web", name: "TG-v2rayn", url: "https://t.me/s/v2rayn", group: "TG频道聚合", isHtmlPage: true },
+      { channel: "web", name: "TG-dns68", url: "https://t.me/s/dns68", group: "TG频道聚合", isHtmlPage: true },
+      { channel: "web", name: "TG-QiangLieTuiJian", url: "https://t.me/s/QiangLieTuiJian", group: "TG频道聚合", isHtmlPage: true },
+      { channel: "web", name: "TG-youtube", url: "https://t.me/s/youtube", group: "TG频道聚合", isHtmlPage: true },
+      { channel: "web", name: "TG-shadowrocket_android", url: "https://t.me/s/shadowrocket_android", group: "TG频道聚合", isHtmlPage: true },
+      { channel: "web", name: "TG-souws", url: "https://t.me/s/souws", group: "TG频道聚合", isHtmlPage: true },
+      { channel: "web", name: "TG-sooo", url: "https://t.me/s/sooo", group: "TG频道聚合", isHtmlPage: true },
+      { channel: "web", name: "TG-tkpaytk", url: "https://t.me/s/tkpaytk", group: "TG频道聚合", isHtmlPage: true },
+      { channel: "web", name: "TG-WangCai2", url: "https://t.me/s/WangCai2", group: "TG频道聚合", isHtmlPage: true },
+      { channel: "web", name: "TG-myshxx_bot", url: "https://t.me/s/myshxx_bot", group: "TG频道聚合", isHtmlPage: true },
+      { channel: "web", name: "TG-TEAMNETGRATISCOL", url: "https://t.me/s/TEAMNETGRATISCOL", group: "TG频道聚合", isHtmlPage: true },
+      { channel: "web", name: "TG-poroxyip", url: "https://t.me/s/poroxyip", group: "TG频道聚合", isHtmlPage: true },
+      { channel: "web", name: "TG-vvkj11", url: "https://t.me/s/vvkj11", group: "TG频道聚合", isHtmlPage: true },
+      { channel: "web", name: "TG-FuckTheWall", url: "https://t.me/s/FuckTheWall", group: "TG频道聚合", isHtmlPage: true },
+      { channel: "web", name: "TG-patt_channel_x", url: "https://t.me/s/patt_channel_x", group: "TG频道聚合", isHtmlPage: true },
+      { channel: "web", name: "TG-CluvexStudio", url: "https://t.me/s/CluvexStudio", group: "TG频道聚合", isHtmlPage: true },
+      { channel: "web", name: "TG-yastorovsky", url: "https://t.me/s/yastorovsky", group: "TG频道聚合", isHtmlPage: true },
+      { channel: "web", name: "TG-cyrus_lang", url: "https://t.me/s/cyrus_lang", group: "TG频道聚合", isHtmlPage: true },
+      { channel: "web", name: "TG-mehrgroupchat", url: "https://t.me/s/mehrgroupchat", group: "TG频道聚合", isHtmlPage: true },
+      { channel: "web", name: "TG-ripaojiedian", url: "https://t.me/s/ripaojiedian", group: "TG频道聚合", isHtmlPage: true },
+      { channel: "web", name: "TG-OminixAiBot", url: "https://t.me/s/OminixAiBot", group: "TG频道聚合", isHtmlPage: true },
+      { channel: "web", name: "TG-ainovum_bot", url: "https://t.me/s/ainovum_bot", group: "TG频道聚合", isHtmlPage: true },
+      { channel: "web", name: "TG-yia1122", url: "https://t.me/s/yia1122", group: "TG频道聚合", isHtmlPage: true },
+      { channel: "web", name: "TG-aisgk1", url: "https://t.me/s/aisgk1", group: "TG频道聚合", isHtmlPage: true },
+      { channel: "web", name: "TG-jisuak", url: "https://t.me/s/jisuak", group: "TG频道聚合", isHtmlPage: true },
+      { channel: "web", name: "TG-mihajichang2", url: "https://t.me/s/mihajichang2", group: "TG频道聚合", isHtmlPage: true },
+      { channel: "web", name: "TG-fuckthewall", url: "https://t.me/s/fuckthewall", group: "TG频道聚合", isHtmlPage: true },
+      { channel: "web", name: "TG-socks", url: "https://t.me/s/socks", group: "TG频道聚合", isHtmlPage: true },
+      { channel: "web", name: "TG-jisou6660", url: "https://t.me/s/jisou6660", group: "TG频道聚合", isHtmlPage: true },
+      { channel: "web", name: "TG-yia6666", url: "https://t.me/s/yia6666", group: "TG频道聚合", isHtmlPage: true },
+      { channel: "web", name: "TG-v2ray3", url: "https://t.me/s/v2ray3", group: "TG频道聚合", isHtmlPage: true },
+      { channel: "web", name: "TG-realfreevpn_daily", url: "https://t.me/s/realfreevpn_daily", group: "TG频道聚合", isHtmlPage: true },
+      { channel: "web", name: "TG-vvkj1", url: "https://t.me/s/vvkj1", group: "TG频道聚合", isHtmlPage: true },
+      { channel: "web", name: "TG-vpnsmega", url: "https://t.me/s/vpnsmega", group: "TG频道聚合", isHtmlPage: true },
+      { channel: "web", name: "TG-vpnsmegabot", url: "https://t.me/s/vpnsmegabot", group: "TG频道聚合", isHtmlPage: true },
+      { channel: "web", name: "TG-parham_ste01", url: "https://t.me/s/parham_ste01", group: "TG频道聚合", isHtmlPage: true },
+      { channel: "web", name: "TG-BDovo_Channel", url: "https://t.me/s/BDovo_Channel", group: "TG频道聚合", isHtmlPage: true },
+      { channel: "web", name: "TG-baka_not_baka", url: "https://t.me/s/baka_not_baka", group: "TG频道聚合", isHtmlPage: true },
+      { channel: "web", name: "TG-landiansub", url: "https://t.me/s/landiansub", group: "TG频道聚合", isHtmlPage: true },
+      { channel: "web", name: "TG-dns688", url: "https://t.me/s/dns688", group: "TG频道聚合", isHtmlPage: true },
+      { channel: "web", name: "TG-yuki_uno", url: "https://t.me/s/yuki_uno", group: "TG频道聚合", isHtmlPage: true },
+      { channel: "web", name: "TG-tienich", url: "https://t.me/s/tienich", group: "TG频道聚合", isHtmlPage: true },
+      { channel: "web", name: "TG-super_parham01", url: "https://t.me/s/super_parham01", group: "TG频道聚合", isHtmlPage: true },
+      { channel: "web", name: "TG-incrypted", url: "https://t.me/s/incrypted", group: "TG频道聚合", isHtmlPage: true },
+      { channel: "web", name: "TG-freenodedaily", url: "https://t.me/s/freenodedaily", group: "TG频道聚合", isHtmlPage: true },
+      { channel: "web", name: "TG-clashjd", url: "https://t.me/s/clashjd", group: "TG频道聚合", isHtmlPage: true },
+      { channel: "web", name: "TG-jichangku", url: "https://t.me/s/jichangku", group: "TG频道聚合", isHtmlPage: true },
+      { channel: "web", name: "TG-bounty_configs", url: "https://t.me/s/bounty_configs", group: "TG频道聚合", isHtmlPage: true },
+      { channel: "web", name: "TG-jichangcha", url: "https://t.me/s/jichangcha", group: "TG频道聚合", isHtmlPage: true },
+      { channel: "web", name: "TG-vpnpn123", url: "https://t.me/s/vpnpn123", group: "TG频道聚合", isHtmlPage: true },
+      { channel: "web", name: "TG-jiasu_la", url: "https://t.me/s/jiasu_la", group: "TG频道聚合", isHtmlPage: true },
+      { channel: "web", name: "TG-flybitvip", url: "https://t.me/s/flybitvip", group: "TG频道聚合", isHtmlPage: true },
     ];
 
     let huntedSourcesState = [];
@@ -6115,72 +6692,93 @@
 
       const candidateTargets = [];
 
-      // 1. Live GitHub Search API discovery (Use /HEAD/README.md so both main and master branches resolve!)
+      // 1. Live GitHub Search API discovery（多组关键词按天轮换 + 用户自定义词）
       if (channel === "all" || channel === "github") {
         updateGlobalTaskProgress("正在搜索 GitHub 最新节点仓库 API...", 15);
-        try {
-          const ghSearchUrl = `https://api.github.com/search/repositories?q=${encodeURIComponent(kw + " v2ray")}&sort=updated&per_page=4`;
-          const ghRes = await probeUrlDualChannel(ghSearchUrl);
-          if (ghRes && ghRes.body && ghRes.body.includes('"items"')) {
-            const j = JSON.parse(ghRes.body);
-            (j.items || []).slice(0, 4).forEach(repo => {
-              if (!repo || !repo.full_name) return;
-              candidateTargets.push({
-                channel: "github",
-                name: `GH实时-${repo.full_name}`,
-                url: `https://raw.githubusercontent.com/${repo.full_name}/HEAD/README.md`,
-                group: "GitHub挖掘",
-                isHtmlPage: true
+        const dayIdx = new Date().getDate();
+        const autoQ = HUNTER_GITHUB_QUERIES[dayIdx % HUNTER_GITHUB_QUERIES.length];
+        const queries = [autoQ];
+        if (kw && kw !== "v2ray free sub") queries.push(kw);
+        for (const q of queries) {
+          if (taskCtrl.cancelled) break;
+          try {
+            const ghSearchUrl = `https://api.github.com/search/repositories?q=${encodeURIComponent(q + " v2ray")}&sort=updated&per_page=8`;
+            const ghRes = await probeUrlDualChannel(ghSearchUrl);
+            if (ghRes && ghRes.body && ghRes.body.includes('"items"')) {
+              const j = JSON.parse(ghRes.body);
+              (j.items || []).slice(0, 8).forEach(repo => {
+                if (!repo || !repo.full_name) return;
+                candidateTargets.push({
+                  channel: "github",
+                  name: `GH实时-${repo.full_name}`,
+                  url: `https://raw.githubusercontent.com/${repo.full_name}/HEAD/README.md`,
+                  group: "GitHub挖掘",
+                  isHtmlPage: true
+                });
               });
-            });
-          }
-        } catch (_) {}
+            }
+          } catch (_) {}
+        }
       }
 
-      // 2. Live YouTube Search page discovery (Query English + Chinese high-yield keywords, cap dynamic page targets to top 4)
+      // 2. Live YouTube Search page discovery（多组关键词按天轮换）
       if (channel === "all" || channel === "youtube") {
         updateGlobalTaskProgress("正在嗅探 YouTube 免费节点频道与视频简介...", 28);
-        try {
-          const ytSearchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(kw + " github sub")}`;
-          const ytRes = await probeUrlDualChannel(ytSearchUrl);
-          if (ytRes && ytRes.body && ytRes.body.length > 100) {
-            let ytDynamicTargets = 0;
-            const foundFromYtSearch = extractSubscriptionUrlsAndNodesFromText(ytRes.body, "YouTube搜索", "youtube");
-            foundFromYtSearch.forEach(item => {
-              if (item.type === "inline_nodes" && item.nodeCount > 0) {
-                upsertHuntedItem(item, existingUrls);
-              } else if ((item.type === "sub_url" || item.type === "page_url") && ytDynamicTargets < 4) {
-                ytDynamicTargets++;
-                candidateTargets.push({ channel: "youtube", name: item.name, url: item.url, group: "YouTube猎源", isHtmlPage: item.type === "page_url" });
-              }
-            });
-            // Extract top 3 videoIds from YouTube search and inspect their watch pages
-            const vidMatches = [...ytRes.body.matchAll(/"videoId":"([a-zA-Z0-9_-]{11})"/g)].map(m => m[1]);
-            const uniqueVids = [...new Set(vidMatches)].slice(0, 3);
-            for (const vid of uniqueVids) {
-              if (taskCtrl.cancelled || ytDynamicTargets >= 6) break;
-              const watchRes = await probeUrlDualChannel(`https://www.youtube.com/watch?v=${vid}`);
-              if (watchRes && watchRes.body) {
-                const items = extractSubscriptionUrlsAndNodesFromText(watchRes.body, `YT视频-${vid}`, "youtube");
-                items.forEach(it => {
-                  if (it.type === "inline_nodes" && it.nodeCount > 0) upsertHuntedItem(it, existingUrls);
-                  else if ((it.type === "sub_url" || it.type === "page_url") && ytDynamicTargets < 6) {
-                    ytDynamicTargets++;
-                    candidateTargets.push({ channel: "youtube", name: it.name, url: it.url, group: "YouTube猎源", isHtmlPage: it.type === "page_url" });
-                  }
-                });
+        const dayIdx = new Date().getDate();
+        const autoYt = HUNTER_YOUTUBE_QUERIES[dayIdx % HUNTER_YOUTUBE_QUERIES.length];
+        const ytQueries = [autoYt];
+        if (kw && kw !== "v2ray free sub") ytQueries.push(kw);
+        ytQueries.push("v2ray free sub github");   // 实测高产查询（保留）
+        for (const q of ytQueries) {
+          if (taskCtrl.cancelled) break;
+          try {
+            const ytSearchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`;
+            const ytRes = await probeUrlDualChannel(ytSearchUrl);
+            if (ytRes && ytRes.body && ytRes.body.length > 100) {
+              let ytDynamicTargets = 0;
+              const foundFromYtSearch = extractSubscriptionUrlsAndNodesFromText(ytRes.body, "YouTube搜索", "youtube");
+              foundFromYtSearch.forEach(item => {
+                if (item.type === "inline_nodes" && item.nodeCount > 0) {
+                  upsertHuntedItem(item, existingUrls);
+                } else if ((item.type === "sub_url" || item.type === "page_url") && ytDynamicTargets < 6) {
+                  ytDynamicTargets++;
+                  candidateTargets.push({ channel: "youtube", name: item.name, url: item.url, group: "YouTube猎源", isHtmlPage: item.type === "page_url" });
+                }
+              });
+              // Extract top 8 videoIds from YouTube search and inspect their watch pages
+              const vidMatches = [...ytRes.body.matchAll(/"videoId":"([a-zA-Z0-9_-]{11})"/g)].map(m => m[1]);
+              const uniqueVids = [...new Set(vidMatches)].slice(0, 8);
+              for (const vid of uniqueVids) {
+                if (taskCtrl.cancelled || ytDynamicTargets >= 12) break;
+                const watchRes = await probeUrlDualChannel(`https://www.youtube.com/watch?v=${vid}`);
+                if (watchRes && watchRes.body) {
+                  const items = extractSubscriptionUrlsAndNodesFromText(watchRes.body, `YT视频-${vid}`, "youtube");
+                  items.forEach(it => {
+                    if (it.type === "inline_nodes" && it.nodeCount > 0) upsertHuntedItem(it, existingUrls);
+                    else if ((it.type === "sub_url" || it.type === "page_url") && ytDynamicTargets < 12) {
+                      ytDynamicTargets++;
+                      candidateTargets.push({ channel: "youtube", name: it.name, url: it.url, group: "YouTube猎源", isHtmlPage: it.type === "page_url" });
+                    }
+                  });
+                }
               }
             }
-          }
-        } catch (_) {}
+          } catch (_) {}
+        }
       }
 
-      // 3. Curated High-Yield Candidates for the selected channel(s)
-      HUNTER_CANDIDATE_POOL.forEach(c => {
-        if (channel === "all" || c.channel === channel) {
-          candidateTargets.push(c);
-        }
-      });
+      // 3. Curated High-Yield Candidates（默认按天轮换，各渠道额度不同；勾选「深度扫描」跑全量）
+      // 额度控制单轮耗时：单渠道 24~32 个目标约 3~6 分钟，配合按天轮换可在多天内扫完全部候选池
+      const deepMode = document.getElementById("hunterDeepMode")?.checked;
+      let curatedPool = HUNTER_CANDIDATE_POOL.filter(c => channel === "all" || c.channel === channel);
+      const perChannelBudget = channel === "web" ? 24 : (channel === "github" ? 28 : 32);
+      if (!deepMode && curatedPool.length > perChannelBudget) {
+        const startIdx = new Date().getDate() % curatedPool.length;
+        const rotated = [];
+        for (let i = 0; i < perChannelBudget; i++) rotated.push(curatedPool[(startIdx + i) % curatedPool.length]);
+        curatedPool = rotated;
+      }
+      curatedPool.forEach(c => candidateTargets.push(c));
 
       // Deduplicate candidate targets
       const seenTargetUrls = new Set();
@@ -6193,16 +6791,25 @@
 
       const visitedPageUrls = new Set(uniqueTargets.map(t => normalizeSubscriptionUrl(t.url)));
 
+      // 2026-11-11 防御：同一主机连续 5 次不可达就跳过其余目标，避免单一域名被封时整轮扫描卡死
+      const hostFailStreak = {};
       for (let i = 0; i < uniqueTargets.length; i++) {
         await waitIfTaskPaused();
         if (taskCtrl.cancelled) break;
         const target = uniqueTargets[i];
+        let tHost = "";
+        try { tHost = new URL(target.url).host; } catch (_) {}
+        if (tHost && (hostFailStreak[tHost] || 0) >= 5) continue;
         const pct = Math.min(98, 35 + Math.round(((i + 1) / Math.max(1, uniqueTargets.length)) * 63));
         updateGlobalTaskProgress(`猎源验证 (${i + 1}/${uniqueTargets.length}): ${target.name}`, pct);
 
         const res = await probeUrlDualChannel(target.url);
         if (taskCtrl.cancelled) break;
-        if (!res || !res.body || !res.body.trim()) continue;
+        if (!res || !res.body || !res.body.trim()) {
+          if (tHost) hostFailStreak[tHost] = (hostFailStreak[tHost] || 0) + 1;
+          continue;
+        }
+        if (tHost) hostFailStreak[tHost] = 0;
 
         if (target.isHtmlPage) {
           const extracted = extractSubscriptionUrlsAndNodesFromText(res.body, target.name, target.channel);
@@ -6394,7 +7001,10 @@
           directOk: item.directOk !== false,
           directMs: 160,
           proxyOk: true,
-          proxyMs: 120
+          proxyMs: 120,
+          firstSeenDate: getNowDateStr(),
+          lastSuccessDate: "",
+          failStreak: 0
         };
         state.sources.unshift(existing);
       }
@@ -6403,6 +7013,7 @@
         recordPullSnapshot("single", item.name, `猎源扫描入库 (${item.nodes.length}条)`, item.nodes);
       }
       saveState();
+      syncSourceToPcBridge(existing, "add");
       renderSources();
       renderWeeklyReview();
       renderHuntedSourcesList();
@@ -6497,17 +7108,27 @@
       document.getElementById("depCnt-expired").textContent = expiredList.length;
       document.getElementById("depCnt-isolating").textContent = isolatingList.length;
 
+      const expiredSrcList = state.sources.filter(s => sourceHealthInfo(s).expired);
+      const btnExpiredSrcCnt = document.getElementById("btnExpiredSrcCnt");
+      if (btnExpiredSrcCnt) btnExpiredSrcCnt.textContent = expiredSrcList.length;
+
       const tbody = document.getElementById("weeklySourceReviewBody");
       tbody.innerHTML = state.sources.map((s, idx) => {
         const bothDead = !s.directOk && !s.proxyOk;
+        const h = sourceHealthInfo(s);
+        const lastOk = s.lastSuccessDate ? s.lastSuccessDate : `<span class="tag tag-err">从未成功</span>`;
+        const failStreak = s.failStreak || 0;
+        const expired = h.expired;
         return `
           <tr>
-            <td><strong>${escapeHtml(s.name)}</strong></td>
+            <td><strong>${escapeHtml(s.name)}</strong>${expired ? ` <span class="tag tag-err">满${h.retention}天未成功</span>` : ""}</td>
             <td>${s.directOk ? `<span class="tag tag-ok">${s.directMs}ms</span>` : `<span class="tag tag-err">不通</span>`}</td>
             <td>${s.proxyOk ? `<span class="tag tag-proxy">${s.proxyMs}ms</span>` : `<span class="tag tag-err">不通</span>`}</td>
             <td>${bothDead ? "0" : (s.lastCount || 60)}条</td>
+            <td>${lastOk}</td>
+            <td>${failStreak > 0 ? `<span class="tag tag-warn">${failStreak}天</span>` : "0"}</td>
             <td>
-              ${bothDead
+              ${(bothDead || expired)
                 ? `<button class="btn btn-rose btn-xs" onclick="deleteSource(${idx})">删除</button>`
                 : `<button class="btn btn-ghost btn-xs" onclick="probeSingleSourceDual(${idx})">复测</button>`}
             </td>
@@ -6715,6 +7336,9 @@
       const wStd = Number(document.getElementById("wStd").value) || 30;
       const wSpd = Number(document.getElementById("wSpd").value) || 35;
       const sum = wLat + wStd + wSpd || 100;
+      // 2026-11-11：权重统一到 state.rankWeights，Top500 与榜单共用同一套权重
+      state.rankWeights = { lat: wLat, stab: wStd, spd: wSpd };
+      safeSetLocalStorage("v2_rank_weights", JSON.stringify(state.rankWeights));
       const batch = BATCH_DB[state.currentBatchKey];
       if (!batch) return;
       batch.nodes.forEach(n => {
@@ -6724,9 +7348,10 @@
         const spdScore = Math.min(100, Math.max(0, n.spd_avg * 1.8));
         n.score = Number(((latScore * wLat + stdScore * wStd + spdScore * wSpd) / sum).toFixed(1));
       });
+      saveState();
       renderInspectRound();
       renderAggView();
-      showToast(`已按权重 ${wLat}/${wStd}/${wSpd} 重算评分`);
+      showToast(`已按权重 ${wLat}/${wStd}/${wSpd} 重算评分（Top500 同步生效）`);
     }
 
     function copyCurrentRoundLinks() {
@@ -7179,7 +7804,7 @@
       harvest: { enabled: true, schedule: "00:30" },
       test: { enabled: true, schedule: "01:00" },
       agg: { enabled: true, schedule: "04:55" },
-      review: { enabled: true, schedule: "sun_20" }
+      review: { enabled: true, schedule: "mon_09" }
     };
     let cronWorker = null;
     let cronLastFired = { harvest: "", test: "", agg: "", review: "" };
@@ -7438,11 +8063,20 @@
       }
     }
 
+    async function probePcBridgeSilent() {
+      const url = document.getElementById("bridgeUrlInput").value.trim().replace(/\/$/, "");
+      try {
+        const res = await fetch(url + "/api/status");
+        if (res.ok) { state.bridgeConnected = true; return true; }
+      } catch (_) {}
+      return false;
+    }
+
     // Android 物理返回键 & 侧滑返回手势统一拦截器
     let __lastBackExitTryMs = 0;
     window.handleAndroidBackButton = function() {
       // 1. 优先关闭任何打开的弹窗 Modal
-      const openModalIds = ["nodeModal", "optionsModal", "addSourceModal", "convertModal", "mergeRecommendModal"];
+      const openModalIds = ["nodeModal", "optionsModal", "addSourceModal", "convertModal", "mergeRecommendModal", "top500LibraryModal"];
       for (const mId of openModalIds) {
         const mEl = document.getElementById(mId);
         if (mEl && mEl.classList.contains("open")) {
@@ -7482,6 +8116,7 @@
         const gEl = document.getElementById("newUserQuickGuide");
         if (gEl) gEl.style.display = "none";
       }
+      applyNativeState();   // 原生文件中的源/设置优先合并（防止 localStorage 丢失导致新增源消失）
       loadPersistedBatches();
       loadCronConfig();
       initSeedPool();
@@ -7500,6 +8135,13 @@
         document.getElementById("standaloneConvertInput").value = initRec.map(n => n.raw).join("\n");
         runStandaloneConvertLive();
       }
+      // 静默探测 PC 桥接：若在线则把 PC 端订阅源/已发现源合并进 App（不弹窗打扰）
+      setTimeout(async () => {
+        if (await probePcBridgeSilent()) {
+          importPcSources(true);
+          importPcDiscoveredSources(true);
+        }
+      }, 1500);
     });
   </script>
 </body>

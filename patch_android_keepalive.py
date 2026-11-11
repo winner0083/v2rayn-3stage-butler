@@ -2045,6 +2045,37 @@ public class MainActivity extends BridgeActivity {
             }
         }
 
+        // 2026-11-11 App 状态持久化：源列表/设置写入应用私有文件，
+        // 不受 WebView localStorage 配额限制，防止「新增源隔天消失」
+        @JavascriptInterface
+        public String saveAppState(String json) {
+            try {
+                java.io.File f = new java.io.File(getFilesDir(), "app_state.json");
+                java.io.FileWriter w = new java.io.FileWriter(f, false);
+                w.write(json == null ? "{}" : json);
+                w.close();
+                return "ok";
+            } catch (Exception e) {
+                return "err:" + e.getMessage();
+            }
+        }
+
+        @JavascriptInterface
+        public String loadAppState() {
+            try {
+                java.io.File f = new java.io.File(getFilesDir(), "app_state.json");
+                if (!f.exists()) return "";
+                java.io.BufferedReader r = new java.io.BufferedReader(new java.io.FileReader(f));
+                StringBuilder sb = new StringBuilder();
+                String line;
+                while ((line = r.readLine()) != null) sb.append(line);
+                r.close();
+                return sb.toString();
+            } catch (Exception e) {
+                return "";
+            }
+        }
+
         @JavascriptInterface
         public void minimizeAppToBack() {
             runOnUiThread(() -> {

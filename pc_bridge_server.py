@@ -18,6 +18,7 @@ v2rayN 三段式管家 V2.0 — PC 真核桥接与双通道测源服务 (pc_brid
 import base64
 import json
 import os
+import re
 import time
 import urllib.request
 from datetime import datetime
@@ -178,6 +179,44 @@ class BridgeHandler(SimpleHTTPRequestHandler):
 
         if parsed.path == "/api/sources":
             self._send_json({"ok": True, "sources": read_real_sources()})
+            return
+
+        # 2026-11-11 新增：把 PC 端 v2rayn-auto 每日已发现的源（GitHub 仓库文件 /
+        # Telegram 频道）一次性提供给 App 导入，免去 App 逐个探测（大幅扩容搜索面）
+        if parsed.path == "/api/discovered_sources":
+            items = []
+            disc_path = AUTO_DIR / "discovered_sources.json"
+            if disc_path.exists():
+                try:
+                    d = json.loads(disc_path.read_text(encoding="utf-8", errors="ignore"))
+                    for name, info in d.items():
+                        if not isinstance(info, dict):
+                            continue
+                        uris = int(info.get("uris") or 0)
+                        ok = bool(info.get("ok"))
+                        for f in (info.get("files") or [])[:3]:
+                            if not re.search(r"\.(txt|yaml|yml|json|conf)$", f, re.I):
+                                continue
+                            items.append({
+                                "name": f"{name}/{f}",
+                                "url": f"https://raw.githubusercontent.com/{name}/HEAD/{f}",
+                                "count": uris,
+                                "ok": ok,
+                            })
+                except Exception:
+                    pass
+            chan_path = AUTO_DIR / "discovered_channels.json"
+            if chan_path.exists():
+                try:
+                    txt = chan_path.read_text(encoding="utf-8", errors="ignore")
+                    for c in dict.fromkeys(re.findall(r'"([A-Za-z0-9_]{4,40})"\s*:\s*\{', txt)):
+                        if c.lower() in ("joinchat", "addstickers", "share", "iv", "proxy", "login", "s"):
+                            continue
+                        items.append({"name": f"TG-{c}", "url": f"https://t.me/s/{c}", "count": 0, "ok": None})
+                except Exception:
+                    pass
+            items = items[:400]
+            self._send_json({"ok": True, "sources": items, "count": len(items)})
             return
 
         return super().do_GET()
